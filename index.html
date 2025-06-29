@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Three.js Debug UI</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        /* pointer-events: none; */
+        user-select: none;
+        box-sizing: border-box;
+      }
+      canvas {
+        display: block;
+      }
+      #debug {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        padding: 5px;
+        background: rgba(0, 0, 0, 0.6);
+        color: #0f0;
+        font-family: monospace;
+        font-size: 12px;
+      }
+
+      #reroll,
+      #upgrade {
+        pointer-events: auto;
+      }
+      /* 
+      #reroll *,
+      #upgrade * {
+        pointer-events: none;
+      } */
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://esm.sh/three",
+          "three/": "https://esm.sh/three/",
+          "GLTFLoader": "https://esm.sh/three/examples/jsm/loaders/GLTFLoader.js",
+          "OrbitControls": "https://esm.sh/three/examples/jsm/controls/OrbitControls.js",
+          "dat.gui": "https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.module.js"
+        }
+      }
+    </script>
+    <link
+      rel="shortcut icon"
+      href="./assets/icons/favicon.ico"
+      type="image/x-icon"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- <style type="text/tailwindcss">
+      @theme {
+        --color-clifford: #da373d;
+      }
+    </style> -->
+  </head>
+  <body>
+    <div
+      id="shop"
+      class="h-[20vh] w-screen lg:w-[60vw] bg-red-600 fixed bottom-1 left-0 lg:left-[15vw] text-white text-[1vw] duration-300"
+    >
+      <img
+        src="./assets/images/shop-frame.png"
+        class="w-full object-contain absolute bottom-0"
+        alt="shop-frame"
+      />
+      <!-- lv & exp -->
+      <div
+        class="flex items-center absolute left-[5vw] bottom-[13.6vw] max-lg:text-[1.8vw] lg:bottom-[8.25vw] lg:left-[3vw]"
+      >
+        <span id="lv">10</span>
+        <div
+          id="exp"
+          class="ml-[4.5vw] text-[1.1vw] lg:ml-[2vw] mt-[0.2vh] lg:text-[0.8vw]"
+        >
+          <span>10</span>/<span></span>40
+        </div>
+      </div>
+      <!-- buttons -->
+      <div
+        class="absolute flex flex-col w-[16vw] left-[1.4vw] bottom-[0.6vw] lg:bottom-[0.4vh] lg:w-[9.7vw] lg:left-[0.7vw] font-extralight"
+      >
+        <button
+          id="upgrade"
+          class="brightness-150 cursor-pointer hover:brightness-200 duration-150 relative flex-1"
+        >
+          <img
+            src="./assets/images/upgrade.png"
+            class="h-full w-full object-contain"
+            alt="shop-frame"
+          />
+          <span
+            class="absolute left-[1.1vw] top-[1.2vh] lg:top-[0.7vh] lg:left-[0.7vw] max-lg:text-[1.4vw]"
+            id="buy-xp-button-text"
+            >Buy XP</span
+          >
+        </button>
+        <button
+          id="reroll"
+          class="brightness-150 cursor-pointer hover:brightness-200 duration-150 relative flex-1"
+        >
+          <img
+            src="./assets/images/reroll.png"
+            class="h-full w-full object-contain"
+            alt="shop-frame"
+          />
+          <span
+            class="absolute left-[1.1vw] top-[1.2vh] lg:top-[0.7vh] lg:left-[0.7vw] max-lg:text-[1.4vw]"
+            id="reroll-button-text"
+            >Reroll</span
+          >
+        </button>
+      </div>
+      <!-- champ shop render -->
+      <div
+        id="champ-shop-list"
+        class="absolute flex items-center bottom-[0.8vw] lg:bottom-[0.4vw] left-[18vw] lg:left-[10.85vw] right-[0.8vw] h-[12vw] lg:h-[7vw]"
+      ></div>
+    </div>
+    <!-- left-bar -->
+    <div
+      class="fixed left-0 top-1/2 -translate-y-[60%] select-none"
+      id="left-bar"
+    >
+      <img
+        src="./assets/images/left-bar.png"
+        alt="left-bar"
+        draggable="false"
+        class="w-[5vw]"
+      />
+      <div
+        class="flex flex-col absolute top-[2.5vw] left-[0.6vw]"
+        id="equipment-bar"
+      >
+        <img
+          src="./assets/equipment_icons/consumables/Lesser_Champion_Duplicator_TFT_item.png"
+          alt="left-bar-icon"
+          class="w-[1.95vw] cursor-pointer h-[1.95vw] mb-[0.98vw]"
+          draggable="true"
+          data-item-id="0"
+          data-item-name="Lesser_Champion_Duplicator_TFT_item"
+        />
+      </div>
+    </div>
+    <div id="debug" class="hidden"></div>
+    <script type="module" src="./index.js"></script>
+    <script type="module" src="./main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.min.js"></script>
+    <script type="module" src="./assets/scripts/shop/shop.js"></script>
+  </body>
+</html>
