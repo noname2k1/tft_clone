@@ -19,7 +19,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       const data = await response.json();
       if (data.champs.length > 0) {
-        // console.log(data.champs);
+        console.log(data.champs);
         champShopList.replaceChildren();
         window.champsInRoll = data.champs;
         window.champsBought = Array.from({ length: 5 }).map((c) => 0);
@@ -51,27 +51,24 @@ document.addEventListener("DOMContentLoaded", function () {
             class="w-full"
           />
           <div class="absolute z-10 bottom-[2vw] left-[0.5vw] flex flex-col"> 
-            ${[...champ.origin, ...champ.class].reduce(
-              (text, trait, currIndex) => {
-                return (
-                  text +
-                  `<div class="flex items-center mt-[0.2vw]">
+            ${champ.traits.reduce((text, trait, currIndex) => {
+              return (
+                text +
+                `<div class="flex items-center mt-[0.2vw]">
                 <div class="relative flex items-center justify-center">
                   <div class="bg-black w-full h-full absolute p-2 rounded-full"></div>
                   <div class="${
                     currIndex === 0 ? "bg-yellow-500" : "bg-white"
                   } z-10 mask-[url('/assets/classes_icons/${trait.replace(
-                    " ",
-                    "_"
-                  )}_TFT_icon.svg')] mask-no-repeat mask-center mask-contain w-[0.8vw] h-[0.8vw]">
+                  " ",
+                  "_"
+                )}_TFT_icon.svg')] mask-no-repeat mask-center mask-contain w-[0.8vw] h-[0.8vw]">
                   </div>
                 </div>
               <span class="text-[0.65vw] ml-[0.4vw] text-xs tracking-wider">${trait}</span>
               </div>`
-                );
-              },
-              ""
-            )}
+              );
+            }, "")}
          </div>
           <span class="absolute z-10 bottom-[0.3vw] lg:bottom-[0.2vw] left-[0.6vw] text-[1.5vw] lg:text-[0.8vw]">
             ${champ.name}
