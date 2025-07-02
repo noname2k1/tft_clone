@@ -1,23 +1,18 @@
-export const useItem = async (id, name, champUuid, succesCallback) => {
-  try {
-    const response = await fetch(window.SERVER_PREFIX + "items/use", {
-      method: "POST", // Bắt buộc
-      headers: {
-        "Content-Type": "application/json", // Nếu gửi JSON
-      },
-      body: JSON.stringify({
-        id,
-        name,
-        champUuid,
-      }),
-    });
+import { customFetch } from "~~/utils/callApi";
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+export const useItem = async (id, name, champUuid, succesCallback) => {
+  // try {
+  await customFetch(
+    "items/use",
+    (data) => succesCallback(data),
+    (e) => {
+      console.log(e);
+    },
+    "POST",
+    {
+      id,
+      name,
+      champUuid,
     }
-    const data = await response.json();
-    succesCallback(data);
-  } catch (e) {
-    console.log(e);
-  }
+  );
 };

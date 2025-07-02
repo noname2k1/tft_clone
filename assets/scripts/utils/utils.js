@@ -1,10 +1,10 @@
-import * as THREE from "three";
-import * as dat from "dat.gui";
-import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
-import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js";
+import * as THREE from "https://esm.sh/three";
+import * as dat from "https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.module.js";
+import { FontLoader } from "https://esm.sh/three/examples/jsm/loaders/FontLoader.js";
+import { TextGeometry } from "https://esm.sh/three/examples/jsm/geometries/TextGeometry.js";
 const loader = new GLTFLoader();
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { debugFolders, debugObjs } from "../../../index.js";
+import { GLTFLoader } from "https://esm.sh/three/examples/jsm/loaders/GLTFLoader.js";
+import { debugFolders, debugObjs } from "~/variables.js";
 
 const lightAuto = (model) => {
   model?.traverse((child) => {

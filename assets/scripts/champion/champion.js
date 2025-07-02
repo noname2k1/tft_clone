@@ -1,8 +1,9 @@
-import * as THREE from "three";
-import { loadModel, lightAuto, createDebugGuiFolder } from "../utils/utils.js";
-import { COLOR_HP, COLOR_MP, MODEL_CACHES } from "../../../index.js";
-import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
-import { champScales } from "../data/champs.js";
+import * as THREE from "https://esm.sh/three";
+import { loadModel, lightAuto, createDebugGuiFolder } from "~~/utils/utils";
+import { COLOR_HP, COLOR_MP, MODEL_CACHES, TRAITS_INFOR } from "~/variables.js";
+import { clone } from "https://esm.sh/three/examples/jsm/utils/SkeletonUtils.js";
+import { champScales } from "~/assets/scripts/data/champs.js";
+import { draggableObjects } from "~/main";
 
 function getChampionScale(champName) {
   return (
@@ -112,13 +113,11 @@ function setupDragHelper(
   scene,
   champScene,
   size,
-  position,
+  champData,
   rotation,
   hpBar,
   manaBar,
-  statusBarGroup,
-  champName,
-  scale
+  statusBarGroup
 ) {
   const dragHelper = new THREE.Mesh(
     new THREE.BoxGeometry(1, 1, 1),
@@ -126,13 +125,13 @@ function setupDragHelper(
   );
   dragHelper.scale.set(size.x, size.y, 1);
   dragHelper.champScene = champScene;
-  dragHelper.position.set(...position);
+  dragHelper.position.set(...champData.position);
   dragHelper.rotation.copy(rotation);
   dragHelper.hpBar = hpBar;
   dragHelper.manaBar = manaBar;
   dragHelper.statusGroup = statusBarGroup;
-  dragHelper.name = champName;
-  dragHelper.scaleData = scale;
+  dragHelper.name = champData.name;
+  dragHelper.traits = champData.traits;
   scene.add(dragHelper);
   return dragHelper;
 }
@@ -160,24 +159,93 @@ function playChampionAnimation(mixer, champScene, animations) {
   animate();
 }
 
+const traitListELement = document.getElementById("trait-list");
+const addTraitItemToList = ({ trait, champs }) => {
+  const champCount = champs.length;
+  const traitItemElement = document.createElement("div");
+  traitItemElement.className =
+    "w-[3vw] cursor-pointer h-[3vw] mb-[0.2vw] relative flex items-center justify-center";
+  const traitItemHtml = `
+              <div
+                class="bg-black/80 rounded-lg h-[80%] absolute left-[1.2vw] flex items-center"
+              >
+                <div class="flex flex-col justify-center ml-[2.5vw] h-[80%] pr-5">
+                  <span class="inline-block text-[1vw] text-white/50 text-nowrap">${trait}</span>
+                  <div class="flex text-white/50 text-[0.75vw] mt-[-0.4vw]">
+                    <span class="">${champCount}</span>
+                    <span class="mx-1">/</span>
+                    <span>5</span>
+                  </div>
+                </div>
+              </div>
+              <img
+                src="./assets/images/style-0.png"
+                alt="left-bar-icon"
+                class="w-full h-full absolute"
+                draggable="true"
+                data-item-id="0"
+                data-item-name="Lesser_Champion_Duplicator_TFT_item"
+              />
+              <div
+                class="mask-[url('/assets/classes_icons/${trait.replaceAll(
+                  " ",
+                  "_"
+                )}_TFT_icon.svg')] bg-white/30 mask-no-repeat mask-center mask-contain w-[1.2vw] h-[1.2vw] absolute"
+              ></div>
+        `;
+  traitItemElement.innerHTML = traitItemHtml;
+  traitListELement?.appendChild(traitItemElement);
+};
+
+const renderTraits = () => {
+  const champsInBattlefield = draggableObjects.filter(
+    (champ) => champ.bfIndex != -1
+  );
+
+  const myTraits = {};
+  champsInBattlefield.forEach((champ) => {
+    champ?.traits.forEach((trait) => {
+      if (!myTraits[trait]) {
+        myTraits[trait] = [champ.name];
+      } else {
+        const isChampNameExisted = myTraits[trait].find(
+          (cn) => champ.name === cn
+        );
+        if (!isChampNameExisted) {
+          myTraits[trait].push(champ.name);
+        }
+      }
+    });
+  });
+
+  // console.log(myTraits);
+  const myTraitsArr = Object.entries(myTraits).map(([trait, champs]) => ({
+    trait,
+    champs,
+  }));
+
+  traitListELement?.replaceChildren();
+  myTraitsArr.forEach((trait) => {
+    addTraitItemToList(trait);
+  });
+};
+
 const addChampion = (
   scene,
   mixer,
-  champName = "",
-  callback = () => {},
-  position = [0, 0, 0],
-  championURL = "./assets/models/champions/rengar_(tft_set_14).glb"
+  champData = { name: "", url: "", position: [], traits: [] },
+  callback = () => {}
 ) => {
   const MODEL_VISIBLE = true;
-  const scale = getChampionScale(champName);
-  // console.log(champName);
+  const scale = getChampionScale(champData.name.replaceAll("_", " "));
+  // console.log(champData.name);
   // console.log(scale);
 
   const handleLoadModel = (gltf) => {
     const champScene = gltf.scene;
     scene.add(champScene);
     champScene.visible = MODEL_VISIBLE;
-    champScene.position.set(...position);
+    champScene.position.set(...champData.position);
     champScene.scale.set(...scale);
     champScene.rotation.x = -0.5;
     const size = gltf.size;
@@ -194,13 +262,11 @@ const addChampion = (
       scene,
       champScene,
       size,
-      position,
+      champData,
       champScene.rotation,
       hpBar,
       manaBar,
-      statusBarGroup,
-      champName,
-      scale
+      statusBarGroup
     );
 
     // Update bars
@@ -215,8 +281,8 @@ const addChampion = (
     callback(dragHelper);
   };
 
-  if (MODEL_CACHES[championURL]) {
-    const cached = MODEL_CACHES[championURL];
+  if (MODEL_CACHES[champData.url]) {
+    const cached = MODEL_CACHES[champData.url];
     const clonedScene = clone(cached.scene);
     const clonedGltf = {
       scene: clonedScene,
@@ -228,17 +294,17 @@ const addChampion = (
   }
 
   loadModel(
-    championURL,
+    champData.url,
     (gltf) => {
       const champScene = gltf.scene;
-      champScene.position.set(...position);
+      champScene.position.set(...champData.position);
       champScene.scale.set(...scale);
       champScene.rotation.x = -0.5;
       const box = new THREE.Box3().setFromObject(champScene, true);
       const size = new THREE.Vector3();
       box.getSize(size);
       gltf.size = size;
-      MODEL_CACHES[championURL] = gltf;
+      MODEL_CACHES[champData.url] = gltf;
       handleLoadModel(gltf);
     },
     (err) => {
@@ -248,4 +314,4 @@ const addChampion = (
   );
 };
 
-export { addChampion };
+export { addChampion, renderTraits };

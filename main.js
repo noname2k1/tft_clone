@@ -1,13 +1,16 @@
-import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import * as THREE from "https://esm.sh/three";
+import { OrbitControls } from "https://esm.sh/three/examples/jsm/controls/OrbitControls.js";
 import {
   createDebugGuiFolder,
   createImage,
   createText,
   lightAuto,
   loadModel,
-} from "./assets/scripts/utils/utils.js";
-import { addChampion } from "./assets/scripts/champion/champion.js";
+} from "~~/utils/utils.js";
+import {
+  addChampion,
+  renderTraits,
+} from "./assets/scripts/champion/champion.js";
 import {
   COLOR_DELETE_ZONE,
   COLOR_SELECTABLE,
@@ -15,9 +18,9 @@ import {
   COLOR_SELECTING,
   COLOR_DELETE_MOVEIN,
   debugOn,
-} from "./index.js";
-import { useItem } from "./assets/scripts/item/item.js";
-
+} from "~/variables.js";
+import { useItem } from "~~/item/item.js";
+import "~/assets/scripts/champion/champion.js";
 // Config
 const urlMap = "./assets/models/arenas/tft_default_arena.glb";
 const zMe = 11.5;
@@ -26,6 +29,7 @@ const xMes = Array.from({ length: 9 }, (_, i) => -9 + i * 2.1);
 // Scene, Camera, Controls
 const scene = new THREE.Scene();
 const loader = new THREE.TextureLoader();
+
 loader.load("./bg.jpg", (texture) => (scene.background = texture));
 const camera = new THREE.PerspectiveCamera(
   75,
@@ -319,6 +323,9 @@ function loadMap() {
     });
 
     renderer.domElement.addEventListener("mousemove", (event) => {
+      if (!controls.enabled) {
+        controls.enabled = true;
+      }
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -429,6 +436,7 @@ function loadMap() {
           }
         });
       } else if (nearestType === "bench") {
+        // console.log({ dragBenchIndex });
         selectedObject.bfIndex = -1;
         const existObjInBenchIndex = draggableObjects.find(
           (champ) => champ.benchIndex === dragBenchIndex
@@ -438,8 +446,8 @@ function loadMap() {
           existObjInBenchIndex.champScene.position.copy(currPos);
           existObjInBenchIndex.benchIndex = currBenchIndex;
           existObjInBenchIndex.bfIndex = currBfIndex;
-          selectedObject.benchIndex = dragBenchIndex;
         }
+        selectedObject.benchIndex = dragBenchIndex;
         benchCells.forEach(({ box, mesh }) => {
           const center = new THREE.Vector3();
           box.getCenter(center);
@@ -450,6 +458,11 @@ function loadMap() {
           }
         });
       }
+      // console.log({
+      //   bfIndex: selectedObject.bfIndex,
+      //   benchIndex: selectedObject.benchIndex,
+      // });
+      renderTraits();
       if (nearestCell) {
         selectedObject.position.set(nearestCell.x, 0.1, nearestCell.z);
         selectedObject.champScene.position.set(
@@ -521,15 +534,17 @@ function loadMap() {
                         addChampion(
                           scene,
                           mixer,
-                          targetObject.name,
+                          {
+                            name: targetObject.name,
+                            position: [xMes[i], 0.1, zMe],
+                            url: modelPathUrl,
+                            traits: targetObject.traits,
+                          },
                           (dragHelper) => {
                             dragHelper.benchIndex = i;
                             dragHelper.bfIndex = -1;
                             draggableObjects.push(dragHelper);
-                          },
-                          [xMes[i], 0.1, zMe],
-                          modelPathUrl,
-                          targetObject.scaleData
+                          }
                         );
                         consumableItem = true;
                         break;
@@ -596,7 +611,6 @@ champShopList.addEventListener("click", function (e) {
         .replace(". ", "_")
         .replace(" ", "_")
         .replace("'", "") || target.champName;
-    const scale = target.scaleData;
     const modelPathUrl =
       "./assets/models/champions/" + champName + "_(tft_set_14).glb";
     let found = false;
@@ -609,7 +623,12 @@ champShopList.addEventListener("click", function (e) {
         addChampion(
           scene,
           mixer,
-          champName,
+          {
+            name: champName,
+            position: [xMes[i], 0.1, zMe],
+            url: modelPathUrl,
+            traits: rollList[indexCard].traits,
+          },
           (dragHelper) => {
             dragHelper.benchIndex = i;
             dragHelper.bfIndex = -1;
@@ -617,10 +636,7 @@ champShopList.addEventListener("click", function (e) {
             addingFlag = false;
             champsBought[indexCard] = 1;
             target.classList.add("invisible");
-          },
-          [xMes[i], 0.1, zMe],
-          modelPathUrl,
-          scale
+          }
         );
         break;
       }
@@ -633,3 +649,19 @@ champShopList.addEventListener("click", function (e) {
     addingFlag = false;
   }
 });
+
+export { draggableObjects };
+
+function updateDOM() {
+  const el = document.querySelector("#app");
+  el.innerHTML = "";
+}
+
+updateDOM();
+
+// Vite HMR support
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    updateDOM(); // cập nhật lại UI thay vì reload
+  });
+}

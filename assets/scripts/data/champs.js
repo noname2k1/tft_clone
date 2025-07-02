@@ -187,7 +187,7 @@ const champScales = [
     scale: [0.015, 0.015, 0.015],
   },
   {
-    name: "Cho'Gath",
+    name: "ChoGath",
     cost: 4,
     scale: [0.008, 0.008, 0.008],
   },

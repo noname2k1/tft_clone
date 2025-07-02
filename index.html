@@ -2,39 +2,8 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Three.js Debug UI</title>
-    <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-        /* pointer-events: none; */
-        user-select: none;
-        box-sizing: border-box;
-      }
-      canvas {
-        display: block;
-      }
-      #debug {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        padding: 5px;
-        background: rgba(0, 0, 0, 0.6);
-        color: #0f0;
-        font-family: monospace;
-        font-size: 12px;
-      }
-
-      #reroll,
-      #upgrade {
-        pointer-events: auto;
-      }
-      /* 
-      #reroll *,
-      #upgrade * {
-        pointer-events: none;
-      } */
-    </style>
+    <title>TFT Clone (HTML, THREE.JS)</title>
+    <link rel="stylesheet" href="./index.css" />
     <script type="importmap">
       {
         "imports": {
@@ -61,7 +30,7 @@
   <body>
     <div
       id="shop"
-      class="h-[20vh] w-screen lg:w-[60vw] bg-red-600 fixed bottom-1 left-0 lg:left-[15vw] text-white text-[1vw] duration-300"
+      class="h-[20vh] w-screen lg:w-[60vw] bg-transparent fixed bottom-1 left-0 lg:left-[15vw] text-white text-[1vw] duration-300"
     >
       <img
         src="./assets/images/shop-frame.png"
@@ -72,14 +41,47 @@
       <div
         class="flex items-center absolute left-[5vw] bottom-[13.6vw] max-lg:text-[1.8vw] lg:bottom-[8.25vw] lg:left-[3vw]"
       >
-        <span id="lv">10</span>
+        <span id="lv">1</span>
         <div
           id="exp"
           class="ml-[4.5vw] text-[1.1vw] lg:ml-[2vw] mt-[0.2vh] lg:text-[0.8vw]"
         >
-          <span>10</span>/<span></span>40
+          <span id="left-exp"></span>/<span id="total-exp"></span>
         </div>
       </div>
+      <!-- exp bar -->
+      <div
+        class="absolute bg-[#1d4055] left-[1vw] bottom-[7.8vw] w-[9vw] h-[0.25vw] max-lg:bottom-[13vw] max-lg:left-[1.8vw] max-lg:h-[0.45vw] max-lg:w-[15vw]"
+      >
+        <div class="bg-[#adf1f0] h-full w-[10%]" id="exp-display"></div>
+      </div>
+      <!-- odds by level -->
+      <div
+        class="absolute left-[11.7vw] bottom-[9.3vw] text-[0.8vw] [&>span]:absolute max-lg:bottom-[15.4vw] max-lg:left-[20vw] max-lg:text-[1.2vw]"
+        id="odds"
+      >
+        <span class="" id="cost-1">10%</span>
+        <span class="left-[2.9vw] max-lg:left-[4.5vw]" id="cost-2">10%</span>
+        <span id="cost-3" class="left-[5.7vw] max-lg:left-[9.2vw]">10%</span>
+        <span id="cost-4" class="left-[8.5vw] max-lg:left-[13.8vw]">10%</span>
+        <span id="cost-5" class="left-[11.2vw] max-lg:left-[18.2vw]">10%</span>
+      </div>
+      <!-- gold -->
+      <span
+        id="my-gold"
+        class="absolute bottom-[8.25vw] left-[29.8vw] font-semibold max-lg:bottom-[13.9vw] max-lg:text-[1.3vw] max-lg:left-[50vw]"
+      ></span>
+      <button
+        class="absolute right-[1.5vw] cursor-pointer bottom-[8vw] w-[1.2vw] h-auto max-lg:w-[2vw] max-lg:right-[2.5vw] max-lg:bottom-[13.25vw]"
+        id="lock-shop"
+      >
+        <img
+          src="./assets/images/lock-shop.png"
+          class="w-full h-full invisible"
+          alt="lock-shop-alt"
+        />
+      </button>
+
       <!-- buttons -->
       <div
         class="absolute flex flex-col w-[16vw] left-[1.4vw] bottom-[0.6vw] lg:bottom-[0.4vh] lg:w-[9.7vw] lg:left-[0.7vw] font-extralight"
@@ -123,7 +125,7 @@
     </div>
     <!-- left-bar -->
     <div
-      class="fixed left-0 top-1/2 -translate-y-[60%] select-none"
+      class="fixed left-0 top-1/2 -translate-y-[60%] select-none min-w-[10vw]"
       id="left-bar"
     >
       <img
@@ -132,6 +134,7 @@
         draggable="false"
         class="w-[5vw]"
       />
+      <!-- equipment list -->
       <div
         class="flex flex-col absolute top-[2.5vw] left-[0.6vw]"
         id="equipment-bar"
@@ -145,12 +148,57 @@
           data-item-name="Lesser_Champion_Duplicator_TFT_item"
         />
       </div>
+      <!-- trait list -->
+      <div
+        class="flex flex-col absolute left-[3.5vw] top-[3vw] text-white"
+        id="trait-list"
+      >
+        <!-- <div
+          class="w-[3.5vw] cursor-pointer h-[3.5vw] mb-[0.2vw] relative flex items-center justify-center"
+        >
+          <div
+            class="bg-black/80 rounded-lg h-[80%] absolute left-[1.2vw] flex items-center"
+          >
+            <div
+              class="rounded-md bg-white/20 ml-[2.5vw] h-[80%] px-[0.5vw] border border-white flex items-center justify-center"
+            >
+              4
+            </div>
+            <div class="flex flex-col justify-center ml-[0.7vw] h-[80%] pr-5">
+              <span class="inline-block text-[1vw]">A.M.P.</span>
+              <div class="flex text-white/50 text-[0.75vw] mt-[-0.2vw]">
+                <span class="text-white">3</span>
+                <span class="mx-1">></span>
+                <span>5</span>
+                <span class="mx-1">></span>
+                <span>7</span>
+                <span class="mx-1">></span>
+                <span>10</span>
+              </div>
+            </div>
+          </div>
+          <img
+            src="./assets/images/style-1.png"
+            alt="left-bar-icon"
+            class="w-full h-full absolute"
+            draggable="true"
+            data-item-id="0"
+            data-item-name="Lesser_Champion_Duplicator_TFT_item"
+          />
+          <div
+            class="z-[11] mask-[url('/assets/classes_icons/A.M.P._TFT_icon.svg')] bg-black mask-no-repeat mask-center mask-contain w-[1.5vw] h-[1.5vw] absolute"
+          ></div>
+        </div> -->
+      </div>
     </div>
+
+    <div id="app"></div>
     <div id="debug" class="hidden"></div>
-    <script type="module" src="./index.js"></script>
-    <script type="module" src="./main.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.min.js"></script>
+    <script type="module" src="./variables.js"></script>
+    <script type="module" src="./main.js"></script>
     <script type="module" src="./assets/scripts/shop/shop.js"></script>
+    <!-- <script type="module" src="./assets/scripts/champion/champion.js"></script> -->
     <script type="module" src="./assets/scripts/others/others.js"></script>
   </body>
 </html>
