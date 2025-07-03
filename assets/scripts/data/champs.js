@@ -2,14 +2,14 @@ const champScales = [
   {
     name: "Alistar",
     cost: 1,
-    scale: [0.013, 0.015, 0.015],
+    scale: [0.013, 0.013, 0.013],
   },
   {
-    name: "Dr. Mundo",
+    name: "Dr Mundo",
     cost: 1,
-    scale: [0.009, 0.009, 0.009],
+    scale: [0.008, 0.008, 0.008],
   },
-  { name: "Jax", cost: 1 },
+  { name: "Jax", cost: 1, scale: [0.008, 0.008, 0.008] },
   {
     name: "Kindred",
     cost: 1,
@@ -28,7 +28,7 @@ const champScales = [
   {
     name: "Poppy",
     cost: 1,
-    scale: [0.009, 0.009, 0.009],
+    scale: [0.0085, 0.0085, 0.0085],
   },
   {
     name: "Seraphine",

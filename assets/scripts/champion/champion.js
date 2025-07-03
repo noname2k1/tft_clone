@@ -250,6 +250,8 @@ const addChampion = (
     champScene.rotation.x = -0.5;
     const size = gltf.size;
 
+    // console.log(champData);
+
     // Status bars
     const { statusBarGroup, hpBar, manaBar } = setupStatusBars(
       scene,
@@ -277,7 +279,7 @@ const addChampion = (
 
     // Animation
     playChampionAnimation(mixer, champScene, gltf.animations);
-
+    // console.log(dragHelper.position);
     callback(dragHelper);
   };
 

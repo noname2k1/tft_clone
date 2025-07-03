@@ -1,4 +1,7 @@
 export const debugOn = false;
+export const tacticianSpeed = 0.08;
+export const bgUrl = "./bg.jpg";
+export const arenaUrl = "./assets/models/arenas/tft_default_arena.glb";
 export const debugObjs = [];
 export const debugFolders = [];
 export const MODEL_CACHES = [];

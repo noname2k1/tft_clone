@@ -18,19 +18,25 @@ import {
   COLOR_SELECTING,
   COLOR_DELETE_MOVEIN,
   debugOn,
+  tacticianSpeed,
+  arenaUrl,
+  bgUrl,
 } from "~/variables.js";
 import { useItem } from "~~/item/item.js";
 import "~/assets/scripts/champion/champion.js";
+import Model from "./assets/scripts/Model.js";
+import { RightClickEffect } from "./assets/scripts/effects.js";
 // Config
-const urlMap = "./assets/models/arenas/tft_default_arena.glb";
-const zMe = 11.5;
-const xMes = Array.from({ length: 9 }, (_, i) => -9 + i * 2.1);
+const zMe = 12;
+// let xMes = Array.from({ length: 9 }, (_, i) => -9 + i * 2.1);
+let xMes = [];
 
 // Scene, Camera, Controls
 const scene = new THREE.Scene();
 const loader = new THREE.TextureLoader();
 
-loader.load("./bg.jpg", (texture) => (scene.background = texture));
+loader.load(bgUrl, (texture) => (scene.background = texture));
+
 const camera = new THREE.PerspectiveCamera(
   75,
   window.innerWidth / window.innerHeight,
@@ -38,19 +44,30 @@ const camera = new THREE.PerspectiveCamera(
   2000
 );
 camera.position.set(0, 30, 25);
+// camera.rotation.x = -0.65;
 
 const controls = new OrbitControls(camera, document.body);
 function setupControls() {
   controls.enableZoom = true;
   controls.enableRotate = false;
   controls.enablePan = true;
-  controls.minDistance = 13;
-  controls.maxDistance = 21;
+  controls.minDistance = 15;
+  controls.maxDistance = 18;
   controls.maxPolarAngle = Math.PI / 2;
-  controls.target.set(0, 0, 5);
+  controls.target.set(0, 2, 6);
   controls.update();
 }
 setupControls();
+
+const setupLight = () => {
+  const light = new THREE.DirectionalLight(0xffffff, 2); // tăng từ 1 → 1.5
+  light.position.set(10, 10, 10);
+  scene.add(light);
+
+  const ambient = new THREE.AmbientLight(0xffffff, 1); // tăng từ 0.5 → 0.8
+  scene.add(ambient);
+};
+setupLight();
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 function setupRenderer() {
@@ -74,6 +91,7 @@ let bfCells = [];
 let benchCells = [];
 let deleteZone, textMesh, trashIcon;
 const radius = 1.3;
+const itemsOutBag = [];
 
 // Utility
 function updateStatusBars() {
@@ -127,6 +145,9 @@ createBattleField(4, 7, radius);
 
 // Bench
 function createBench(rows, cols, size, gap = 0.2) {
+  const sqPositionX = -9.5;
+  const sqScaleX = 1.05;
+  const sqScaleZ = 0.9;
   if (squareGroup) scene.remove(squareGroup);
   squareGroup = new THREE.Group();
   benchCells = [];
@@ -158,10 +179,13 @@ function createBench(rows, cols, size, gap = 0.2) {
         new THREE.Vector3(x + size, 1, z + size)
       );
       benchCells.push({ mesh: lineSegments, box });
+      xMes[col] = x + sqPositionX + sqScaleX;
     }
   }
-  squareGroup.position.set(-10.05, 0, zMe - 0.65);
-  squareGroup.scale.set(1.1, 1, 0.9);
+
+  squareGroup.scale.set(sqScaleX, 1, sqScaleZ);
+  squareGroup.position.set(sqPositionX, 0, zMe - sqScaleZ);
+  // squareGroup.updateMatrixWorld();
   scene.add(squareGroup);
 }
 createBench(1, 9, 1.5, 0.45);
@@ -221,14 +245,26 @@ function buyChampion(champWantBuy) {
 }
 const deleteBox = new THREE.Box3().setFromObject(deleteZone);
 
+let tactician,
+  tacticianTarget = null;
+let tacticianMixerGlobal;
+let tacticianActions = {};
+let isRunning = false;
+const tacticianY = 0;
+let arenaBox;
+
+let rightClickEffect;
+
 // Map Loader & Drag Logic
-function loadMap() {
-  loadModel(urlMap, (gltf) => {
-    const map = gltf.scene;
-    lightAuto(map);
+function loadArena() {
+  loadModel(arenaUrl, (gltf) => {
+    const arena = gltf.scene;
+    // console.log(arena);
+    arenaBox = new THREE.Box3().setFromObject(arena.children[0]);
+    lightAuto(arena);
     if (debugOn) {
       [
-        { name: "Map (M)", object: map, key: "m", isOpen: false },
+        { name: "arena (A)", object: arena, key: "a", isOpen: false },
         {
           name: "SquareGrid (S)",
           object: squareGroup,
@@ -252,12 +288,12 @@ function loadMap() {
         },
       ].forEach(createDebugGuiFolder);
     }
-    scene.add(map);
-    map.position.set(0, -1, 0);
-    map.rotation.y = -0.3;
-    mixer = new THREE.AnimationMixer(map);
+    scene.add(arena);
+    arena.position.set(0, -2, 0);
+    arena.rotation.y = -0.3;
+    mixer = new THREE.AnimationMixer(arena);
     gltf.animations.forEach((clip) => mixer.clipAction(clip).play());
-
+    rightClickEffect = new RightClickEffect(scene);
     // Drag logic
     let isDragging = false,
       selectedObject = null,
@@ -300,7 +336,22 @@ function loadMap() {
     }
     disabledOrbitControls();
 
+    const clickRaycaster = new THREE.Raycaster();
+    const clickPointer = new THREE.Vector2();
+    const clickPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // mặt phẳng y = 0
     renderer.domElement.addEventListener("pointerdown", (event) => {
+      if (event.button === 1) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        clickPointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        clickPointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        clickRaycaster.setFromCamera(clickPointer, camera);
+
+        const intersectPoint = new THREE.Vector3();
+        clickRaycaster.ray.intersectPlane(clickPlane, intersectPoint);
+
+        console.log("📌 Tọa độ 3D khi nhấn chuột giữa:", intersectPoint);
+      }
       controls.enabled = false;
       getPointer(event);
       raycaster.setFromCamera(pointer, camera);
@@ -475,8 +526,34 @@ function loadMap() {
       displayGrid(false, true);
       dragBenchIndex = -1;
       currPos = null;
+      console.log(selectedObject.position);
       selectedObject = null;
       isDragging = false;
+    });
+
+    renderer.domElement.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      if (!tactician) return;
+
+      const rect = renderer.domElement.getBoundingClientRect();
+      const pointer = new THREE.Vector2(
+        ((event.clientX - rect.left) / rect.width) * 2 - 1,
+        -((event.clientY - rect.top) / rect.height) * 2 + 1
+      );
+
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(pointer, camera);
+
+      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      const intersection = new THREE.Vector3();
+      raycaster.ray.intersectPlane(plane, intersection);
+
+      if (arenaBox && arenaBox.containsPoint(intersection)) {
+        tacticianTarget = intersection;
+        rightClickEffect.trigger(intersection);
+      } else {
+        console.log("⛔ Ngoài phạm vi bản đồ.");
+      }
     });
 
     // Equipment drag & drop
@@ -577,7 +654,49 @@ function loadMap() {
     });
   });
 }
-loadMap();
+
+// load tactician
+const tacticianModel = new Model(
+  scene,
+  {
+    name: "coin",
+    url: "./assets/models/tacticians/abyssia.glb",
+    scale: [0.015, 0.015, 0.015],
+    position: [-9.25, tacticianY, 9.5],
+    onLoaded: (tacticianObj) => {
+      // console.log(tacticianObj.modelScene);
+      tactician = tacticianObj.modelScene;
+      tactician.rotation.x = -0.5;
+      tactician.box = tacticianObj.box;
+      tacticianActions = {
+        idle: tacticianObj.mixer.clipAction(
+          tacticianObj.animations.find(
+            (anim) =>
+              anim.name.toLowerCase().startsWith("idle") ||
+              anim.name.toLowerCase() !== "idlein"
+          )
+        ),
+        run: tacticianObj.mixer.clipAction(
+          tacticianObj.animations.find((a) => a.name.includes("Run_Haste"))
+        ),
+      };
+      tacticianMixerGlobal = tacticianObj.mixer;
+      tacticianActions.idle.play();
+    },
+  },
+  { enabled: false, color: "blue" }
+);
+
+// load coin (ex)
+const coin = new Model(scene, {
+  name: "coin",
+  url: "./assets/models/items/coin.glb",
+  scale: [0.1, 0.1, 0.1],
+  position: [0, 0, 0],
+  onLoaded: () => {},
+});
+itemsOutBag.push(coin);
+loadArena();
 
 // Animate
 function animate() {
@@ -585,6 +704,60 @@ function animate() {
   const delta = clock.getDelta();
   if (mixer) mixer.update(delta);
   renderer.render(scene, camera);
+  coin.update(delta);
+  tacticianModel.update(delta);
+
+  if (tactician && tacticianTarget) {
+    const pos = tactician.position;
+    const dir = new THREE.Vector3().subVectors(tacticianTarget, pos);
+    dir.y = 0;
+    const distance = dir.length();
+    const putItemDistance = 0.5;
+    if (distance > putItemDistance) {
+      // Chuyển animation sang Run nếu chưa chạy
+      if (!isRunning) {
+        tacticianActions.idle?.stop();
+        tacticianActions.run?.play();
+        isRunning = true;
+      }
+
+      dir.normalize();
+
+      // Quay mặt hướng chạy (Y-axis only)
+      const angle = Math.atan2(dir.x, dir.z);
+      tactician.rotation.y = angle;
+
+      // Di chuyển
+      tactician.position.add(dir.multiplyScalar(tacticianSpeed)); // tốc độ
+      tactician.position.y = tacticianY;
+    } else {
+      // Đến nơi, dừng lại
+      tactician.position.copy(tacticianTarget);
+      tactician.position.y = tacticianY;
+      tacticianTarget = null;
+      // console.log("stop");
+      if (isRunning) {
+        tacticianActions.run?.stop();
+        tacticianActions.idle?.play();
+        isRunning = false;
+      }
+      // console.log(tactician);
+      itemsOutBag.forEach((item, index) => {
+        const collision = item.checkCollision(tactician);
+        // console.log(collision);
+        if (collision) {
+          item.removeFromScene(scene);
+          itemsOutBag.splice(index, 1);
+          console.log("nhặt coin");
+        }
+      });
+    }
+
+    if (tacticianMixerGlobal) tacticianMixerGlobal.update(clock.getDelta());
+  }
+
+  // right click effect
+  if (rightClickEffect) rightClickEffect.update();
 }
 animate();
 
@@ -625,7 +798,7 @@ champShopList.addEventListener("click", function (e) {
           mixer,
           {
             name: champName,
-            position: [xMes[i], 0.1, zMe],
+            position: [xMes[i], 0, zMe],
             url: modelPathUrl,
             traits: rollList[indexCard].traits,
           },
@@ -651,17 +824,3 @@ champShopList.addEventListener("click", function (e) {
 });
 
 export { draggableObjects };
-
-function updateDOM() {
-  const el = document.querySelector("#app");
-  el.innerHTML = "";
-}
-
-updateDOM();
-
-// Vite HMR support
-if (import.meta.hot) {
-  import.meta.hot.accept(() => {
-    updateDOM(); // cập nhật lại UI thay vì reload
-  });
-}

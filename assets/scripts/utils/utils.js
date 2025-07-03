@@ -2,9 +2,9 @@ import * as THREE from "https://esm.sh/three";
 import * as dat from "https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.module.js";
 import { FontLoader } from "https://esm.sh/three/examples/jsm/loaders/FontLoader.js";
 import { TextGeometry } from "https://esm.sh/three/examples/jsm/geometries/TextGeometry.js";
-const loader = new GLTFLoader();
 import { GLTFLoader } from "https://esm.sh/three/examples/jsm/loaders/GLTFLoader.js";
 import { debugFolders, debugObjs } from "~/variables.js";
+const loader = new GLTFLoader();
 
 const lightAuto = (model) => {
   model?.traverse((child) => {
