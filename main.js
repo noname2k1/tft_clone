@@ -249,6 +249,7 @@ let tactician,
   tacticianTarget = null;
 let tacticianMixerGlobal;
 let tacticianActions = {};
+let taticianAnimations;
 let isRunning = false;
 const tacticianY = 0;
 let arenaBox;
@@ -313,11 +314,27 @@ function loadArena() {
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     }
 
+    const disabledOrbitControlsIds = ["shop", "animations", "left-bar"];
     const shop = document.getElementById("shop");
     function disabledOrbitControls() {
-      shop.addEventListener("mouseenter", () => (controls.enabled = false));
-      shop.addEventListener("mousemove", () => (controls.enabled = false));
-      shop.addEventListener("mouseleave", () => (controls.enabled = true));
+      disabledOrbitControlsIds.forEach((id) => {
+        const element = document.getElementById(id);
+        if (element) {
+          element.addEventListener(
+            "mouseenter",
+            () => (controls.enabled = false)
+          );
+          element.addEventListener(
+            "mousemove",
+            () => (controls.enabled = false)
+          );
+          element.addEventListener(
+            "mouseleave",
+            () => (controls.enabled = true)
+          );
+        }
+      });
+
       if (debugOn) {
         const debugContainer = document.querySelector(".dg.ac");
         debugContainer.addEventListener(
@@ -664,6 +681,7 @@ const tacticianModel = new Model(
     scale: [0.015, 0.015, 0.015],
     position: [-9.25, tacticianY, 9.5],
     onLoaded: (tacticianObj) => {
+      taticianAnimations = tacticianObj.animations;
       // console.log(tacticianObj.modelScene);
       tactician = tacticianObj.modelScene;
       tactician.rotation.x = -0.5;
@@ -688,15 +706,59 @@ const tacticianModel = new Model(
 );
 
 // load coin (ex)
-const coin = new Model(scene, {
-  name: "coin",
-  url: "./assets/models/items/coin.glb",
-  scale: [0.1, 0.1, 0.1],
-  position: [0, 0, 0],
-  onLoaded: () => {},
+Array.from({ length: 10 }).forEach(() => {
+  const coin = new Model(scene, {
+    name: "coin",
+    url: "./assets/models/items/coin.glb",
+    scale: [0.07, 0.07, 0.07],
+    position: [Math.random() * 10, 0, Math.random() * 10],
+    onLoaded: () => {},
+  });
+  itemsOutBag.push(coin);
 });
-itemsOutBag.push(coin);
+
 loadArena();
+
+window.addEventListener("keydown", (e) => {
+  if (e.key === "a") {
+    const animations = document.getElementById("animations");
+    animations.classList.remove("hidden");
+    if (taticianAnimations) {
+      // console.log(taticianAnimations);
+      taticianAnimations.forEach((ani) => {
+        const animationItem = document.createElement("li");
+        animationItem.className =
+          "hover:text-white cursor-pointer text-center p-1 hover:bg-black/50";
+        animationItem.innerHTML = ani.name.replaceAll("_", " ");
+        animationItem.addEventListener("click", function (e) {
+          const action = tacticianMixerGlobal?.clipAction(ani);
+          if (!action) return;
+
+          // Dừng các animation đang chạy
+          tacticianMixerGlobal.stopAllAction();
+
+          // Chạy animation được chọn
+          action.reset();
+          action.setLoop(THREE.LoopOnce);
+          action.clampWhenFinished = true;
+          action.play();
+
+          animations.classList.add("hidden");
+
+          // Lắng nghe sự kiện 'finished' từ mixer
+          const onFinished = (e) => {
+            if (e.action === action) {
+              tacticianActions.idle?.play();
+              tacticianMixerGlobal.removeEventListener("finished", onFinished);
+            }
+          };
+          tacticianMixerGlobal.addEventListener("finished", onFinished);
+        });
+        animations.appendChild(animationItem);
+      });
+    }
+  }
+});
 
 // Animate
 function animate() {
@@ -704,7 +766,9 @@ function animate() {
   const delta = clock.getDelta();
   if (mixer) mixer.update(delta);
   renderer.render(scene, camera);
-  coin.update(delta);
+  itemsOutBag.forEach((item) => {
+    item.update(delta);
+  });
   tacticianModel.update(delta);
 
   if (tactician && tacticianTarget) {
@@ -712,8 +776,7 @@ function animate() {
     const dir = new THREE.Vector3().subVectors(tacticianTarget, pos);
     dir.y = 0;
     const distance = dir.length();
-    const putItemDistance = 0.5;
-    if (distance > putItemDistance) {
+    if (distance > 0.05) {
       // Chuyển animation sang Run nếu chưa chạy
       if (!isRunning) {
         tacticianActions.idle?.stop();
@@ -741,17 +804,17 @@ function animate() {
         tacticianActions.idle?.play();
         isRunning = false;
       }
-      // console.log(tactician);
-      itemsOutBag.forEach((item, index) => {
-        const collision = item.checkCollision(tactician);
-        // console.log(collision);
-        if (collision) {
-          item.removeFromScene(scene);
-          itemsOutBag.splice(index, 1);
-          console.log("nhặt coin");
-        }
-      });
     }
+    // console.log(tactician);
+    itemsOutBag.forEach((item, index) => {
+      const collision = item.checkCollision(tactician);
+      // console.log(collision);
+      if (collision) {
+        item.removeFromScene(scene);
+        itemsOutBag.splice(index, 1);
+        console.log("nhặt coin");
+      }
+    });
 
     if (tacticianMixerGlobal) tacticianMixerGlobal.update(clock.getDelta());
   }
