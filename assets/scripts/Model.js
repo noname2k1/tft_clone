@@ -7,6 +7,7 @@ export default class Model {
   animations = [];
   box = new THREE.Box3();
   helperObj;
+  name = "";
 
   constructor(
     scene,
@@ -17,16 +18,19 @@ export default class Model {
       scale = [0.01, 0.01, 0.01],
       onLoaded = () => {},
     },
+    glow = { enabled: false, color: "0xffff00" },
     helper = { enabled: false, color: 0xff0000 }
   ) {
+    const default_colors = {
+      glow: 0xffff00,
+      helper: 0xff0000,
+    };
     loadModel(url, (gltf) => {
       this.modelScene = gltf.scene;
       this.modelScene.name = name;
+      this.name = name;
       this.setPosition(...position);
       this.setScale(...scale);
-
-      // Add to scene
-      scene.add(this.modelScene);
 
       // Animation
       if (gltf.animations.length > 0) {
@@ -45,10 +49,28 @@ export default class Model {
 
       // Initial helper
       if (helper.enabled) {
-        this.helperObj = new THREE.Box3Helper(this.box, helper.color);
+        this.helperObj = new THREE.Box3Helper(
+          this.box,
+          helper.color ? helper.color : default_colors.helper
+        );
         scene.add(this.helperObj);
       }
+
+      if (glow.enabled) {
+        const glowGeometry = new THREE.SphereGeometry(0.6, 32, 32);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+          color: glow.color ? glow.color : default_colors.glow,
+          transparent: true,
+          opacity: 0.4,
+        });
+        const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
+        glowMesh.position.copy(this.modelScene.clone().position);
+        this.modelScene["glow"] = glowMesh;
+        scene.add(glowMesh);
+      }
       onLoaded(this);
+      // Add to scene
+      scene.add(this.modelScene);
     });
   }
 
@@ -91,6 +113,7 @@ export default class Model {
 
   removeFromScene(scene) {
     if (this.modelScene && scene) {
+      scene.remove(this.modelScene.glow);
       scene.remove(this.modelScene);
       if (this.helperObj) {
         scene.remove(this.helperObj);

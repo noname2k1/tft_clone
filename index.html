@@ -198,6 +198,37 @@
       class="bg-white min-w-[15vw] overflow-x-hidden max-h-[20vw] overflow-y-auto fixed top-0 right-0 p-1 hidden"
     ></ul>
     <div id="debug" class="hidden"></div>
+    <!-- bg loading -->
+    <div
+      class="fixed z-[1000] top-0 left-0 right-0 bottom-0 bg-[#010a13] flex items-center justify-center duration-200"
+      id="loading-all"
+    >
+      <img
+        src="./bg-loading.png"
+        alt="loading"
+        class="w-full h-full object-contain absolute"
+      />
+      <div class="absolute flex flex-col items-center">
+        <img
+          src="./assets/images/logo.png"
+          alt="tft-logo"
+          class="w-[6vw] h-[6vw] object-cover"
+        />
+        <span
+          class="bg-gradient-to-r from-[#dad464] to-[#7b6b4b] bg-clip-text text-transparent font-bold text-2xl max-lg:text-lg uppercase"
+          >Loading</span
+        >
+        <div
+          class="w-[15.8vw] h-[1vw] rounded-md border border-[#7b6b4b] overflow-hidden"
+          id="loading-assets"
+        >
+          <div
+            class="h-full bg-gradient-to-r from-[#004766] to-[#49c5d4] w-0"
+            id="loading-assets-progress"
+          ></div>
+        </div>
+      </div>
+    </div>
     <script src="https://cdn.jsdelivr.net/npm/dat.gui@0.7.9/build/dat.gui.min.js"></script>
     <script type="module" src="./variables.js"></script>
     <script type="module" src="./main.js"></script>
