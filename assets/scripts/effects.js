@@ -1,9 +1,11 @@
 import * as THREE from "https://esm.sh/three";
 
 class RightClickEffect {
-  constructor(scene) {
+  #color;
+  constructor(scene, color = 0xffff00) {
     this.scene = scene;
     this.clock = new THREE.Clock();
+    this.#color = color;
     this.effectMesh = this.createEffectMesh();
     this.scene.add(this.effectMesh);
     this.active = false;
@@ -12,7 +14,7 @@ class RightClickEffect {
   createEffectMesh() {
     const geometry = new THREE.RingGeometry(0.3, 0.35, 32);
     const material = new THREE.MeshBasicMaterial({
-      color: 0xffff00,
+      color: this.#color,
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 1,

@@ -7,9 +7,9 @@ import {
   toggleLockShop,
 } from "~/assets/scripts/others/goldExp";
 
-document.addEventListener("contextmenu", function (event) {
-  event.preventDefault(); // chặn menu chuột phải
-});
+// document.addEventListener("contextmenu", function (event) {
+//   event.preventDefault(); // chặn menu chuột phải
+// });
 
 document.addEventListener("DOMContentLoaded", async function () {
   const lockShopBtn = document.getElementById("lock-shop");

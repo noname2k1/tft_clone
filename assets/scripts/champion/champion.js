@@ -129,7 +129,7 @@ function setupDragHelper(
   dragHelper.rotation.copy(rotation);
   dragHelper.hpBar = hpBar;
   dragHelper.manaBar = manaBar;
-  dragHelper.statusGroup = statusBarGroup;
+  dragHelper.statusBarGroup = statusBarGroup;
   dragHelper.name = champData.name;
   dragHelper.traits = champData.traits;
   scene.add(dragHelper);

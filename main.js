@@ -1,11 +1,14 @@
 import * as THREE from "https://esm.sh/three";
 import { OrbitControls } from "https://esm.sh/three/examples/jsm/controls/OrbitControls.js";
 import {
+  addHelper,
   createDebugGuiFolder,
   createImage,
   createText,
   lightAuto,
   loadModel,
+  splitModelsFromGLB,
+  transparentMeshs,
 } from "~~/utils/utils.js";
 import {
   addChampion,
@@ -17,50 +20,60 @@ import {
   COLOR_MOVEABLE,
   COLOR_SELECTING,
   COLOR_DELETE_MOVEIN,
+  ARENA_DATAS,
   debugOn,
   tacticianSpeed,
-  arenaUrl,
   bgUrl,
+  LOW_GRAPHICS_MODE,
 } from "~/variables.js";
 import { useItem } from "~~/item/item.js";
 import "~/assets/scripts/champion/champion.js";
 import Model from "./assets/scripts/Model.js";
 import { RightClickEffect } from "./assets/scripts/effects.js";
+import SecretSphere from "./assets/scripts/objects/SecretSphere.js";
+import TFTCarousel from "./assets/scripts/objects/Carousel.js";
 // Config
-const zMe = 12;
+
 let xMes = [];
+let xBenchEnemy = [];
 // Globals
-let squareGroup;
+let mySquareGroup;
+let enemySquareGroup;
 let mixer;
 const clock = new THREE.Clock();
 let draggableObjects = [];
+let bfEnemyCells = [];
+let benchEnemiesCells = [];
 let bfCells = [];
 let benchCells = [];
 let deleteZone, textMesh, trashIcon;
-const radius = 1.3;
 const itemsOutBag = [];
+const tftArguments = [];
+const tacticians = [];
 let tactician,
   tacticianTarget = null;
 let tacticianMixerGlobal;
 let tacticianActions = {};
 let taticianAnimations;
 let isRunning = false;
-const tacticianY = 0;
+const primaryY = 0;
 let arenaBox;
 let rightClickEffect;
 let loadingAllPercent = 0;
+const selectedArena = ARENA_DATAS[0];
+let zMe = selectedArena.bench[0][2];
+let zBenchEnemy = 0;
+
+const debugControls = false;
+
 // elements
 const loadingAll = document.getElementById("loading-all");
 const loadingAssetsProgress = document.getElementById(
   "loading-assets-progress"
 );
-
 // Scene, Camera, Controls
 const scene = new THREE.Scene();
 const loader = new THREE.TextureLoader();
-
-loader.load(bgUrl, (texture) => (scene.background = texture));
-
 const camera = new THREE.PerspectiveCamera(
   75,
   window.innerWidth / window.innerHeight,
@@ -68,28 +81,53 @@ const camera = new THREE.PerspectiveCamera(
   2000
 );
 camera.position.set(0, 30, 25);
-// camera.rotation.x = -0.65;
+// background
+loader.load(bgUrl, (texture) => (scene.background = texture));
 
 const controls = new OrbitControls(camera, document.body);
-function setupControls() {
-  controls.enableZoom = true;
-  controls.enableRotate = false;
-  controls.enablePan = true;
-  controls.minDistance = 15;
-  controls.maxDistance = 18;
-  controls.maxPolarAngle = Math.PI / 2;
+function setupControls(rotate = false, zoom = true, pan = true) {
+  controls.enableZoom = zoom;
+  controls.enableRotate = rotate; // ✅ bật xoay
+  controls.enablePan = pan;
+  controls.minDistance = debugControls ? 5 : 15;
+  controls.maxDistance = debugControls ? 50 : 25;
+
+  // ✅ Cho phép xoay lên/xuống toàn phần
+  controls.minPolarAngle = 0;
+  controls.maxPolarAngle = Math.PI;
+
+  // ✅ Cho phép xoay ngang toàn phần
+  controls.minAzimuthAngle = -Infinity;
+  controls.maxAzimuthAngle = Infinity;
+
   controls.target.set(0, 2, 6);
   controls.update();
 }
-setupControls();
+setupControls(debugControls);
 
 const setupLight = () => {
-  const light = new THREE.DirectionalLight(0xffffff, 2); // tăng từ 1 → 1.5
-  light.position.set(10, 10, 10);
-  scene.add(light);
+  // const light = new THREE.DirectionalLight(0xffffff, 2); // tăng từ 1 → 1.5
+  // light.position.set(10, 10, 10);
+  // scene.add(light);
 
-  const ambient = new THREE.AmbientLight(0xffffff, 1); // tăng từ 0.5 → 0.8
-  scene.add(ambient);
+  // const ambient = new THREE.AmbientLight(0xffffff, 1); // tăng từ 0.5 → 0.8
+  // scene.add(ambient);
+
+  const light = new THREE.DirectionalLight(0xffffff, 2);
+  light.position.set(10, 10, 10);
+  light.castShadow = true;
+
+  // Tùy chỉnh chất lượng bóng
+  light.shadow.mapSize.width = 2048;
+  light.shadow.mapSize.height = 2048;
+  light.shadow.camera.near = 1;
+  light.shadow.camera.far = 50;
+  light.shadow.camera.left = -20;
+  light.shadow.camera.right = 20;
+  light.shadow.camera.top = 20;
+  light.shadow.camera.bottom = -20;
+
+  scene.add(light);
 };
 setupLight();
 
@@ -102,6 +140,8 @@ function setupRenderer() {
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   document.body.appendChild(renderer.domElement);
 }
 setupRenderer();
@@ -109,14 +149,39 @@ setupRenderer();
 // Utility
 function updateStatusBars() {
   draggableObjects.forEach((obj) => {
-    if (obj.statusGroup) {
-      obj.statusGroup.position.copy(obj.position);
+    if (obj.statusBarGroup) {
+      obj.statusBarGroup.position.copy(obj.position);
     }
   });
 }
 
+const updateEnemyChamps = () => {
+  console.log({ benchEnemiesCells, bfEnemyCells });
+  benchEnemiesCells.forEach((benchEnemy, index) => {
+    console.log({ [index]: benchEnemy });
+  });
+  // add champ to enemy's bench
+  // addChampion(
+  //   scene,
+  //   mixer,
+  //   {
+  //     name: champName,
+  //     position: [xBenchEnemy[xBenchEnemy.length - 1 - i], 0, zBenchEnemy],
+  //     url: modelPathUrl,
+  //     traits: rollList[indexCard].traits,
+  //   },
+  //   (dragHelper) => {}
+  // );
+};
+
 // Battle Field
-function createBattleField(rows, cols, radius) {
+function createBattleField(
+  rows,
+  cols,
+  data = { radius: 0, startX: 0, startZ: 0 },
+  owner = "me"
+) {
+  const { radius, startX, startZ } = data;
   const hexMaterial = new THREE.LineBasicMaterial({
     color: COLOR_MOVEABLE,
     linewidth: 100,
@@ -135,11 +200,9 @@ function createBattleField(rows, cols, radius) {
   const hexGeometry = new THREE.BufferGeometry().setFromPoints(
     hexPoints.map((p) => new THREE.Vector3(p.x, 0.01, p.y))
   );
-  const dis = 1.08;
+  const dis = 1.2;
   const hexWidth = Math.sqrt(3) * radius * dis;
   const hexRowSpacing = 1.5 * radius * dis;
-  const startX = -8,
-    startZ = 2.7;
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       const offsetX = (row % 2) * (hexWidth / 2);
@@ -150,19 +213,29 @@ function createBattleField(rows, cols, radius) {
       scene.add(hex);
       hex.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(hex);
-      bfCells.push({ mesh: hex, center: new THREE.Vector3(x, 0, z), box });
+      if (owner === "me") {
+        bfCells.push({ mesh: hex, center: new THREE.Vector3(x, 0, z), box });
+      } else {
+        bfEnemyCells.push({
+          mesh: hex,
+          center: new THREE.Vector3(x, 0, z),
+          box,
+        });
+      }
     }
   }
 }
-createBattleField(4, 7, radius);
+createBattleField(4, 7, selectedArena.battlefield);
+createBattleField(4, 7, selectedArena.enemyBattlefield, "enemy");
 
 // Bench
-function createBench(rows, cols, size, gap = 0.2) {
-  const sqPositionX = -9.5;
-  const sqScaleX = 1.05;
-  const sqScaleZ = 0.9;
+function createBench(rows, cols, size, gap = 0.2, position, owner = "me") {
+  let squareGroup =
+    owner === "me" && owner !== "enemy" ? mySquareGroup : enemySquareGroup;
   if (squareGroup) scene.remove(squareGroup);
   squareGroup = new THREE.Group();
+  // squareGroup.scale.set(...scale);
+
   benchCells = [];
   const lineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 });
   const step = size + gap;
@@ -185,23 +258,57 @@ function createBench(rows, cols, size, gap = 0.2) {
         geometry,
         lineMaterial.clone()
       );
-      lineSegments.visible = false;
+      lineSegments.visible = true;
       squareGroup.add(lineSegments);
       const box = new THREE.Box3(
         new THREE.Vector3(x, 0, z),
         new THREE.Vector3(x + size, 1, z + size)
       );
       benchCells.push({ mesh: lineSegments, box });
-      xMes[col] = x + sqPositionX + sqScaleX;
+      if (owner === "me") {
+        xMes[col] = x + position[0] + (size - 1);
+      } else {
+        xBenchEnemy[col] = x + position[0] + (size - 1);
+      }
+    }
+    if (owner === "me") {
+      zMe = position[2] + (size - 1);
+    } else {
+      zBenchEnemy = position[2] + (size - 1);
     }
   }
-
-  squareGroup.scale.set(sqScaleX, 1, sqScaleZ);
-  squareGroup.position.set(sqPositionX, 0, zMe - sqScaleZ);
-  // squareGroup.updateMatrixWorld();
+  squareGroup.updateMatrixWorld();
+  squareGroup.position.set(...position);
   scene.add(squareGroup);
+  if (debugOn) {
+    const objectDebug = {
+      name: owner + "'s SquareGroup (" + owner.charAt(0).toUpperCase() + ")",
+      object: squareGroup,
+      key: owner.charAt(0),
+      isOpen: false,
+    };
+    createDebugGuiFolder(objectDebug);
+  }
+  return squareGroup;
 }
-createBench(1, 9, 1.5, 0.45);
+
+// my bench
+mySquareGroup = createBench(
+  1,
+  9,
+  2,
+  selectedArena.benchGap,
+  selectedArena.bench[0]
+);
+// enemy's bench
+enemySquareGroup = createBench(
+  1,
+  9,
+  2,
+  selectedArena.benchGap,
+  selectedArena.enemyBench[0],
+  "enemy"
+);
 
 function displayGrid(hideBattleField = false, hideBench = false) {
   bfCells.forEach(({ mesh }) => (mesh.visible = !hideBattleField));
@@ -210,7 +317,7 @@ function displayGrid(hideBattleField = false, hideBench = false) {
 
 // Delete Zone
 function createDeleteZone() {
-  const dzWidth = 20,
+  const dzWidth = 25,
     dzDepth = 4;
   deleteZone = new THREE.Mesh(
     new THREE.BoxGeometry(dzWidth, 0.1, dzDepth),
@@ -221,32 +328,33 @@ function createDeleteZone() {
     })
   );
   deleteZone.visible = false;
-  deleteZone.position.set(0, 0.01, 14.8);
+  deleteZone.position.set(0 - selectedArena.arena[2][0], 0.01, 19);
+  deleteZone.updateMatrixWorld();
   scene.add(deleteZone);
-  createImage(
-    scene,
-    (m) => (trashIcon = m),
-    "./assets/images/trash-icon.png",
-    [-3.2, deleteZone.position.y + 0.11, 14.4],
-    false,
-    [1, 1],
-    -Math.PI / 2
-  );
-  createText(
-    scene,
-    [-2.5, 0.1, deleteZone.position.z],
-    (tm) => (textMesh = tm),
-    "Buy Champion",
-    0x000000,
-    false
-  );
+  // createImage(
+  //   scene,
+  //   (m) => (trashIcon = m),
+  //   "./assets/images/trash-icon.png",
+  //   [-3.2, deleteZone.position.y + 0.11, 14.4],
+  //   false,
+  //   [1, 1],
+  //   -Math.PI / 2
+  // );
+  // createText(
+  //   scene,
+  //   [-2.5, 0.1, deleteZone.position.z],
+  //   (tm) => (textMesh = tm),
+  //   "Buy Champion",
+  //   0x000000,
+  //   false
+  // );
 }
 createDeleteZone();
 
 function displayDeleteZone(isShow = true) {
   deleteZone.visible = isShow;
-  textMesh.visible = isShow;
-  trashIcon.visible = isShow;
+  // textMesh.visible = isShow;
+  // trashIcon.visible = isShow;
 }
 
 function buyChampion(champWantBuy) {
@@ -254,28 +362,39 @@ function buyChampion(champWantBuy) {
     (obj) => obj.uuid !== champWantBuy.uuid
   );
   scene.remove(champWantBuy.champScene);
+  scene.remove(champWantBuy.statusBarGroup);
   scene.remove(champWantBuy);
 }
-const deleteBox = new THREE.Box3().setFromObject(deleteZone);
+
+const sendMessageChangeLineupToEnemy = () => {
+  const champsInBf = [];
+  const champsInBench = [];
+  draggableObjects.forEach((obj, index) => {
+    let champArray = obj.benchIndex !== -1 ? champsInBench : champsInBf;
+    champArray.push({
+      [index]: obj,
+    });
+  });
+  console.log({ champsInBench, champsInBf });
+};
 
 // Map Loader & Drag Logic
 function loadArena() {
   loadModel(
-    arenaUrl,
+    selectedArena.url,
     (gltf) => {
       const arena = gltf.scene;
+      arena.name = selectedArena.name;
+      arena.position.set(...selectedArena.arena[0]);
+      arena.scale.set(...selectedArena.arena[2]);
+      arenaBox = new THREE.Box3().setFromObject(arena);
       // console.log(arena);
-      arenaBox = new THREE.Box3().setFromObject(arena.children[0]);
+      // addHelper(scene, arenaBox);
       lightAuto(arena);
       if (debugOn) {
-        [
+        const debugObjects = [
           { name: "arena (A)", object: arena, key: "a", isOpen: false },
-          {
-            name: "SquareGrid (S)",
-            object: squareGroup,
-            key: "s",
-            isOpen: false,
-          },
+
           { name: "Camera (C)", object: camera, key: "c", isOpen: false },
           {
             name: "Delete Zone (D)",
@@ -283,7 +402,6 @@ function loadArena() {
             key: "d",
             isOpen: false,
           },
-          { name: "TM (T)", object: trashIcon, key: "t", isOpen: false },
           {
             name: "Controls (V)",
             object: controls.target,
@@ -291,14 +409,20 @@ function loadArena() {
             key: "v",
             isOpen: false,
           },
-        ].forEach(createDebugGuiFolder);
+        ];
+        debugObjects.forEach(createDebugGuiFolder);
       }
       scene.add(arena);
-      arena.position.set(0, -2, 0);
-      arena.rotation.y = -0.3;
+      transparentMeshs(arena);
+      arena.receiveShadow = true;
       mixer = new THREE.AnimationMixer(arena);
-      gltf.animations.forEach((clip) => mixer.clipAction(clip).play());
-      rightClickEffect = new RightClickEffect(scene);
+      if (gltf.animations.length > 0) {
+        const animations = gltf.animations;
+        mixer = new THREE.AnimationMixer(arena);
+        const firstAnimation = animations[0];
+        mixer.clipAction(firstAnimation).play();
+      }
+      rightClickEffect = new RightClickEffect(scene, "#c9f73d");
       // Drag logic
       let isDragging = false,
         selectedObject = null,
@@ -361,7 +485,7 @@ function loadArena() {
       const clickPointer = new THREE.Vector2();
       const clickPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // mặt phẳng y = 0
       renderer.domElement.addEventListener("pointerdown", (event) => {
-        if (event.button === 1) {
+        if (event.button === 2 && debugControls) {
           const rect = renderer.domElement.getBoundingClientRect();
           clickPointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
           clickPointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -371,9 +495,11 @@ function loadArena() {
           const intersectPoint = new THREE.Vector3();
           clickRaycaster.ray.intersectPlane(clickPlane, intersectPoint);
 
-          console.log("📌 Tọa độ 3D khi nhấn chuột giữa:", intersectPoint);
+          console.log("📌 Tọa độ 3D chuột phải:", intersectPoint);
         }
-        controls.enabled = false;
+        if (!debugControls) {
+          controls.enabled = false;
+        }
         getPointer(event);
         raycaster.setFromCamera(pointer, camera);
         const intersects = raycaster.intersectObjects(draggableObjects, true);
@@ -411,6 +537,7 @@ function loadArena() {
             : "default";
         if (selectedObject) {
           const worldPos = selectedObject.position.clone();
+          const deleteBox = new THREE.Box3().setFromObject(deleteZone);
           deleteZone.material.color.set(
             deleteBox.containsPoint(worldPos)
               ? COLOR_DELETE_MOVEIN
@@ -439,7 +566,7 @@ function loadArena() {
         for (let i = 0; i < bfCells.length; i++) {
           const { mesh, center } = bfCells[i];
           const dist = center.distanceTo(worldPos);
-          if (dist < radius * 0.95) {
+          if (dist < selectedArena.battlefield.radius * 0.95) {
             mesh.material.color.set(COLOR_SELECTABLE);
             highlighted = true;
             dragBfIndex = i;
@@ -450,7 +577,7 @@ function loadArena() {
         if (!highlighted) {
           for (let i = 0; i < benchCells.length; i++) {
             const { mesh, box } = benchCells[i];
-            const localPos = squareGroup.worldToLocal(worldPos.clone());
+            const localPos = mySquareGroup?.worldToLocal(worldPos.clone());
             if (box.containsPoint(localPos)) {
               mesh.material.color.set(COLOR_SELECTABLE);
               dragBenchIndex = i;
@@ -482,7 +609,7 @@ function loadArena() {
         benchCells.forEach(({ box }, index) => {
           const center = new THREE.Vector3();
           box.getCenter(center);
-          const worldCenter = squareGroup.localToWorld(center.clone());
+          const worldCenter = mySquareGroup?.localToWorld(center.clone());
           const dist = worldCenter.distanceTo(worldPos);
           if (dist < minDistance) {
             minDistance = dist;
@@ -491,6 +618,7 @@ function loadArena() {
           }
         });
         let highlightMesh = null;
+        const deleteBox = new THREE.Box3().setFromObject(deleteZone);
         if (deleteBox.containsPoint(worldPos)) {
           buyChampion(selectedObject);
           nearestType = null;
@@ -529,17 +657,14 @@ function loadArena() {
           benchCells.forEach(({ box, mesh }) => {
             const center = new THREE.Vector3();
             box.getCenter(center);
-            const worldCenter = squareGroup.localToWorld(center.clone());
+            const worldCenter = mySquareGroup.localToWorld(center.clone());
             if (worldCenter.distanceTo(nearestCell) < 0.01) {
               highlightMesh = mesh;
               highlightMesh.material.color.set(COLOR_SELECTING);
             }
           });
         }
-        // console.log({
-        //   bfIndex: selectedObject.bfIndex,
-        //   benchIndex: selectedObject.benchIndex,
-        // });
+
         renderTraits();
         if (nearestCell) {
           selectedObject.position.set(nearestCell.x, 0.1, nearestCell.z);
@@ -553,7 +678,6 @@ function loadArena() {
         displayGrid(false, true);
         dragBenchIndex = -1;
         currPos = null;
-        console.log(selectedObject.position);
         selectedObject = null;
         isDragging = false;
       });
@@ -576,10 +700,9 @@ function loadArena() {
         raycaster.ray.intersectPlane(plane, intersection);
 
         if (arenaBox && arenaBox.containsPoint(intersection)) {
-          tacticianTarget = intersection;
+          // console.log("righclick");
           rightClickEffect.trigger(intersection);
-        } else {
-          console.log("⛔ Ngoài phạm vi bản đồ.");
+          tacticianTarget = intersection;
         }
       });
 
@@ -685,75 +808,138 @@ function loadArena() {
     },
     (progress) => {
       loadingAllPercent = (progress.loaded / progress.total) * 100;
-      let loadingPercent = 0;
-      const loadingInterval = setInterval(() => {
-        if (loadingPercent < 90) {
-          loadingPercent += 10;
-          loadingAssetsProgress.style.width = loadingPercent + "%";
-        } else if (loadingAllPercent >= 100) {
-          clearInterval(loadingInterval);
-          loadingAssetsProgress.style.width = "100%";
-          setTimeout(() => {
-            loadingAll.style.visibility = "hidden";
-          }, 250);
-        }
-      }, 100);
+      // const percentIncreaseAfter = 50;
+      // const percentIncreaseAmount = 20;
+      // let loadingPercent = 0;
+      // const loadingInterval = setInterval(() => {
+      //   if (loadingPercent < 90) {
+      //     loadingPercent += percentIncreaseAmount;
+      //     loadingAssetsProgress.style.width = loadingPercent + "%";
+      //   } else if (loadingAllPercent >= 100) {
+      //     clearInterval(loadingInterval);
+      //     loadingAssetsProgress.style.width = "100%";
+      //     setTimeout(() => {
+      //       loadingAll.style.visibility = "hidden";
+      //     }, 100);
+      //   }
+      // }, percentIncreaseAfter);
+      loadingAssetsProgress.style.width = loadingAllPercent + "%";
+      if (loadingAllPercent >= 100) {
+        setTimeout(() => {
+          loadingAll.style.visibility = "hidden";
+        }, 100);
+      }
     }
   );
 }
 
-// load tactician
-const tacticianModel = new Model(
-  scene,
-  {
-    name: "Ninh Nam",
-    url: "./assets/models/tacticians/abyssia.glb",
-    scale: [0.015, 0.015, 0.015],
-    position: [-9.25, tacticianY, 9.5],
-    onLoaded: (tacticianObj) => {
-      taticianAnimations = tacticianObj.animations;
-      // console.log(tacticianObj.modelScene);
-      tactician = tacticianObj.modelScene;
-      tactician.rotation.x = -0.5;
-      tactician.box = tacticianObj.box;
-      tacticianActions = {
-        idle: tacticianObj.mixer.clipAction(
-          tacticianObj.animations.find(
-            (anim) =>
-              anim.name.toLowerCase().startsWith("idle") ||
-              anim.name.toLowerCase() !== "idlein"
-          )
-        ),
-        run: tacticianObj.mixer.clipAction(
-          tacticianObj.animations.find((a) => a.name.includes("Run_Haste"))
-        ),
-      };
-      tacticianMixerGlobal = tacticianObj.mixer;
-      tacticianActions.idle.play();
-    },
-  },
-  { enabled: false, color: "blue" }
-);
-
-// load coin (ex)
-Array.from({ length: 10 }).forEach(() => {
-  const coin = new Model(
+const LoadAllModel = () => {
+  // load tactician
+  const tacticianModel = new Model(
     scene,
     {
-      name: "coin",
-      url: "./assets/models/items/coin.glb",
-      scale: [0.04, 0.04, 0.04],
-      position: [Math.random() * 10, 0, Math.random() * 10],
-      onLoaded: (model) => {},
+      name: "Ninh Nam",
+      url: "./assets/models/tacticians/abyssia.glb",
+      scale: [0.02, 0.02, 0.02],
+      position: selectedArena.tactacianFirstPos,
+      onLoaded: (tacticianObj) => {
+        taticianAnimations = tacticianObj.animations;
+        // console.log(tacticianObj.modelScene);
+        tactician = tacticianObj.modelScene;
+        tactician.rotation.x = -0.5;
+        tactician.box = tacticianObj.box;
+        tacticianActions = {
+          idle: tacticianObj.mixer.clipAction(
+            tacticianObj.animations.find(
+              (anim) =>
+                anim.name.toLowerCase().startsWith("idle") ||
+                anim.name.toLowerCase() !== "idlein"
+            )
+          ),
+          run: tacticianObj.mixer.clipAction(
+            tacticianObj.animations.find((a) => a.name.includes("Run_Haste"))
+          ),
+        };
+        tacticianMixerGlobal = tacticianObj.mixer;
+        tacticianActions.idle.play();
+      },
     },
-    { enabled: true }
-    // { enabled: true, color: "blue" }
+    { enabled: false, color: "blue" },
+    { enabled: false }
   );
+  tacticians.push(tacticianModel);
 
-  itemsOutBag.push(coin);
-});
+  // load coin (ex)
+  const itemOutBagY = 1;
+  const coinCount = 10;
+  Array.from({ length: coinCount }).forEach(() => {
+    const coin = new Model(
+      scene,
+      {
+        name: "coin",
+        url: "./assets/models/items/coin.glb",
+        scale: [0.04, 0.04, 0.04],
+        position: [Math.random() * 10, itemOutBagY, Math.random() * 10],
+        onLoaded: (model) => {},
+      },
+      { enabled: true }
+      // { enabled: true, color: "blue" }
+    );
 
-loadArena();
+    itemsOutBag.push(coin);
+  });
+
+  // load arguments
+  const swordPositions = [
+    [-9.5, 0, 0],
+    [9.5, 0, 0],
+  ];
+  swordPositions.forEach((pos) => {
+    const sword = new Model(scene, {
+      name: "argument sword",
+      url: "./assets/models/arguments/sword.glb",
+      position: pos,
+      scale: [0.018, 0.018, 0.018],
+      onLoaded: (_this) => {},
+      debug: false,
+    });
+    tftArguments.push(sword);
+  });
+  // load eye-catching things
+  if (!LOW_GRAPHICS_MODE) {
+    if (selectedArena.arguments.includes("fire")) {
+      const firePositions = [
+        [-15.6, 2, 16.8],
+        [13.2, 2, 16.8],
+        [-13.8, 2, -18],
+        [15, 2, -18],
+      ];
+      // load fire
+      firePositions.forEach((firePos) => {
+        const fireBall = new Model(scene, {
+          name: "fire ball",
+          url: "./assets/models/others/fire_animation.glb",
+          position: firePos,
+          scale: [0.8, 0.4, 0.6],
+          interact: false,
+          debug: false,
+        });
+        tftArguments.push(fireBall);
+      });
+    }
+  }
+
+  // load secret sphere
+  const orb = new SecretSphere(scene, [3, itemOutBagY, 3], "#F4F4F4");
+  const itemOrb = new SecretSphere(scene, [9, itemOutBagY, 9], "blue", "white");
+  itemsOutBag.push(orb);
+  itemsOutBag.push(itemOrb);
+  // load carousel
+  // const carousel = new TFTCarousel(scene, 8, 12);
+  // setTimeout(() => carousel.deactivateBarrier(2), 3000);
+  loadArena();
+};
+LoadAllModel();
 
 // open tactician's animations panel
 window.addEventListener("keydown", (e) => {
@@ -806,7 +992,13 @@ function animate() {
   itemsOutBag.forEach((item) => {
     item.update(delta);
   });
-  tacticianModel.update(delta);
+  tftArguments.forEach((item) => {
+    item.update(delta);
+  });
+  tacticians.forEach((tactician) => {
+    tactician.update(delta);
+  });
+  // carousel.update();
 
   if (tactician && tacticianTarget) {
     const pos = tactician.position;
@@ -814,7 +1006,6 @@ function animate() {
     dir.y = 0;
     const distance = dir.length();
     if (distance > 0.05) {
-      // Chuyển animation sang Run nếu chưa chạy
       if (!isRunning) {
         tacticianActions.idle?.stop();
         tacticianActions.run?.play();
@@ -822,34 +1013,36 @@ function animate() {
       }
 
       dir.normalize();
-
-      // Quay mặt hướng chạy (Y-axis only)
-      const angle = Math.atan2(dir.x, dir.z);
-      tactician.rotation.y = angle;
-
-      // Di chuyển
-      tactician.position.add(dir.multiplyScalar(tacticianSpeed)); // tốc độ
-      tactician.position.y = tacticianY;
+      tactician.rotation.y = Math.atan2(dir.x, dir.z);
+      tactician.position.add(dir.multiplyScalar(tacticianSpeed));
+      tactician.position.y = selectedArena.tactacianFirstPos[1];
+      // if (!carousel.checkBarrierCollision(tactician)) {
+      //   // ✅ Được di chuyển
+      //   tactician.position.add(dir.multiplyScalar(tacticianSpeed));
+      //   tactician.position.y = selectedArena.tactacianFirstPos[1];;
+      // } else {
+      //   // Đẩy ngược lại 1 đoạn nhỏ
+      //   const pushBack = dir.clone().negate().multiplyScalar(0.2);
+      //   tactician.position.add(pushBack);
+      //   tactician.position.y = selectedArena.tactacianFirstPos[1];;
+      //   tactician.rotation.y = Math.atan2(dir.x, dir.z); // xoay theo hướng di chuyển
+      // }
     } else {
-      // Đến nơi, dừng lại
       tactician.position.copy(tacticianTarget);
-      tactician.position.y = tacticianY;
+      tactician.position.y = selectedArena.tactacianFirstPos[1];
       tacticianTarget = null;
-      // console.log("stop");
       if (isRunning) {
         tacticianActions.run?.stop();
         tacticianActions.idle?.play();
         isRunning = false;
       }
     }
-    // console.log(tactician);
+
     itemsOutBag.forEach((item, index) => {
-      const collision = item.checkCollision(tactician);
-      // console.log(collision);
-      if (collision) {
-        item.removeFromScene(scene);
+      if (item.checkCollision(tactician)) {
         itemsOutBag.splice(index, 1);
         console.log("nhặt " + item.name);
+        item.removeFromScene();
       }
     });
 
@@ -909,8 +1102,23 @@ champShopList.addEventListener("click", function (e) {
             addingFlag = false;
             champsBought[indexCard] = 1;
             target.classList.add("invisible");
+            sendMessageChangeLineupToEnemy();
           }
         );
+
+        addChampion(
+          scene,
+          mixer,
+          {
+            name: champName,
+            position: [xBenchEnemy[xBenchEnemy.length - 1 - i], 0, zBenchEnemy],
+            url: modelPathUrl,
+            traits: rollList[indexCard].traits,
+          },
+          (dragHelper) => {}
+        );
+        benchEnemiesCells[xBenchEnemy.length - 1 - i] = champName;
+        updateEnemyChamps();
         break;
       }
     }

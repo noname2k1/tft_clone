@@ -1,10 +1,12 @@
-export const debugOn = false;
+export const debugOn = true;
 export const tacticianSpeed = 0.08;
 export const bgUrl = "./bg.jpg";
-export const arenaUrl = "./assets/models/arenas/tft_default_arena.glb";
+// export const arenaUrl = "./assets/models/arenas/tft_arena_default.glb";
 export const debugObjs = [];
+export const LOW_GRAPHICS_MODE = false;
 export const debugFolders = [];
 export const MODEL_CACHES = [];
+export const ARGUMENTS_CACHES = [];
 export const TRAITS_INFOR = [];
 export const EXP_TABLE = {
   1: 0, // turn 1, cannot up level
@@ -18,6 +20,58 @@ export const EXP_TABLE = {
   9: 66,
   10: 80,
 };
+export const ARENA_DATAS = [
+  {
+    name: "default",
+    url: "./assets/models/arenas/tft_arena_default.glb",
+    arena: [
+      [0, -0.5, 1],
+      [0, 0, 0],
+      [0.145, 0.15, 0.15],
+    ],
+    battlefield: {
+      radius: 1.75,
+      startX: -12,
+      startZ: 0.85,
+    },
+    enemyBattlefield: { radius: 1.75, startX: -12, startZ: -11.5 },
+    bench: [
+      [-13, 0, 13.8],
+      [0, 0, 0],
+      [1.5, 1.5, 1.5],
+    ],
+    enemyBench: [
+      [-11.2, 0, -16.5],
+      [0, 0, 0],
+      [1.5, 1.5, 1.5],
+    ],
+    benchGap: 0.8,
+    tactacianFirstPos: [-14.5, 0, 9.5],
+    arguments: ["fire"],
+  },
+  {
+    name: "galaxies",
+    url: "./assets/models/arenas/tft_arena_galaxies.glb",
+    arena: [
+      [0, -0.5, 0],
+      [0, 0, 0],
+      [9, 7.5, 9],
+    ],
+    battlefield: {
+      radius: 1.6,
+      startX: -9.5,
+      startZ: 2,
+    },
+    bench: [
+      [-13, 0, 13.8],
+      [0, 0, 0],
+      [1.5, 1.5, 1.5],
+    ],
+    benchGap: 0.95,
+    tactacianFirstPos: [-16.8, 0, 12.4],
+    arguments: [],
+  },
+];
 // color:
 export const COLOR_SELECTABLE = 0xf2e77c;
 export const COLOR_MOVEABLE = 0x77caff;

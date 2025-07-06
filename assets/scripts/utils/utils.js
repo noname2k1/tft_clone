@@ -18,6 +18,28 @@ const lightAuto = (model) => {
   });
 };
 
+function splitModelsFromGLB(url) {
+  return new Promise((resolve, reject) => {
+    {
+      loadModel(
+        url,
+        (gltf) => {
+          const root = gltf.scene;
+          console.log(gltf);
+          resolve(root.children.map((child) => child.clone()));
+        },
+        (error) => {
+          console.log("error at splitModelsFromGLB: ", error);
+          reject({
+            error,
+            value: [],
+          });
+        }
+      );
+    }
+  });
+}
+
 const loadModel = (
   url,
   onLoad,
@@ -40,23 +62,23 @@ const createDebugGuiFolder = (obj, cb = null) => {
     folder.add(obj.object, "z", -100, 100).onChange(() => obj?.parent.update());
   } else {
     const posFolder = folder.addFolder("Position");
-    posFolder.add(obj.object.position, "x", -500, 500).step(0.1);
-    posFolder.add(obj.object.position, "y", -500, 500).step(0.1);
-    posFolder.add(obj.object.position, "z", -500, 500).step(0.1);
+    posFolder.add(obj.object.position, "x", -500, 500).step(0.001);
+    posFolder.add(obj.object.position, "y", -500, 500).step(0.001);
+    posFolder.add(obj.object.position, "z", -500, 500).step(0.001);
     posFolder.open();
 
     // Folder con: rotation
     const rotFolder = folder.addFolder("Rotation");
-    rotFolder.add(obj.object.rotation, "x", -Math.PI, Math.PI).step(0.01);
-    rotFolder.add(obj.object.rotation, "y", -Math.PI, Math.PI).step(0.01);
-    rotFolder.add(obj.object.rotation, "z", -Math.PI, Math.PI).step(0.01);
+    rotFolder.add(obj.object.rotation, "x", -Math.PI, Math.PI).step(0.001);
+    rotFolder.add(obj.object.rotation, "y", -Math.PI, Math.PI).step(0.001);
+    rotFolder.add(obj.object.rotation, "z", -Math.PI, Math.PI).step(0.001);
     rotFolder.open();
 
     // Folder con: scale
     const scaleFolder = folder.addFolder("Scale");
-    scaleFolder.add(obj.object.scale, "x", 0, 10).step(0.01);
-    scaleFolder.add(obj.object.scale, "y", 0, 10).step(0.01);
-    scaleFolder.add(obj.object.scale, "z", 0, 10).step(0.01);
+    scaleFolder.add(obj.object.scale, "x", 0, 10).step(0.001);
+    scaleFolder.add(obj.object.scale, "y", 0, 10).step(0.001);
+    scaleFolder.add(obj.object.scale, "z", 0, 10).step(0.001);
     scaleFolder.open();
   }
   // Folder con: position
@@ -162,4 +184,37 @@ const createImage = (
   });
 };
 
-export { loadModel, lightAuto, createText, createImage, createDebugGuiFolder };
+const addHelper = (scene, objec3d, color = 0x0fffff) => {
+  const newHelper = new THREE.Box3Helper(objec3d, color);
+  scene.add(newHelper);
+  return newHelper;
+};
+
+const transparentMeshs = (obj) => {
+  obj.traverse((child) => {
+    if (child.isMesh && child.material) {
+      const materials = Array.isArray(child.material)
+        ? child.material
+        : [child.material];
+      materials.forEach((mat) => {
+        if (mat.map) {
+          mat.transparent = true; // Cho phép trong suốt
+          mat.alphaTest = 0.8; // Cắt bỏ vùng rìa mờ (tránh trắng đục)
+          mat.side = THREE.DoubleSide; // Tùy chọn, nếu cần nhìn cả 2 mặt
+          mat.depthWrite = true; // Giữ thứ tự vẽ đúng
+        }
+      });
+    }
+  });
+};
+
+export {
+  loadModel,
+  lightAuto,
+  createText,
+  createImage,
+  createDebugGuiFolder,
+  splitModelsFromGLB,
+  addHelper,
+  transparentMeshs,
+};
