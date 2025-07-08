@@ -1,9 +1,9 @@
-export const debugOn = true;
-export const tacticianSpeed = 0.08;
+export const debugOn = false;
+export const tacticianSpeed = 0.15;
 export const bgUrl = "./bg.jpg";
 // export const arenaUrl = "./assets/models/arenas/tft_arena_default.glb";
 export const debugObjs = [];
-export const LOW_GRAPHICS_MODE = false;
+export const LOW_GRAPHICS_MODE = true;
 export const debugFolders = [];
 export const MODEL_CACHES = [];
 export const ARGUMENTS_CACHES = [];
@@ -36,12 +36,12 @@ export const ARENA_DATAS = [
     },
     enemyBattlefield: { radius: 1.75, startX: -12, startZ: -11.5 },
     bench: [
-      [-13, 0, 13.8],
+      [-13.3, 0, 13.8],
       [0, 0, 0],
       [1.5, 1.5, 1.5],
     ],
     enemyBench: [
-      [-11.2, 0, -16.5],
+      [-11.3, 0, -16.5],
       [0, 0, 0],
       [1.5, 1.5, 1.5],
     ],
@@ -78,7 +78,7 @@ export const COLOR_MOVEABLE = 0x77caff;
 export const COLOR_SELECTING = 0xff7777;
 export const COLOR_ORANGE = 0xff9966;
 export const COLOR_SPECIAL = 0xa84cf5;
-export const COLOR_DELETE_ZONE = 0xaa4444;
-export const COLOR_DELETE_MOVEIN = 0xbb1111;
+export const COLOR_DELETE_ZONE = 0x990000;
+export const COLOR_DELETE_MOVEIN = 0x800000;
 export const COLOR_HP = 0x2bd034;
 export const COLOR_MP = 0x0099ff;

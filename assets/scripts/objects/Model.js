@@ -1,5 +1,5 @@
 import { ARGUMENTS_CACHES } from "~/variables";
-import { createDebugGuiFolder, lightAuto, loadModel } from "./utils/utils";
+import { createDebugGuiFolder, lightAuto, loadModel } from "~~/utils/utils";
 import * as THREE from "https://esm.sh/three";
 
 export default class Model {

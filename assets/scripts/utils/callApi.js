@@ -31,4 +31,16 @@ const customFetch = async (
   }
 };
 
-export { customFetch };
+const sendMessageChangeLineupToEnemy = (champs) => {
+  const champsInBf = [];
+  const champsInBench = [];
+  champs.forEach((obj, index) => {
+    let champArray = obj.benchIndex !== -1 ? champsInBench : champsInBf;
+    champArray.push({
+      [index]: obj,
+    });
+  });
+  console.log({ champsInBench, champsInBf });
+};
+
+export { customFetch, sendMessageChangeLineupToEnemy };

@@ -17,7 +17,7 @@ const champScales = [
   {
     name: "KogMaw",
     cost: 1,
-    scale: [0.006, 0.006, 0.006],
+    scale: [0.004, 0.004, 0.004],
   },
   {
     name: "Morgana",
@@ -38,7 +38,7 @@ const champScales = [
   {
     name: "Shaco",
     cost: 1,
-    scale: [0.02, 0.02, 0.02],
+    scale: [0.025, 0.025, 0.025],
   },
   {
     name: "Sylas",

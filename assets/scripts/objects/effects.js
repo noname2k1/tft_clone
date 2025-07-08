@@ -26,7 +26,7 @@ class RightClickEffect {
   }
 
   trigger(position) {
-    this.effectMesh.position.set(position.x, 0.02, position.z);
+    this.effectMesh.position.set(position.x, 0.2, position.z);
     this.effectMesh.visible = true;
     this.active = true;
     this.startTime = this.clock.getElapsedTime();
