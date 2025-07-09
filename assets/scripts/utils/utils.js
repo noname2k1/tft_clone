@@ -185,14 +185,15 @@ const createImage = (
 };
 
 const addHelper = (scene, objec3d, color = 0x0fffff) => {
-  const newHelper = new THREE.Box3Helper(objec3d, color);
+  const box = new THREE.Box3().setFromObject(objec3d);
+  const newHelper = new THREE.Box3Helper(box, color);
   scene.add(newHelper);
   return newHelper;
 };
 
 const transparentMeshs = (obj) => {
   obj.traverse((child) => {
-    if (child.isMesh && child.material) {
+    if (child.isMesh && child.material && child.name === "optga") {
       const materials = Array.isArray(child.material)
         ? child.material
         : [child.material];
@@ -208,6 +209,19 @@ const transparentMeshs = (obj) => {
   });
 };
 
+function lerpAngle(a, b, t) {
+  const delta =
+    ((((b - a) % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+  return a + delta * t;
+}
+
+function capitalizeFirstLetter(str) {
+  if (typeof str !== "string" || str.length === 0) {
+    return str; // Handle non-string or empty input
+  }
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 export {
   loadModel,
   lightAuto,
@@ -217,4 +231,6 @@ export {
   splitModelsFromGLB,
   addHelper,
   transparentMeshs,
+  lerpAngle,
+  capitalizeFirstLetter,
 };

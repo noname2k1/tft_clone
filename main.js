@@ -28,7 +28,10 @@ import Model from "~~/objects/Model.js";
 import { RightClickEffect } from "~~/objects/effects.js";
 import SecretSphere from "~~/objects/SecretSphere.js";
 import TFTCarousel from "~~/objects/Carousel.js";
-import { sendMessageChangeLineupToEnemy } from "~~/utils/callApi.js";
+import {
+  customFetch,
+  sendMessageChangeLineupToEnemy,
+} from "~~/utils/callApi.js";
 import { createDeleteZone } from "./assets/scripts/services/services.js";
 
 // Config
@@ -148,31 +151,33 @@ setupRenderer();
 // Utility
 function updateStatusBars() {
   draggableObjects.forEach((obj) => {
-    if (obj.statusBarGroup) {
-      obj.statusBarGroup.position.copy(obj.position);
+    if (obj.userData.statusBarGroup) {
+      obj.userData.statusBarGroup.position.copy(obj.position);
     }
   });
 }
 
 // add champion to enemy grid when receive a msg from server
-const updateEnemyChamps = () => {
-  console.log({ benchEnemiesCells, bfEnemyCells });
-  benchEnemiesCells.forEach((benchEnemy, index) => {
-    console.log({ [index]: benchEnemy });
-  });
-
-  addChampion(
-    scene,
-    mixer,
-    {
-      name: champName,
-      position: [xBenchEnemy[xBenchEnemy.length - 1 - i], 0, zBenchEnemy],
-      url: modelPathUrl,
-      traits: rollList[indexCard].traits,
-    },
-    (dragHelper) => {}
-  );
+const updateEnemyChamps = async () => {
+  // console.log({ benchEnemiesCells, bfEnemyCells });
+  // benchEnemiesCells.forEach((benchEnemy, index) => {
+  //   console.log({ [index]: benchEnemy });
+  // });
+  // await customFetch("champs", (data) => {
+  //   console.log(data);
+  // });
+  // championManager.addChampion(
+  //   mixer,
+  //   {
+  //     name: champName,
+  //     position: [xBenchEnemy[xBenchEnemy.length - 1 - i], 0, zBenchEnemy],
+  //     url: modelPathUrl,
+  //     traits: rollList[indexCard].traits,
+  //   },
+  //   (dragHelper) => {}
+  // );
 };
+updateEnemyChamps();
 
 // Battle Field
 function createBattleField(
@@ -214,6 +219,7 @@ function createBattleField(
       hex.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(hex);
       if (owner === "me") {
+        hex.visible = false;
         bfCells.push({ mesh: hex, center: new THREE.Vector3(x, 0, z), box });
       } else {
         hex.visible = false;
@@ -341,11 +347,13 @@ function loadArena() {
   loadModel(
     selectedArena.url,
     (gltf) => {
+      let rightClickTo3dObject = false;
       const arena = gltf.scene;
       arena.name = selectedArena.name;
       arena.position.set(...selectedArena.arena[0]);
       arena.scale.set(...selectedArena.arena[2]);
       arenaBox = new THREE.Box3().setFromObject(arena);
+      rightClickEffect = new RightClickEffect(scene, "#c9f73d");
       // console.log(arena);
       // addHelper(scene, arenaBox);
       lightAuto(arena);
@@ -380,7 +388,6 @@ function loadArena() {
         const firstAnimation = animations[0];
         mixer.clipAction(firstAnimation).play();
       }
-      rightClickEffect = new RightClickEffect(scene, "#c9f73d");
       // Drag logic
       let isDragging = false,
         selectedObject = null,
@@ -437,6 +444,9 @@ function loadArena() {
       disabledOrbitControls();
 
       renderer.domElement.addEventListener("pointerdown", (event) => {
+        if (event.button === 0) {
+          championManager.displayChampInfor(false);
+        }
         if (event.button === 2 && debugControls) {
           raycaster.setFromCamera(
             getNormalizedPointer(event, renderer.domElement),
@@ -458,14 +468,23 @@ function loadArena() {
         const intersects = raycaster.intersectObjects(draggableObjects, true);
         if (intersects.length > 0) {
           selectedObject = intersects[0].object;
-          currPos = { ...selectedObject.position };
-          currBenchIndex = selectedObject.benchIndex;
-          currBfIndex = selectedObject.bfIndex;
-          const intersection = new THREE.Vector3();
-          raycaster.ray.intersectPlane(plane, intersection);
-          dragOffset.copy(intersection).sub(selectedObject.position);
-          displayGrid(false, false);
-          isDragging = true;
+          // display champion infor
+          if (event.button === 2 && selectedObject) {
+            rightClickTo3dObject = true;
+            championManager.displayChampInfor(true, selectedObject);
+            setTimeout(() => {
+              rightClickTo3dObject = false;
+            }, 150);
+          } else {
+            currPos = { ...selectedObject.position };
+            currBenchIndex = selectedObject.benchIndex;
+            currBfIndex = selectedObject.bfIndex;
+            const intersection = new THREE.Vector3();
+            raycaster.ray.intersectPlane(plane, intersection);
+            dragOffset.copy(intersection).sub(selectedObject.position);
+            displayGrid(false, false);
+            isDragging = true;
+          }
           if (isDragging) {
             displayDeleteZone();
             shop.classList.replace("bottom-1", "bottom-[-20vh]");
@@ -510,7 +529,7 @@ function loadArena() {
         const newPosition = intersection.sub(dragOffset);
         newPosition.y = 0;
         selectedObject.position.copy(newPosition);
-        selectedObject.champScene.position.copy(newPosition);
+        selectedObject.userData.champScene.position.copy(newPosition);
 
         const worldPos = selectedObject.position.clone();
         let highlighted = false;
@@ -546,6 +565,7 @@ function loadArena() {
 
       renderer.domElement.addEventListener("pointerup", () => {
         if (!selectedObject) return;
+        let deleting = false;
         displayDeleteZone(false);
         shop.classList.replace("bottom-[-20vh]", "bottom-1");
         controls.enabled = true;
@@ -579,52 +599,56 @@ function loadArena() {
           // add coin to my bag
           console.log("buy champion");
           nearestType = null;
+          deleting = true;
         }
-        let isBench = nearestType === "bench";
-        let targetIndex = isBench ? dragBenchIndex : dragBfIndex;
-        let currTargetIndex = isBench ? currBenchIndex : currBfIndex;
-        let indexKey = isBench ? "benchIndex" : "bfIndex";
-        let otherIndexKey = isBench ? "bfIndex" : "benchIndex";
-        let cells = isBench ? benchCells : bfCells;
+        if (!deleting && !rightClickTo3dObject && selectedObject) {
+          let isBench = nearestType === "bench";
+          let targetIndex = isBench ? dragBenchIndex : dragBfIndex;
+          let currTargetIndex = isBench ? currBenchIndex : currBfIndex;
+          let indexKey = isBench ? "benchIndex" : "bfIndex";
+          let otherIndexKey = isBench ? "bfIndex" : "benchIndex";
+          let cells = isBench ? benchCells : bfCells;
 
-        const existObj = draggableObjects.find(
-          (champ) => champ[indexKey] === targetIndex
-        );
-        if (existObj) {
-          existObj.position.copy(currPos);
-          existObj.champScene.position.copy(currPos);
-          existObj[indexKey] = currTargetIndex;
-          existObj[otherIndexKey] = isBench ? currBfIndex : currBenchIndex;
+          const existObj = draggableObjects.find(
+            (champ) => champ[indexKey] === targetIndex
+          );
+          if (existObj) {
+            existObj.position.copy(currPos);
+            existObj.userData.champScene.position.copy(currPos);
+            existObj[indexKey] = currTargetIndex;
+            existObj[otherIndexKey] = isBench ? currBfIndex : currBenchIndex;
+          }
+
+          selectedObject[indexKey] = targetIndex;
+          selectedObject[otherIndexKey] = -1;
+
+          cells.forEach(({ mesh, box, center }) => {
+            let worldCenter = center;
+            if (isBench && box) {
+              worldCenter = new THREE.Vector3();
+              box.getCenter(worldCenter);
+              worldCenter = mySquareGroup.localToWorld(worldCenter);
+            }
+            if (worldCenter.distanceTo(nearestCell) < 0.01) {
+              highlightMesh = mesh;
+              highlightMesh.material.color.set(COLOR_SELECTING);
+            }
+          });
         }
-
-        selectedObject[indexKey] = targetIndex;
-        selectedObject[otherIndexKey] = -1;
-
-        cells.forEach(({ mesh, box, center }) => {
-          let worldCenter = center;
-          if (isBench && box) {
-            worldCenter = new THREE.Vector3();
-            box.getCenter(worldCenter);
-            worldCenter = mySquareGroup.localToWorld(worldCenter);
-          }
-          if (worldCenter.distanceTo(nearestCell) < 0.01) {
-            highlightMesh = mesh;
-            highlightMesh.material.color.set(COLOR_SELECTING);
-          }
-        });
 
         // reload my traits
         championManager.renderTraits();
         if (nearestCell) {
           selectedObject.position.set(nearestCell.x, 0.1, nearestCell.z);
-          selectedObject.champScene.position.set(
+          selectedObject.userData.champScene.position.set(
             nearestCell.x,
             0.1,
             nearestCell.z
           );
           updateStatusBars();
         }
-        displayGrid(false, true);
+        displayGrid(true, true);
+        deleting = false;
         dragBenchIndex = -1;
         currPos = null;
         selectedObject = null;
@@ -644,11 +668,16 @@ function loadArena() {
         const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
         const intersection = new THREE.Vector3();
         raycaster.ray.intersectPlane(plane, intersection);
+        if (selectedObject) {
+          console.log(selectedObject);
+        }
 
         if (arenaBox && arenaBox.containsPoint(intersection)) {
           // console.log("righclick");
-          rightClickEffect.trigger(intersection);
-          tacticianTarget = intersection;
+          if (!rightClickTo3dObject) {
+            rightClickEffect.trigger(intersection);
+            tacticianTarget = intersection;
+          }
         }
       });
 
@@ -693,7 +722,11 @@ function loadArena() {
                     case "champion":
                       const modelPathUrl =
                         "./assets/models/champions/" +
-                        targetObject.name +
+                        targetObject.userData.name
+                          .toLowerCase()
+                          .replace(". ", "_")
+                          .replace(" ", "_")
+                          .replace("'", "") +
                         "_(tft_set_14).glb";
                       for (let i = 0; i < xMes.length; i++) {
                         const spotTaken = draggableObjects.some(
@@ -705,10 +738,9 @@ function loadArena() {
                           championManager.addChampion(
                             mixer,
                             {
-                              name: targetObject.name,
                               position: [xMes[i], 0.1, zMe],
                               url: modelPathUrl,
-                              traits: targetObject.traits,
+                              data: targetObject.userData.data,
                             },
                             (dragHelper) => {
                               dragHelper.benchIndex = i;
@@ -751,27 +783,16 @@ function loadArena() {
       console.log("error when load arena: ", e);
     },
     (progress) => {
-      loadingAllPercent = (progress.loaded / progress.total) * 100;
-      // const percentIncreaseAfter = 50;
-      // const percentIncreaseAmount = 20;
-      // let loadingPercent = 0;
-      // const loadingInterval = setInterval(() => {
-      //   if (loadingPercent < 90) {
-      //     loadingPercent += percentIncreaseAmount;
-      //     loadingAssetsProgress.style.width = loadingPercent + "%";
-      //   } else if (loadingAllPercent >= 100) {
-      //     clearInterval(loadingInterval);
-      //     loadingAssetsProgress.style.width = "100%";
-      //     setTimeout(() => {
-      //       loadingAll.style.visibility = "hidden";
-      //     }, 100);
-      //   }
-      // }, percentIncreaseAfter);
-      loadingAssetsProgress.style.width = loadingAllPercent + "%";
-      if (loadingAllPercent >= 100) {
-        setTimeout(() => {
-          loadingAll.style.visibility = "hidden";
-        }, 100);
+      if (progress) {
+        loadingAllPercent = (progress.loaded / progress.total) * 100;
+        loadingAssetsProgress.style.width = loadingAllPercent + "%";
+        if (loadingAllPercent >= 100) {
+          setTimeout(() => {
+            loadingAll.style.visibility = "hidden";
+          }, 100);
+        }
+      } else {
+        loadingAll.style.visibility = "hidden";
       }
     }
   );
@@ -822,14 +843,13 @@ const LoadAllModel = () => {
       {
         name: "coin",
         url: "./assets/models/items/coin.glb",
-        scale: [0.04, 0.04, 0.04],
+        scale: [0.06, 0.06, 0.06],
         position: [Math.random() * 10, itemOutBagY, Math.random() * 10],
         onLoaded: (model) => {},
       },
       { enabled: true }
       // { enabled: true, color: "blue" }
     );
-
     itemsOutBag.push(coin);
   });
 
@@ -942,6 +962,7 @@ function animate() {
   tacticians.forEach((tactician) => {
     tactician.update(delta);
   });
+
   // carousel.update();
 
   if (tactician && tacticianTarget) {
@@ -949,17 +970,17 @@ function animate() {
     const dir = new THREE.Vector3().subVectors(tacticianTarget, pos);
     dir.y = 0;
     const distance = dir.length();
-    if (distance > 0.05) {
+    if (distance > 0.1) {
       if (!isRunning) {
         tacticianActions.idle?.stop();
         tacticianActions.run?.play();
         isRunning = true;
       }
-
       dir.normalize();
+      // console.log(dir.multiplyScalar(tacticianSpeed));
       tactician.rotation.y = Math.atan2(dir.x, dir.z);
       tactician.position.add(dir.multiplyScalar(tacticianSpeed));
-      tactician.position.y = selectedArena.tactacianFirstPos[1];
+      // tactician.position.y = 4;
       // if (!carousel.checkBarrierCollision(tactician)) {
       //   // ✅ Được di chuyển
       //   tactician.position.add(dir.multiplyScalar(tacticianSpeed));
@@ -973,7 +994,6 @@ function animate() {
       // }
     } else {
       tactician.position.copy(tacticianTarget);
-      tactician.position.y = selectedArena.tactacianFirstPos[1];
       tacticianTarget = null;
       if (isRunning) {
         tacticianActions.run?.stop();
@@ -1033,10 +1053,9 @@ champShopList.addEventListener("click", function (e) {
         championManager.addChampion(
           mixer,
           {
-            name: champName,
             url: modelPathUrl,
             position: [xMes[i], 0, zMe],
-            traits: rollList[indexCard].traits,
+            data: target.data,
           },
           (dragHelper) => {
             dragHelper.benchIndex = i;

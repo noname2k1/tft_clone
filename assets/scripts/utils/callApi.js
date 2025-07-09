@@ -40,7 +40,10 @@ const sendMessageChangeLineupToEnemy = (champs) => {
       [index]: obj,
     });
   });
-  console.log({ champsInBench, champsInBf });
+  console.log("callApi.js/sendMessageChangeLineupToEnemy: ", {
+    champsInBench,
+    champsInBf,
+  });
 };
 
 export { customFetch, sendMessageChangeLineupToEnemy };

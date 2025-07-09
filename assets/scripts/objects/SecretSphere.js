@@ -30,7 +30,7 @@ export default class SecretSphere {
   }
 
   _createOrb() {
-    const geometry = new THREE.SphereGeometry(0.5, 32, 32);
+    const geometry = new THREE.SphereGeometry(0.8, 32, 32);
     const material = new THREE.MeshBasicMaterial({
       color: this.#sphereColor,
       transparent: true,

@@ -1,5 +1,5 @@
 export const debugOn = false;
-export const tacticianSpeed = 0.15;
+export const tacticianSpeed = 0.2;
 export const bgUrl = "./bg.jpg";
 // export const arenaUrl = "./assets/models/arenas/tft_arena_default.glb";
 export const debugObjs = [];
@@ -62,8 +62,14 @@ export const ARENA_DATAS = [
       startX: -9.5,
       startZ: 2,
     },
+    enemyBattlefield: { radius: 1.75, startX: -12, startZ: -11.5 },
     bench: [
       [-13, 0, 13.8],
+      [0, 0, 0],
+      [1.5, 1.5, 1.5],
+    ],
+    enemyBench: [
+      [-11.3, 0, -16.5],
       [0, 0, 0],
       [1.5, 1.5, 1.5],
     ],

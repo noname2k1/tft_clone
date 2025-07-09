@@ -1,11 +1,30 @@
 import * as THREE from "https://esm.sh/three";
-import { loadModel, lightAuto, createDebugGuiFolder } from "~~/utils/utils";
+import {
+  loadModel,
+  lightAuto,
+  createDebugGuiFolder,
+  capitalizeFirstLetter,
+} from "~~/utils/utils";
 import { COLOR_HP, COLOR_MP, MODEL_CACHES, TRAITS_INFOR } from "~/variables.js";
 import { clone } from "https://esm.sh/three/examples/jsm/utils/SkeletonUtils.js";
-import { champScales } from "~~/data/champs.js";
+import { champScales, costGradients } from "~~/data/champs.js";
 import { draggableObjects } from "~/main";
 
 export default class ChampionManager {
+  #armor;
+  #attackSpeed;
+  #critChance;
+  #critMultiplier;
+  #damage;
+  #magic;
+  #hp;
+  #initialMana;
+  #mana;
+  #magicResist;
+  #range;
+  #omnivamp;
+  #damageAmp;
+  #durability;
   constructor(scene, draggableObjects) {
     this.scene = scene;
     this.traitListElement = document.getElementById("trait-list");
@@ -14,9 +33,7 @@ export default class ChampionManager {
 
   getChampionScale(champName) {
     return (
-      champScales.find((c) => c.name.toLowerCase() === champName)?.scale || [
-        0.01, 0.01, 0.01,
-      ]
+      champScales.find((c) => c.name === champName)?.scale || [0.01, 0.01, 0.01]
     ).map((num) => num + 0.005);
   }
 
@@ -146,17 +163,18 @@ export default class ChampionManager {
       new THREE.BoxGeometry(1, 1, 1),
       new THREE.MeshBasicMaterial({ visible: false })
     );
-    dragHelper.maxHp = champData.maxHp ?? 1000;
-    dragHelper.currentHp = dragHelper.maxHp;
-    dragHelper.scale.set(size.x, size.y, 1);
-    dragHelper.champScene = champScene;
     dragHelper.position.set(...champData.position);
     dragHelper.rotation.copy(rotation);
-    dragHelper.hpBar = hpBar;
-    dragHelper.manaBar = manaBar;
-    dragHelper.statusBarGroup = statusBarGroup;
-    dragHelper.name = champData.name;
-    dragHelper.traits = champData.traits;
+    dragHelper.scale.set(size.x, size.y, 1);
+    // save data
+    dragHelper.userData.maxHp = champData.maxHp ?? 1000;
+    dragHelper.userData.currentHp = dragHelper.maxHp;
+    dragHelper.userData.champScene = champScene;
+    dragHelper.userData.hpBar = hpBar;
+    dragHelper.userData.manaBar = manaBar;
+    dragHelper.userData.statusBarGroup = statusBarGroup;
+    dragHelper.userData.name = champData.data.name;
+    dragHelper.userData.data = champData.data;
     this.scene.add(dragHelper);
     return dragHelper;
   }
@@ -199,7 +217,7 @@ export default class ChampionManager {
       </div>
       <img src="./assets/images/style-0.png" class="w-full h-full absolute"
         data-item-id="0" data-item-name="Lesser_Champion_Duplicator_TFT_item" />
-      <div class="mask-[url('/assets/classes_icons/${trait.replaceAll(
+      <div class="mask-[url('/assets/images/classes_icons/${trait.replaceAll(
         " ",
         "_"
       )}_TFT_icon.svg')] bg-white/30 mask-no-repeat mask-center mask-contain w-[1.2vw] h-[1.2vw] absolute"></div>
@@ -212,7 +230,7 @@ export default class ChampionManager {
     const traitsMap = {};
 
     champsInBf.forEach((champ) => {
-      champ.traits.forEach((trait) => {
+      champ.userData.data.traits.forEach((trait) => {
         if (!traitsMap[trait]) traitsMap[trait] = [champ.name];
         else if (!traitsMap[trait].includes(champ.name))
           traitsMap[trait].push(champ.name);
@@ -229,11 +247,13 @@ export default class ChampionManager {
   }
 
   addChampion(mixer, champData, callback = () => {}) {
-    const scale = this.getChampionScale(champData.name.replaceAll("_", " "));
+    console.log("addChampion: ", champData);
+    const scale = this.getChampionScale(
+      champData.data.name.replaceAll("_", " ")
+    );
     const handleLoad = (gltf) => {
       const champScene = gltf.scene;
       this.scene.add(champScene);
-      // champScene.visible = true;
       champScene.position.set(...champData.position);
       champScene.scale.set(...scale);
       champScene.rotation.x = -0.5;
@@ -252,8 +272,8 @@ export default class ChampionManager {
         manaBar,
         statusBarGroup
       );
-      this.updateBar(dragHelper.hpBar, 1);
-      this.updateBar(dragHelper.manaBar, 1, "mp");
+      this.updateBar(dragHelper.userData.hpBar, 1);
+      this.updateBar(dragHelper.userData.manaBar, 1, "mp");
       lightAuto(champScene);
       this.playChampionAnimation(mixer, champScene, gltf.animations);
       this.draggableObjects.push(dragHelper);
@@ -270,6 +290,7 @@ export default class ChampionManager {
       };
       handleLoad(clonedGltf);
     } else {
+      // console.log(champData);
       loadModel(
         champData.url,
         (gltf) => {
@@ -292,19 +313,19 @@ export default class ChampionManager {
 
   damageChampion(dragHelper, damageAmount) {
     // Giả sử dragHelper có thuộc tính currentHp và maxHp
-    if (dragHelper.currentHp == null) {
-      dragHelper.maxHp = 1000;
-      dragHelper.currentHp = dragHelper.maxHp;
+    if (dragHelper.userData.currentHp == null) {
+      dragHelper.userData.maxHp = 1000;
+      dragHelper.userData.currentHp = dragHelper.maxHp;
     }
 
-    dragHelper.currentHp -= damageAmount;
-    dragHelper.currentHp = Math.max(0, dragHelper.currentHp);
+    dragHelper.userData.currentHp -= damageAmount;
+    dragHelper.userData.currentHp = Math.max(0, dragHelper.userData.currentHp);
 
-    const hpRatio = dragHelper.currentHp / dragHelper.maxHp;
-    this.updateBar(dragHelper.hpBar, hpRatio, "hp");
+    const hpRatio = dragHelper.userData.currentHp / dragHelper.userData.maxHp;
+    this.updateBar(dragHelper.userData.hpBar, hpRatio, "hp");
 
-    if (dragHelper.currentHp <= 0) {
-      console.log(`${dragHelper.name} has died.`);
+    if (dragHelper.userData.currentHp <= 0) {
+      console.log(`${dragHelper.userData.name} has died.`);
       this.removeChampFromScene(this.scene, dragHelper);
     }
   }
@@ -315,9 +336,121 @@ export default class ChampionManager {
     );
     if (index > -1) {
       this.draggableObjects.splice(index, 1);
-      scene.remove(dragHelper.champScene);
-      scene.remove(dragHelper.statusBarGroup);
+      scene.remove(dragHelper.userData.champScene);
+      scene.remove(dragHelper.userData.statusBarGroup);
       scene.remove(dragHelper);
+    }
+  }
+
+  displayChampInfor(display, champ = null) {
+    console.log("displayChampInfor: ", champ);
+    const champInspect = document.getElementById("champ-inspect");
+    if (champInspect) {
+      champInspect.classList.toggle("hidden", !display);
+      champInspect.replaceChildren();
+      if (!display) return;
+      const champImage = document.createElement("img");
+      champImage.className =
+        "absolute top-[2.1vw] right-[0vw] h-[auto] w-[89%]";
+      champImage.src =
+        "./assets/images/champs/bgs/" +
+        capitalizeFirstLetter(champ.userData.name) +
+        ".png";
+      champInspect.appendChild(champImage);
+      champInspect.insertAdjacentHTML(
+        "beforeend",
+        `  <img
+        src="./assets/images/champ_infor.png"
+        alt="champ_infor_img"
+        class="h-full object-fill"
+      />`
+      );
+      const costGradient = costGradients.find(
+        (cg) => cg.cost === champ.userData.data.cost
+      );
+      champInspect.insertAdjacentHTML(
+        "beforeend",
+        ` <div
+        class="absolute h-[1.65vw] w-[12vw] top-[9.15vw] right-0 bg-gradient-to-r from-[${
+          costGradient.from
+        }] via-[${costGradient.via}] to-[${
+          costGradient.to
+        }] flex items-center justify-end px-[1vw] text-white text-[0.75vw]"
+      >
+        <span class="mr-auto" id="champ-name">${capitalizeFirstLetter(
+          champ.userData.name
+        )}</span>
+        <img
+          src="./assets/images/TFT_Gold.png"
+          class="w-[0.8vw] h-[0.8vw]"
+          alt="gold_img"
+        />
+        <span class="inline-block ml-[0.5vw]" id="champ-cost">${
+          champ.userData.data.cost
+        }</span>
+      </div>`
+      );
+      champInspect.insertAdjacentHTML(
+        "beforeend",
+        `<img
+        src="./assets/images/champs/skill_icons/${capitalizeFirstLetter(
+          champ.userData.name
+        )}.png"
+        class="absolute top-[13.9vw] left-[2.45vw] w-[3vw] h-[3vw]"
+        alt=""
+        id="champ-inspect-skill"
+      />`
+      );
+      champInspect.insertAdjacentHTML(
+        "beforeend",
+        `<div class="top-[22.6vw] w-[10.1vw] h-[1.7vw] left-[2.5vw] absolute flex items-center justify-center text-white"><img class="w-[1vw] h-[1vw] mr-auto ml-[0.45vw]" src="./assets/images/roles/${champ.userData.data.role.replace(
+          "HighMana",
+          ""
+        )}.png"/><span class="text-[0.8vw] ml-[1vw] mr-auto text-nowrap">${
+          champ.userData.data.role
+            .slice(0, 2)
+            .replace("AP", "Magic ")
+            .replace("AD", "Physical ") +
+          champ.userData.data.role.slice(2).replace("HighMana", "")
+        }</span></div>`
+      );
+      const stats = champ.userData.data.stats;
+      const row1 = [
+        this.#damage ?? stats.damage,
+        this.#magic ?? stats.damage,
+        this.#armor ?? stats.armor,
+        this.#magicResist ?? stats.magicResist,
+        this.#attackSpeed ?? +stats.attackSpeed.toFixed(2),
+      ];
+      const row2 = [
+        this.#critChance ?? +stats.critChance.toFixed(2) * 10,
+        this.#critMultiplier ?? +stats.critMultiplier.toFixed(2) * 10,
+        this.#omnivamp ?? 0,
+        this.#damageAmp ?? 0,
+        this.#durability ?? 0,
+      ];
+      const statsHtml = `<div
+        id="stats-row-0"
+        class="absolute flex bottom-[8vw] left-[2.9vw] min-w-[9.5vw] items-center text-white text-[0.7vw]"
+      >
+      ${row1.reduce(
+        (prevValue, currValue, currIndex, arr) =>
+          prevValue + `<span class="mr-[1.3vw]">${currValue}</span>`,
+        ""
+      )}
+      </div><div
+        id="stats-row-1"
+        class="absolute flex bottom-[5vw] left-[2.8vw] min-w-[9.5vw] items-center text-white text-[0.7vw]"
+      >${row2.reduce(
+        (prevValue, currValue, currIndex, arr) =>
+          prevValue +
+          `<span class="${
+            currValue.toString().length >= 2 ? "mr-[0.78vw]" : "mr-[1.8vw]"
+          }">${currValue + `${currValue != 0 ? "%" : ""}`}</span>`,
+        ""
+      )}</div>`;
+      champInspect.insertAdjacentHTML("beforeend", statsHtml);
+      // button buy champion
     }
   }
 

@@ -5,9 +5,9 @@ const champScales = [
     scale: [0.013, 0.013, 0.013],
   },
   {
-    name: "Dr Mundo",
+    name: "Dr. Mundo",
     cost: 1,
-    scale: [0.008, 0.008, 0.008],
+    scale: [0.0065, 0.0065, 0.0065],
   },
   { name: "Jax", cost: 1, scale: [0.008, 0.008, 0.008] },
   {
@@ -15,7 +15,7 @@ const champScales = [
     cost: 1,
   },
   {
-    name: "KogMaw",
+    name: "Kog'Maw",
     cost: 1,
     scale: [0.004, 0.004, 0.004],
   },
@@ -278,4 +278,49 @@ const champScales = [
   },
 ];
 
-export { champScales };
+const costGradients = [
+  {
+    cost: 1,
+    from: "#3a3a3a",
+    via: "#4a4a4a",
+    to: "#5a5a5a",
+    text: 0xffffff,
+  },
+  {
+    cost: 2,
+    from: "#2b6622",
+    via: "#3d8f2a",
+    to: "#4fbf32",
+    text: 0xffffff,
+  },
+  {
+    cost: 3,
+    from: "#0b3d91",
+    via: "#1060c1",
+    to: "#1a8fff",
+    text: 0xffffff,
+  },
+  {
+    cost: 4,
+    from: "#4b0082",
+    via: "#6a0dad",
+    to: "#9b30ff",
+    text: 0xffffff,
+  },
+  {
+    cost: 5,
+    from: "#c79c00",
+    via: "#f5c518",
+    to: "#ffe066",
+    text: 0x000000,
+  },
+  {
+    cost: 6,
+    from: "#6df3ff",
+    via: "#b59df4",
+    to: "#e68bcf",
+    text: 0x000000,
+  },
+];
+
+export { champScales, costGradients };
