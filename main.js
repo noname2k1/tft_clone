@@ -1,5 +1,4 @@
 import * as THREE from "https://esm.sh/three";
-import { OrbitControls } from "https://esm.sh/three/examples/jsm/controls/OrbitControls.js";
 import {
   addHelper,
   createDebugGuiFolder,
@@ -19,7 +18,6 @@ import {
   ARENA_DATAS,
   debugOn,
   tacticianSpeed,
-  bgUrl,
   LOW_GRAPHICS_MODE,
 } from "~/variables.js";
 import { useItem } from "~~/item/item.js";
@@ -32,7 +30,12 @@ import {
   customFetch,
   sendMessageChangeLineupToEnemy,
 } from "~~/utils/callApi.js";
-import { createDeleteZone } from "./assets/scripts/services/services.js";
+import {
+  createBattleField,
+  createBench,
+  createDeleteZone,
+} from "~~/services/services.js";
+import initial from "~~/setup/initial.js";
 
 // Config
 let xMes = [];
@@ -64,6 +67,12 @@ let loadingAllPercent = 0;
 const selectedArena = ARENA_DATAS[0];
 let zMe = selectedArena.bench[0][2];
 let zBenchEnemy = 0;
+const disabledOrbitControlsIds = [
+  "shop",
+  "animations",
+  "left-bar",
+  "champ-inspect",
+];
 
 const debugControls = false;
 
@@ -72,82 +81,10 @@ const loadingAll = document.getElementById("loading-all");
 const loadingAssetsProgress = document.getElementById(
   "loading-assets-progress"
 );
-// Scene, Camera, Controls
-const scene = new THREE.Scene();
+
+// initial
+const { scene, renderer, controls, camera } = initial(debugControls);
 const championManager = new ChampionManager(scene, draggableObjects);
-const loader = new THREE.TextureLoader();
-const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  2000
-);
-camera.position.set(0, 30, 25);
-// background
-loader.load(bgUrl, (texture) => (scene.background = texture));
-
-const controls = new OrbitControls(camera, document.body);
-function setupControls(rotate = false, zoom = true, pan = true) {
-  controls.enableZoom = zoom;
-  controls.enableRotate = rotate; // ✅ bật xoay
-  controls.enablePan = pan;
-  controls.minDistance = debugControls ? 5 : 15;
-  controls.maxDistance = debugControls ? 50 : 25;
-
-  // ✅ Cho phép xoay lên/xuống toàn phần
-  controls.minPolarAngle = 0;
-  controls.maxPolarAngle = Math.PI;
-
-  // ✅ Cho phép xoay ngang toàn phần
-  controls.minAzimuthAngle = -Infinity;
-  controls.maxAzimuthAngle = Infinity;
-
-  controls.target.set(0, 2, 6);
-  controls.update();
-}
-setupControls(debugControls);
-
-const setupLight = () => {
-  // const light = new THREE.DirectionalLight(0xffffff, 2); // tăng từ 1 → 1.5
-  // light.position.set(10, 10, 10);
-  // scene.add(light);
-
-  // const ambient = new THREE.AmbientLight(0xffffff, 1); // tăng từ 0.5 → 0.8
-  // scene.add(ambient);
-
-  const light = new THREE.DirectionalLight(0xffffff, 2);
-  light.position.set(10, 10, 10);
-  light.castShadow = true;
-
-  // Tùy chỉnh chất lượng bóng
-  light.shadow.mapSize.width = 2048;
-  light.shadow.mapSize.height = 2048;
-  light.shadow.camera.near = 1;
-  light.shadow.camera.far = 50;
-  light.shadow.camera.left = -20;
-  light.shadow.camera.right = 20;
-  light.shadow.camera.top = 20;
-  light.shadow.camera.bottom = -20;
-
-  scene.add(light);
-};
-setupLight();
-
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-function setupRenderer() {
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  window.addEventListener("resize", () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  document.body.appendChild(renderer.domElement);
-}
-setupRenderer();
-
 // Utility
 function updateStatusBars() {
   draggableObjects.forEach((obj) => {
@@ -179,128 +116,18 @@ const updateEnemyChamps = async () => {
 };
 updateEnemyChamps();
 
-// Battle Field
-function createBattleField(
-  rows,
-  cols,
-  data = { radius: 0, startX: 0, startZ: 0 },
-  owner = "me"
-) {
-  const { radius, startX, startZ } = data;
-  const hexMaterial = new THREE.LineBasicMaterial({
-    color: COLOR_MOVEABLE,
-    linewidth: 100,
-  });
-  const angleOffset = Math.PI / 6;
-  const hexShape = new THREE.Shape();
-  for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 3) * i + angleOffset;
-    const x = Math.cos(angle) * radius;
-    const z = Math.sin(angle) * radius;
-    if (i === 0) hexShape.moveTo(x, z);
-    else hexShape.lineTo(x, z);
-  }
-  hexShape.closePath();
-  const hexPoints = hexShape.getPoints();
-  const hexGeometry = new THREE.BufferGeometry().setFromPoints(
-    hexPoints.map((p) => new THREE.Vector3(p.x, 0.01, p.y))
-  );
-  const dis = 1.2;
-  const hexWidth = Math.sqrt(3) * radius * dis;
-  const hexRowSpacing = 1.5 * radius * dis;
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      const offsetX = (row % 2) * (hexWidth / 2);
-      const x = startX + col * hexWidth + offsetX;
-      const z = startZ + row * hexRowSpacing;
-      const hex = new THREE.Line(hexGeometry, hexMaterial.clone());
-      hex.position.set(x, 0, z);
-      scene.add(hex);
-      hex.updateMatrixWorld(true);
-      const box = new THREE.Box3().setFromObject(hex);
-      if (owner === "me") {
-        hex.visible = false;
-        bfCells.push({ mesh: hex, center: new THREE.Vector3(x, 0, z), box });
-      } else {
-        hex.visible = false;
-        bfEnemyCells.push({
-          mesh: hex,
-          center: new THREE.Vector3(x, 0, z),
-          box,
-        });
-      }
-    }
-  }
-}
-createBattleField(4, 7, selectedArena.battlefield);
-createBattleField(4, 7, selectedArena.enemyBattlefield, "enemy");
-
-// Bench
-function createBench(rows, cols, size, gap = 0.2, position, owner = "me") {
-  let squareGroup =
-    owner === "me" && owner !== "enemy" ? mySquareGroup : enemySquareGroup;
-  if (squareGroup) scene.remove(squareGroup);
-  squareGroup = new THREE.Group();
-
-  benchCells = [];
-  const lineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 });
-  const step = size + gap;
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      const x = col * step,
-        z = row * step;
-      const points = [
-        new THREE.Vector3(x, 0.01, z),
-        new THREE.Vector3(x + size, 0.01, z),
-        new THREE.Vector3(x + size, 0.01, z),
-        new THREE.Vector3(x + size, 0.01, z + size),
-        new THREE.Vector3(x + size, 0.01, z + size),
-        new THREE.Vector3(x, 0.01, z + size),
-        new THREE.Vector3(x, 0.01, z + size),
-        new THREE.Vector3(x, 0.01, z),
-      ];
-      const geometry = new THREE.BufferGeometry().setFromPoints(points);
-      const lineSegments = new THREE.LineSegments(
-        geometry,
-        lineMaterial.clone()
-      );
-      lineSegments.visible = false;
-      squareGroup.add(lineSegments);
-      const box = new THREE.Box3(
-        new THREE.Vector3(x, 0, z),
-        new THREE.Vector3(x + size, 1, z + size)
-      );
-
-      if (owner === "me") {
-        xMes[col] = x + position[0] + (size - 1);
-        benchCells.push({ mesh: lineSegments, box });
-      } else {
-        xBenchEnemy[col] = x + position[0] + (size - 1);
-      }
-    }
-    if (owner === "me") {
-      zMe = position[2] + (size - 1);
-    } else {
-      zBenchEnemy = position[2] + (size - 1);
-    }
-  }
-  squareGroup.updateMatrixWorld();
-  squareGroup.position.set(...position);
-  scene.add(squareGroup);
-  if (debugOn) {
-    const objectDebug = {
-      name: owner + "'s SquareGroup (" + owner.charAt(0).toUpperCase() + ")",
-      object: squareGroup,
-      key: owner.charAt(0),
-      isOpen: false,
-    };
-    createDebugGuiFolder(objectDebug);
-  }
-  return squareGroup;
-}
+bfCells = createBattleField(scene, 4, 7, selectedArena.battlefield);
+bfEnemyCells = createBattleField(
+  scene,
+  4,
+  7,
+  selectedArena.enemyBattlefield,
+  "enemy"
+);
 
 // enemy's bench
-enemySquareGroup = createBench(
+const createEnemyBench = createBench(
+  scene,
   1,
   9,
   2,
@@ -308,15 +135,24 @@ enemySquareGroup = createBench(
   selectedArena.enemyBench[0],
   "enemy"
 );
-
 // my bench
-mySquareGroup = createBench(
+const createMyBench = createBench(
+  scene,
   1,
   9,
   2,
   selectedArena.benchGap,
   selectedArena.bench[0]
 );
+
+enemySquareGroup = createEnemyBench.squareGroup;
+xBenchEnemy = createEnemyBench.xBenchEnemy;
+zBenchEnemy = createEnemyBench.zBenchEnemy;
+benchEnemiesCells = createEnemyBench.benchCells;
+mySquareGroup = createMyBench.squareGroup;
+xMes = createMyBench.xMes;
+zMe = createMyBench.zMe;
+benchCells = createMyBench.benchCells;
 
 function displayGrid(hideBattleField = false, hideBench = false) {
   bfCells.forEach(({ mesh }) => (mesh.visible = !hideBattleField));
@@ -399,8 +235,6 @@ function loadArena() {
         currBfIndex = -1;
       const raycaster = new THREE.Raycaster();
       const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-
-      const disabledOrbitControlsIds = ["shop", "animations", "left-bar"];
 
       const shop = document.getElementById("shop");
       function disabledOrbitControls() {
@@ -947,76 +781,86 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
+let animationId = null;
 // Animate
-function animate() {
-  requestAnimationFrame(animate);
-  const delta = clock.getDelta();
-  if (mixer) mixer.update(delta);
-  renderer.render(scene, camera);
-  itemsOutBag.forEach((item) => {
-    item.update(delta);
-  });
-  tftArguments.forEach((item) => {
-    item.update(delta);
-  });
-  tacticians.forEach((tactician) => {
-    tactician.update(delta);
-  });
-
-  // carousel.update();
-
-  if (tactician && tacticianTarget) {
-    const pos = tactician.position;
-    const dir = new THREE.Vector3().subVectors(tacticianTarget, pos);
-    dir.y = 0;
-    const distance = dir.length();
-    if (distance > 0.1) {
-      if (!isRunning) {
-        tacticianActions.idle?.stop();
-        tacticianActions.run?.play();
-        isRunning = true;
-      }
-      dir.normalize();
-      // console.log(dir.multiplyScalar(tacticianSpeed));
-      tactician.rotation.y = Math.atan2(dir.x, dir.z);
-      tactician.position.add(dir.multiplyScalar(tacticianSpeed));
-      // tactician.position.y = 4;
-      // if (!carousel.checkBarrierCollision(tactician)) {
-      //   // ✅ Được di chuyển
-      //   tactician.position.add(dir.multiplyScalar(tacticianSpeed));
-      //   tactician.position.y = selectedArena.tactacianFirstPos[1];;
-      // } else {
-      //   // Đẩy ngược lại 1 đoạn nhỏ
-      //   const pushBack = dir.clone().negate().multiplyScalar(0.2);
-      //   tactician.position.add(pushBack);
-      //   tactician.position.y = selectedArena.tactacianFirstPos[1];;
-      //   tactician.rotation.y = Math.atan2(dir.x, dir.z); // xoay theo hướng di chuyển
-      // }
-    } else {
-      tactician.position.copy(tacticianTarget);
-      tacticianTarget = null;
-      if (isRunning) {
-        tacticianActions.run?.stop();
-        tacticianActions.idle?.play();
-        isRunning = false;
-      }
-    }
-
-    itemsOutBag.forEach((item, index) => {
-      if (item.checkCollision(tactician)) {
-        itemsOutBag.splice(index, 1);
-        console.log("nhặt " + item.name);
-        item.removeFromScene();
-      }
+try {
+  function animate() {
+    animationId = requestAnimationFrame(animate);
+    const delta = clock.getDelta();
+    if (mixer) mixer.update(delta);
+    renderer.render(scene, camera);
+    itemsOutBag.forEach((item) => {
+      item.update(delta);
+    });
+    tftArguments.forEach((item) => {
+      item.update(delta);
+    });
+    tacticians.forEach((tactician) => {
+      tactician.update(delta);
     });
 
-    if (tacticianMixerGlobal) tacticianMixerGlobal.update(clock.getDelta());
-  }
+    // carousel.update();
 
-  // right click effect
-  if (rightClickEffect) rightClickEffect.update();
+    if (tactician && tacticianTarget) {
+      const pos = tactician.position;
+      const dir = new THREE.Vector3().subVectors(tacticianTarget, pos);
+      dir.y = 0;
+      const distance = dir.length();
+      if (distance > 0.1) {
+        if (!isRunning) {
+          tacticianActions.idle?.stop();
+          tacticianActions.run?.play();
+          isRunning = true;
+        }
+        dir.normalize();
+        // console.log(dir.multiplyScalar(tacticianSpeed));
+        tactician.rotation.y = Math.atan2(dir.x, dir.z);
+        tactician.position.add(dir.multiplyScalar(tacticianSpeed));
+        // tactician.position.y = 4;
+        // if (!carousel.checkBarrierCollision(tactician)) {
+        //   // ✅ Được di chuyển
+        //   tactician.position.add(dir.multiplyScalar(tacticianSpeed));
+        //   tactician.position.y = selectedArena.tactacianFirstPos[1];;
+        // } else {
+        //   // Đẩy ngược lại 1 đoạn nhỏ
+        //   const pushBack = dir.clone().negate().multiplyScalar(0.2);
+        //   tactician.position.add(pushBack);
+        //   tactician.position.y = selectedArena.tactacianFirstPos[1];;
+        //   tactician.rotation.y = Math.atan2(dir.x, dir.z); // xoay theo hướng di chuyển
+        // }
+      } else {
+        tactician.position.copy(tacticianTarget);
+        tacticianTarget = null;
+        if (isRunning) {
+          tacticianActions.run?.stop();
+          tacticianActions.idle?.play();
+          isRunning = false;
+        }
+      }
+
+      itemsOutBag.forEach((item, index) => {
+        if (item.checkCollision(tactician)) {
+          itemsOutBag.splice(index, 1);
+          console.log("nhặt " + item.name);
+          item.removeFromScene();
+        }
+      });
+
+      if (tacticianMixerGlobal) tacticianMixerGlobal.update(clock.getDelta());
+    }
+
+    // right click effect
+    if (rightClickEffect) rightClickEffect.update();
+  }
+  animate();
+} catch (err) {
+  console.error("Animation loop error:", err);
+  if (animationId !== null) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+    console.warn("Animation loop stopped due to error.");
+  }
 }
-animate();
 
 // Shop logic
 const champShopList = document.getElementById("champ-shop-list");

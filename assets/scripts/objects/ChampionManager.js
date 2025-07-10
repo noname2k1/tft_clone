@@ -11,20 +11,9 @@ import { champScales, costGradients } from "~~/data/champs.js";
 import { draggableObjects } from "~/main";
 
 export default class ChampionManager {
-  #armor;
-  #attackSpeed;
-  #critChance;
-  #critMultiplier;
-  #damage;
-  #magic;
-  #hp;
-  #initialMana;
-  #mana;
-  #magicResist;
-  #range;
-  #omnivamp;
-  #damageAmp;
-  #durability;
+  scene;
+  traitListElement;
+  draggableObjects;
   constructor(scene, draggableObjects) {
     this.scene = scene;
     this.traitListElement = document.getElementById("trait-list");
@@ -167,8 +156,11 @@ export default class ChampionManager {
     dragHelper.rotation.copy(rotation);
     dragHelper.scale.set(size.x, size.y, 1);
     // save data
-    dragHelper.userData.maxHp = champData.maxHp ?? 1000;
-    dragHelper.userData.currentHp = dragHelper.maxHp;
+    dragHelper.userData.level = 1;
+    dragHelper.userData.maxHp = champData.data.stats.hp;
+    dragHelper.userData.currentHp = dragHelper.userData.maxHp;
+    dragHelper.userData.maxMp = champData.data.stats.mana;
+    dragHelper.userData.currentMp = champData.data.stats.initialMana;
     dragHelper.userData.champScene = champScene;
     dragHelper.userData.hpBar = hpBar;
     dragHelper.userData.manaBar = manaBar;
@@ -252,6 +244,7 @@ export default class ChampionManager {
       champData.data.name.replaceAll("_", " ")
     );
     const handleLoad = (gltf) => {
+      // console.log({ scene: gltf.scene });
       const champScene = gltf.scene;
       this.scene.add(champScene);
       champScene.position.set(...champData.position);
@@ -272,9 +265,9 @@ export default class ChampionManager {
         manaBar,
         statusBarGroup
       );
+      this.upgrade(dragHelper);
       this.updateBar(dragHelper.userData.hpBar, 1);
       this.updateBar(dragHelper.userData.manaBar, 1, "mp");
-      lightAuto(champScene);
       this.playChampionAnimation(mixer, champScene, gltf.animations);
       this.draggableObjects.push(dragHelper);
       callback(dragHelper);
@@ -342,8 +335,52 @@ export default class ChampionManager {
     }
   }
 
+  upgrade(dragHelper, level = 1) {
+    function applyStarEffect(model, starLevel = 1) {
+      const config = {
+        1: { color: 0xffffff, intensity: 0 },
+        2: { color: 0xfffff0, intensity: 0.3 },
+        3: { color: 0xffd700, intensity: 0.3 },
+        4: { color: 0xffc000, intensity: 0.3 },
+      };
+
+      const { color, intensity } = config[starLevel] || config[1];
+
+      model.traverse((child) => {
+        if (!child.isMesh || !child.material) return;
+
+        const matName = child.material.name.toLowerCase();
+        // console.log({ matName, mat: child.material });
+        const isBody =
+          matName.includes("body") ||
+          matName.includes("mat") ||
+          matName.includes("hair") ||
+          level === 1;
+        const newMaterial = isBody
+          ? new THREE.MeshBasicMaterial({
+              map: child.material.map || null,
+              color: 0xffffff,
+            })
+          : new THREE.MeshStandardMaterial({
+              color,
+              metalness: 0.8,
+              roughness: 0.2,
+              emissive: color,
+              emissiveIntensity: intensity,
+            });
+
+        child.material = newMaterial;
+        child.material.needsUpdate = true;
+      });
+    }
+    const userData = dragHelper.userData;
+    applyStarEffect(userData.champScene, level);
+    userData.level = level;
+    // console.log(userData);
+  }
+
   displayChampInfor(display, champ = null) {
-    console.log("displayChampInfor: ", champ);
+    if (champ) console.log("displayChampInfor: ", champ);
     const champInspect = document.getElementById("champ-inspect");
     if (champInspect) {
       champInspect.classList.toggle("hidden", !display);
@@ -415,19 +452,20 @@ export default class ChampionManager {
         }</span></div>`
       );
       const stats = champ.userData.data.stats;
+      const currData = champ.userData?.currData ?? {};
       const row1 = [
-        this.#damage ?? stats.damage,
-        this.#magic ?? stats.damage,
-        this.#armor ?? stats.armor,
-        this.#magicResist ?? stats.magicResist,
-        this.#attackSpeed ?? +stats.attackSpeed.toFixed(2),
+        currData.damage ?? stats.damage,
+        currData.magic ?? stats.damage,
+        currData.armor ?? stats.armor,
+        currData.magicResist ?? stats.magicResist,
+        currData.attackSpeed ?? +stats.attackSpeed.toFixed(2),
       ];
       const row2 = [
-        this.#critChance ?? +stats.critChance.toFixed(2) * 10,
-        this.#critMultiplier ?? +stats.critMultiplier.toFixed(2) * 10,
-        this.#omnivamp ?? 0,
-        this.#damageAmp ?? 0,
-        this.#durability ?? 0,
+        currData.critChance ?? +stats.critChance.toFixed(2) * 10,
+        currData.critMultiplier ?? +stats.critMultiplier.toFixed(2) * 10,
+        currData.omnivamp ?? 0,
+        currData.damageAmp ?? 0,
+        currData.durability ?? 0,
       ];
       const statsHtml = `<div
         id="stats-row-0"
@@ -451,9 +489,31 @@ export default class ChampionManager {
       )}</div>`;
       champInspect.insertAdjacentHTML("beforeend", statsHtml);
       // button buy champion
+      const buyChampionBtnHtml = `<button
+        class="absolute bottom-[2.15vw] flex items-center justify-center left-[3.3vw] cursor-pointer hover:brightness-150 duration-150 w-[8.5vw] h-[2vw]"
+        id="buy-champion-btn"
+      >
+        <img
+          src="./assets/images/champ_inspect_btn.png"
+          class="w-full h-full absolute top-0 left-0"
+          alt="champ_insp_img"
+        />
+        <div class="absolute text-[0.75vw] text-white w-[60%] flex items-center justify-between">
+          <span class="">Buy</span>
+          <span>10</span>
+        </div>
+      </button>`;
+      champInspect.insertAdjacentHTML("beforeend", buyChampionBtnHtml);
+      const buyChampionBtn = document.getElementById("buy-champion-btn");
+      buyChampionBtn.addEventListener("click", (e) => {
+        this.removeChampFromScene(this.scene, champ);
+        // add coin to bag
+        champInspect.classList.add("hidden");
+      });
     }
   }
 
   attack() {}
   useSkill() {}
+  useItem() {}
 }
