@@ -154,4 +154,78 @@ function createBench(
     : { squareGroup, xBenchEnemy, zBenchEnemy, benchCells };
 }
 
-export { createDeleteZone, createBattleField, createBench };
+function moveToOtherObject(
+  fromObj,
+  targetObj,
+  speed,
+  afterMoveCallBack = () => {},
+  state = { isRunning: false },
+  fromObjAnimations = { idle: null, run: null }
+) {
+  // Utility: Get actual position reference
+  const getPosition = (obj) =>
+    obj?.position ||
+    obj?.modelScene?.position ||
+    obj?.userData?.champScene?.position ||
+    obj;
+
+  // Utility: Get actual rotation reference
+  const getRotation = (obj) =>
+    obj?.rotation ||
+    obj?.modelScene?.rotation ||
+    obj?.userData?.champScene?.rotation;
+
+  // Utility: Apply position
+  const setPosition = (obj, pos) => {
+    if (obj?.position) obj.position.copy(pos);
+    else if (obj?.modelScene?.position) obj.modelScene.position.copy(pos);
+    else if (obj?.userData?.champScene?.position)
+      obj.userData.champScene.position.copy(pos);
+  };
+
+  const pos = getPosition(fromObj);
+  const targetPos = getPosition(targetObj);
+  const rot = getRotation(fromObj);
+
+  if (!pos || !targetPos) return;
+
+  // Animation fallback (if not provided)
+  const animations = { ...fromObjAnimations };
+  if ((!animations.idle || !animations.run) && fromObj?.animations) {
+    const findAnim = (keyword) =>
+      fromObj.animations.find((anim) =>
+        anim.name.toLowerCase().includes(keyword)
+      );
+    animations.idle = fromObj.mixer?.clipAction(findAnim("idle"));
+    animations.run = fromObj.mixer?.clipAction(findAnim("run"));
+  }
+
+  // Direction + movement
+  const dir = new THREE.Vector3().subVectors(targetPos, pos);
+  dir.y = 0;
+  const distance = dir.length();
+
+  if (distance > 0.1) {
+    if (!state.isRunning) {
+      animations.idle?.stop();
+      animations.run?.play();
+      state.isRunning = true;
+    }
+
+    dir.normalize();
+    if (rot) rot.y = Math.atan2(dir.x, dir.z);
+    pos.add(dir.multiplyScalar(speed));
+  } else {
+    setPosition(fromObj, targetPos);
+
+    if (state.isRunning) {
+      animations.run?.stop();
+      animations.idle?.play();
+      state.isRunning = false;
+    }
+
+    afterMoveCallBack();
+  }
+}
+
+export { createDeleteZone, createBattleField, createBench, moveToOtherObject };

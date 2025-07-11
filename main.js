@@ -1,12 +1,8 @@
 import * as THREE from "https://esm.sh/three";
 import {
-  addHelper,
   createDebugGuiFolder,
-  createImage,
-  createText,
   lightAuto,
   loadModel,
-  splitModelsFromGLB,
   transparentMeshs,
 } from "~~/utils/utils.js";
 import {
@@ -19,6 +15,7 @@ import {
   debugOn,
   tacticianSpeed,
   LOW_GRAPHICS_MODE,
+  CHAMPS_INFOR,
 } from "~/variables.js";
 import { useItem } from "~~/item/item.js";
 import ChampionManager from "~~/objects/ChampionManager.js";
@@ -26,21 +23,18 @@ import Model from "~~/objects/Model.js";
 import { RightClickEffect } from "~~/objects/effects.js";
 import SecretSphere from "~~/objects/SecretSphere.js";
 import TFTCarousel from "~~/objects/Carousel.js";
-import {
-  customFetch,
-  sendMessageChangeLineupToEnemy,
-} from "~~/utils/callApi.js";
+import { sendMessageChangeLineupToEnemy } from "~~/utils/callApi.js";
 import {
   createBattleField,
   createBench,
   createDeleteZone,
+  moveToOtherObject,
 } from "~~/services/services.js";
 import initial from "~~/setup/initial.js";
 
-// Config
+// Globals
 let xMes = [];
 let xBenchEnemy = [];
-// Globals
 let mySquareGroup;
 let enemySquareGroup;
 let mixer;
@@ -50,8 +44,9 @@ let bfEnemyCells = [];
 let benchEnemiesCells = [];
 let bfCells = [];
 let benchCells = [];
-let deleteZone, textMesh, trashIcon;
+let deleteZone;
 const itemsOutBag = [];
+const objectsOfChamp = [];
 const tftArguments = [];
 const tacticians = [];
 let tactician,
@@ -59,14 +54,13 @@ let tactician,
 let tacticianMixerGlobal;
 let tacticianActions = {};
 let taticianAnimations;
-let isRunning = false;
-const primaryY = 0;
 let arenaBox;
 let rightClickEffect;
 let loadingAllPercent = 0;
 const selectedArena = ARENA_DATAS[0];
 let zMe = selectedArena.bench[0][2];
 let zBenchEnemy = 0;
+const primaryY = 0;
 const disabledOrbitControlsIds = [
   "shop",
   "animations",
@@ -93,28 +87,6 @@ function updateStatusBars() {
     }
   });
 }
-
-// add champion to enemy grid when receive a msg from server
-const updateEnemyChamps = async () => {
-  // console.log({ benchEnemiesCells, bfEnemyCells });
-  // benchEnemiesCells.forEach((benchEnemy, index) => {
-  //   console.log({ [index]: benchEnemy });
-  // });
-  // await customFetch("champs", (data) => {
-  //   console.log(data);
-  // });
-  // championManager.addChampion(
-  //   mixer,
-  //   {
-  //     name: champName,
-  //     position: [xBenchEnemy[xBenchEnemy.length - 1 - i], 0, zBenchEnemy],
-  //     url: modelPathUrl,
-  //     traits: rollList[indexCard].traits,
-  //   },
-  //   (dragHelper) => {}
-  // );
-};
-updateEnemyChamps();
 
 bfCells = createBattleField(scene, 4, 7, selectedArena.battlefield);
 bfEnemyCells = createBattleField(
@@ -470,8 +442,6 @@ function loadArena() {
           });
         }
 
-        // reload my traits
-        championManager.renderTraits();
         if (nearestCell) {
           selectedObject.position.set(nearestCell.x, 0.1, nearestCell.z);
           selectedObject.userData.champScene.position.set(
@@ -487,6 +457,8 @@ function loadArena() {
         currPos = null;
         selectedObject = null;
         isDragging = false;
+        // reload my traits
+        championManager.renderTraits();
       });
 
       renderer.domElement.addEventListener("contextmenu", (event) => {
@@ -782,6 +754,7 @@ window.addEventListener("keydown", (e) => {
 });
 
 let animationId = null;
+const tacticianState = { isRunning: false, isAttacking: false };
 // Animate
 try {
   function animate() {
@@ -802,42 +775,27 @@ try {
     // carousel.update();
 
     if (tactician && tacticianTarget) {
-      const pos = tactician.position;
-      const dir = new THREE.Vector3().subVectors(tacticianTarget, pos);
-      dir.y = 0;
-      const distance = dir.length();
-      if (distance > 0.1) {
-        if (!isRunning) {
-          tacticianActions.idle?.stop();
-          tacticianActions.run?.play();
-          isRunning = true;
-        }
-        dir.normalize();
-        // console.log(dir.multiplyScalar(tacticianSpeed));
-        tactician.rotation.y = Math.atan2(dir.x, dir.z);
-        tactician.position.add(dir.multiplyScalar(tacticianSpeed));
-        // tactician.position.y = 4;
-        // if (!carousel.checkBarrierCollision(tactician)) {
-        //   // ✅ Được di chuyển
-        //   tactician.position.add(dir.multiplyScalar(tacticianSpeed));
-        //   tactician.position.y = selectedArena.tactacianFirstPos[1];;
-        // } else {
-        //   // Đẩy ngược lại 1 đoạn nhỏ
-        //   const pushBack = dir.clone().negate().multiplyScalar(0.2);
-        //   tactician.position.add(pushBack);
-        //   tactician.position.y = selectedArena.tactacianFirstPos[1];;
-        //   tactician.rotation.y = Math.atan2(dir.x, dir.z); // xoay theo hướng di chuyển
-        // }
-      } else {
-        tactician.position.copy(tacticianTarget);
-        tacticianTarget = null;
-        if (isRunning) {
-          tacticianActions.run?.stop();
-          tacticianActions.idle?.play();
-          isRunning = false;
-        }
-      }
-
+      moveToOtherObject(
+        tactician,
+        tacticianTarget,
+        tacticianSpeed,
+        () => {
+          tacticianTarget = null;
+        },
+        tacticianState,
+        tacticianActions
+      );
+      // if (!carousel.checkBarrierCollision(tactician)) {
+      //   // ✅ Được di chuyển
+      //   tactician.position.add(dir.multiplyScalar(tacticianSpeed));
+      //   tactician.position.y = selectedArena.tactacianFirstPos[1];;
+      // } else {
+      //   // Đẩy ngược lại 1 đoạn nhỏ
+      //   const pushBack = dir.clone().negate().multiplyScalar(0.2);
+      //   tactician.position.add(pushBack);
+      //   tactician.position.y = selectedArena.tactacianFirstPos[1];;
+      //   tactician.rotation.y = Math.atan2(dir.x, dir.z); // xoay theo hướng di chuyển
+      // }
       itemsOutBag.forEach((item, index) => {
         if (item.checkCollision(tactician)) {
           itemsOutBag.splice(index, 1);
@@ -845,12 +803,17 @@ try {
           item.removeFromScene();
         }
       });
-
-      if (tacticianMixerGlobal) tacticianMixerGlobal.update(clock.getDelta());
+      if (tacticianMixerGlobal) tacticianMixerGlobal.update(delta);
     }
-
     // right click effect
     if (rightClickEffect) rightClickEffect.update();
+    if (objectsOfChamp.length > 0) {
+      objectsOfChamp.forEach((obj) => {
+        if (obj.mixer && obj.update) {
+          obj.update(delta);
+        }
+      });
+    }
   }
   animate();
 } catch (err) {
@@ -869,9 +832,9 @@ champShopList.addEventListener("click", function (e) {
   if (addingFlag) return;
   const rollList = window.champsInRoll;
   addingFlag = true;
-  const target = e.target.closest(".champ-card-shop");
-  if (target) {
-    const indexCard = target.indexInRoll;
+  const card = e.target.closest(".champ-card-shop");
+  if (card) {
+    const indexCard = card.indexInRoll;
     if (window.champsBought[indexCard] === 1) {
       alert(
         "Bạn đã mua tướng này rồi! nghịch devtools admin sẽ ban acc của bạn =))))"
@@ -884,7 +847,7 @@ champShopList.addEventListener("click", function (e) {
         .toLowerCase()
         .replace(". ", "_")
         .replace(" ", "_")
-        .replace("'", "") || target.champName;
+        .replace("'", "") || card.champName;
     const modelPathUrl =
       "./assets/models/champions/" + champName + "_(tft_set_14).glb";
     let found = false;
@@ -894,23 +857,68 @@ champShopList.addEventListener("click", function (e) {
       );
       if (!spotTaken) {
         found = true;
-        championManager.addChampion(
-          mixer,
-          {
-            url: modelPathUrl,
-            position: [xMes[i], 0, zMe],
-            data: target.data,
-          },
-          (dragHelper) => {
-            dragHelper.benchIndex = i;
-            dragHelper.bfIndex = -1;
-            addingFlag = false;
-            champsBought[indexCard] = 1;
-            target.classList.add("invisible");
-            sendMessageChangeLineupToEnemy(draggableObjects);
+        if (!card.zacBloblet) {
+          championManager.addChampion(
+            mixer,
+            {
+              url: modelPathUrl,
+              position: [xMes[i], 0, zMe],
+              data: card.data,
+            },
+            (dragHelper) => {
+              dragHelper.benchIndex = i;
+              dragHelper.bfIndex = -1;
+              addingFlag = false;
+              champsBought[indexCard] = 1;
+              card.classList.add("invisible");
+              sendMessageChangeLineupToEnemy(draggableObjects);
+            }
+          );
+        } else {
+          const blobletOverlay = card.querySelector(".overlay-shop-champ");
+          blobletOverlay.classList.replace("opacity-100", "opacity-0");
+          addingFlag = false;
+          let zac;
+          if (
+            (zac = draggableObjects.find((obj) => obj.userData.name === "Zac"))
+          ) {
+            console.log(zac);
+            if (zac.bfIndex != -1) {
+              let animID = null;
+              new Model(scene, {
+                name: "virus",
+                url: "./assets/models/skills/tft14_virus_bloblet.glb",
+                position: [
+                  Math.floor(Math.random() * 21) - 10,
+                  zac.position.y,
+                  15,
+                ],
+                scale: [0.02, 0.02, 0.02],
+                onLoaded: (virusModel) => {
+                  objectsOfChamp.push(virusModel);
+                  const virusState = { isRunning: false };
+                  const virusAnime = () => {
+                    animID = requestAnimationFrame(virusAnime);
+                    moveToOtherObject(
+                      virusModel,
+                      zac,
+                      0.1,
+                      () => {
+                        cancelAnimationFrame(animID);
+                        animID = null;
+                        virusModel.removeFromScene();
+                        championManager.highlight(mixer, zac);
+                      },
+                      virusState
+                    );
+                  };
+                  virusAnime();
+                },
+                debug: false,
+              });
+            }
           }
-        );
-
+        }
         break;
       }
     }

@@ -1,4 +1,4 @@
-import { EXP_TABLE } from "~/variables.js";
+import { EXP_TABLE, fee } from "~/variables.js";
 
 let myExp = 0;
 let myGold = 999;
@@ -62,23 +62,23 @@ function handleBuyExp(callback = () => {}) {
     // alert("You have reached the highest level!");
     return;
   }
-  if (myGold >= 4) {
-    myExp += 4;
-    myGold -= 4;
+  if (myGold >= fee.buyExp) {
+    myExp += fee.buyExp;
+    myGold -= fee.buyExp;
     callback();
     renderExp();
     renderGold();
-    console.log({ myGold, myExp });
+    console.log("buy exp: ", { myGold, myExp });
   }
 }
 
 function handleReroll(callback = () => {}) {
   if (lockShop) return;
-  if (myGold >= 2) {
-    myGold -= 2;
+  if (myGold >= fee.reroll) {
+    myGold -= fee.reroll;
     callback();
     renderGold();
-    // console.log({ myGold });
+    console.log("reroll:", { myGold });
   }
 }
 

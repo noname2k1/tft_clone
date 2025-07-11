@@ -28,3 +28,14 @@ canvas {
       #upgrade * {
         pointer-events: none;
       } */
+
+*:not([class*="cursor-pointer"]),
+canvas {
+  cursor: url("/normal.cur"), auto !important;
+}
+*[class*="cursor-pointer"],
+a,
+button,
+button img {
+  cursor: url("/link.cur"), pointer !important;
+}

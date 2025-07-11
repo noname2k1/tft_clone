@@ -1,5 +1,10 @@
 export const debugOn = false;
-export const tacticianSpeed = 0.2;
+export const tacticianSpeed = 0.15;
+export const fee = {
+  buyExp: 4,
+  reroll: 2,
+};
+
 export const bgUrl = "./bg.jpg";
 // export const arenaUrl = "./assets/models/arenas/tft_arena_default.glb";
 export const debugObjs = [];
@@ -8,6 +13,7 @@ export const debugFolders = [];
 export const MODEL_CACHES = [];
 export const ARGUMENTS_CACHES = [];
 export const TRAITS_INFOR = [];
+export const CHAMPS_INFOR = [];
 export const EXP_TABLE = {
   1: 0, // turn 1, cannot up level
   2: 2, // turn 2

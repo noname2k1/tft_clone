@@ -14,6 +14,7 @@ export default class ChampionManager {
   scene;
   traitListElement;
   draggableObjects;
+  traitDisplayCount = 10;
   constructor(scene, draggableObjects) {
     this.scene = scene;
     this.traitListElement = document.getElementById("trait-list");
@@ -193,49 +194,180 @@ export default class ChampionManager {
     animate();
   }
 
-  addTraitItemToList({ trait, champs }) {
-    const champCount = champs.length;
-    const div = document.createElement("div");
-    div.className =
-      "w-[3vw] cursor-pointer h-[3vw] mb-[0.2vw] relative flex items-center justify-center";
-    div.innerHTML = `
+  addTraitItemToList(
+    { name, champs, data, effect, nextEffect },
+    index,
+    totalTraits,
+    lastIndex,
+    viewMore
+  ) {
+    if (index <= this.traitDisplayCount - 1) {
+      console.log({ data });
+      const champCount = champs.length;
+      // console.log({ effect, nextEffect });
+      // console.log({ champCount });
+      const div = document.createElement("div");
+      div.className = effect
+        ? "w-[3.5vw] cursor-pointer h-[3.5vw] mb-[0.2vw] relative flex items-center justify-center"
+        : "w-[3vw] cursor-pointer h-[3vw] mb-[0.2vw] relative flex items-center justify-center";
+      div.innerHTML = `
       <div class="bg-black/80 rounded-lg h-[80%] absolute left-[1.2vw] flex items-center">
-        <div class="flex flex-col justify-center ml-[2.5vw] h-[80%] pr-5">
-          <span class="inline-block text-[1vw] text-white/50 text-nowrap">${trait}</span>
+      ${
+        effect
+          ? `<div
+          class="rounded-md bg-white/20 ml-[2.5vw] h-[80%] px-[0.5vw] border border-white flex items-center justify-center"
+        >
+          ${champCount}
+        </div>`
+          : ""
+      }
+        <div class="flex flex-col justify-center ml-[${
+          effect ? "1vw" : "2.5vw"
+        }] h-[80%] pr-5">
+          <span class="inline-block text-[1vw] text-white/50 text-nowrap mt-[-0.3vw]">${name}</span>
           <div class="flex text-white/50 text-[0.75vw] mt-[-0.4vw]">
-            <span>${champCount}</span><span class="mx-1">/</span><span>5</span>
+            ${
+              effect
+                ? data.effects.reduce((prev, curr, index) => {
+                    return (
+                      prev +
+                      `<span class="${
+                        (effect && champCount >= curr.minUnits) || !nextEffect
+                          ? `text-white`
+                          : ""
+                      }">${curr.minUnits}</span>` +
+                      (index < data.effects.length - 1
+                        ? `<span class="mx-1">></span>`
+                        : "")
+                    );
+                  }, "")
+                : `<span>${champCount}</span><span class="mx-1">/</span><span>${nextEffect.minUnits}</span>`
+            }
           </div>
         </div>
       </div>
-      <img src="./assets/images/style-0.png" class="w-full h-full absolute"
-        data-item-id="0" data-item-name="Lesser_Champion_Duplicator_TFT_item" />
-      <div class="mask-[url('/assets/images/classes_icons/${trait.replaceAll(
-        " ",
-        "_"
-      )}_TFT_icon.svg')] bg-white/30 mask-no-repeat mask-center mask-contain w-[1.2vw] h-[1.2vw] absolute"></div>
+      <img src="./assets/images/style-${
+        effect ? effect.style : 0
+      }.png" class="w-full h-full absolute"/>
+      ${
+        effect
+          ? `<div
+        class="z-[11] mask-[url('/assets/images/classes_icons/${name.replaceAll(
+          " ",
+          "_"
+        )}_TFT_icon.svg')] bg-black mask-no-repeat mask-center mask-contain w-[1.5vw] h-[1.5vw] absolute"
+      >`
+          : `<div class="mask-[url('/assets/images/classes_icons/${name.replaceAll(
+              " ",
+              "_"
+            )}_TFT_icon.svg')] bg-white/30 mask-no-repeat mask-center mask-contain w-[1.2vw] h-[1.2vw] absolute"></div>`
+      }
     `;
-    this.traitListElement?.appendChild(div);
+      this.traitListElement?.appendChild(div);
+      if (
+        lastIndex &&
+        ((viewMore && totalTraits - this.traitDisplayCount > 0) || !viewMore)
+      ) {
+        const viewMoreBtn = document.createElement("button");
+        viewMoreBtn.className = "relative w-[3vw] h-[3vw] cursor-pointer";
+        viewMoreBtn.insertAdjacentHTML(
+          "beforeend",
+          `<img src="./assets/images/view-more.png" class="h-full w-full"/>
+          <span class="absolute top-[20%] left-[50%] text-[1vw]">${
+            viewMore
+              ? totalTraits - this.traitDisplayCount
+              : totalTraits - (totalTraits - this.traitDisplayCount)
+          }</span>`
+        );
+        viewMoreBtn.addEventListener("click", (e) => {
+          this.renderTraits(viewMore);
+        });
+        this.traitListElement.appendChild(viewMoreBtn);
+      }
+    }
   }
 
-  renderTraits() {
+  renderTraits(viewMore = false) {
     const champsInBf = draggableObjects.filter((c) => c.bfIndex != -1);
     const traitsMap = {};
 
     champsInBf.forEach((champ) => {
       champ.userData.data.traits.forEach((trait) => {
-        if (!traitsMap[trait]) traitsMap[trait] = [champ.name];
-        else if (!traitsMap[trait].includes(champ.name))
-          traitsMap[trait].push(champ.name);
+        if (!traitsMap[trait]) traitsMap[trait] = [champ.userData.name];
+        else if (!traitsMap[trait].includes(champ.userData.name))
+          traitsMap[trait].push(champ.userData.name);
       });
     });
 
-    const traitsArray = Object.entries(traitsMap).map(([trait, champs]) => ({
-      trait,
+    const traitsArray = Object.entries(traitsMap).map(([name, champs]) => ({
+      name,
       champs,
     }));
 
+    // console.log(TRAITS_INFOR);
+    traitsArray.forEach((trait) => {
+      const champCount = trait.champs.length;
+      const data = TRAITS_INFOR.find(
+        (traitInfor) => traitInfor.name === trait.name
+      );
+      const effect = data.effects.find((ef) => {
+        return ef.maxUnits >= champCount && ef.minUnits <= champCount;
+      });
+      const nextEffect = data.effects.find((ef) => {
+        return champCount < ef.minUnits;
+      });
+      trait.data = data;
+      trait.effect = effect;
+      trait.nextEffect = nextEffect;
+    });
+    traitsArray.sort((prev, curr) => {
+      if (
+        (prev.effect && !curr.effect) ||
+        (prev.effect && curr.effect && prev.effect.style > curr.effect.style) ||
+        (prev.effect &&
+          curr.effect &&
+          prev.effect.style === curr.effect.style &&
+          prev.champs.length > curr.champs.length) ||
+        (!prev.effect &&
+          !curr.effect &&
+          prev.champs.length > curr.champs.length)
+      ) {
+        return -1;
+      } else {
+        return 1;
+      }
+    });
+
     this.traitListElement?.replaceChildren();
-    traitsArray.forEach((trait) => this.addTraitItemToList(trait));
+    if (viewMore) {
+      if (traitsArray.length > this.traitDisplayCount) {
+        const chunkedTraitsArray = traitsArray.slice(
+          this.traitDisplayCount,
+          traitsArray.length
+        );
+        // console.log(chunkedTraitsArray);
+        chunkedTraitsArray.forEach((trait, index) => {
+          this.addTraitItemToList(
+            trait,
+            index,
+            traitsArray.length,
+            index ===
+              Math.min(this.traitDisplayCount, chunkedTraitsArray.length) - 1,
+            !viewMore
+          );
+        });
+      }
+    } else {
+      traitsArray.forEach((trait, index) => {
+        this.addTraitItemToList(
+          trait,
+          index,
+          traitsArray.length,
+          index === this.traitDisplayCount - 1,
+          !viewMore
+        );
+      });
+    }
   }
 
   addChampion(mixer, champData, callback = () => {}) {
@@ -333,6 +465,35 @@ export default class ChampionManager {
       scene.remove(dragHelper.userData.statusBarGroup);
       scene.remove(dragHelper);
     }
+  }
+
+  highlight(mixer, dragHelper, duration = 150) {
+    dragHelper.userData?.champScene.traverse((child) => {
+      if (!child.isMesh || !child.material) return;
+      const oldMat = child.material;
+      const newMat = new THREE.MeshStandardMaterial({
+        color: 0xffd700,
+        metalness: 0.8,
+        roughness: 0.2,
+        emissive: 0xffd700,
+        emissiveIntensity: 1.5,
+      });
+      child.material = newMat;
+      child.material.needsUpdate = true;
+      let animId = null;
+      const animate = () => {
+        animId = requestAnimationFrame(animate);
+        const clock = new THREE.Clock();
+        const delta = clock.getDelta();
+        if (mixer) mixer.update(delta);
+      };
+      animate();
+      setTimeout(() => {
+        child.material = oldMat;
+        child.material.needsUpdate = true;
+        cancelAnimationFrame(animId);
+      }, duration);
+    });
   }
 
   upgrade(dragHelper, level = 1) {
@@ -498,7 +659,7 @@ export default class ChampionManager {
           class="w-full h-full absolute top-0 left-0"
           alt="champ_insp_img"
         />
-        <div class="absolute text-[0.75vw] text-white w-[60%] flex items-center justify-between">
+        <div class="absolute text-[0.75vw] mt-[-0.25vw] text-white w-[60%] flex items-center justify-between">
           <span class="">Buy</span>
           <span>10</span>
         </div>
