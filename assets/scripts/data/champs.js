@@ -99,7 +99,7 @@ const champScales = [
   {
     name: "Skarner",
     cost: 2,
-    scale: [0.0075, 0.0075, 0.0075],
+    scale: [0.005, 0.005, 0.005],
   },
   {
     name: "Twisted Fate",
@@ -164,7 +164,7 @@ const champScales = [
   {
     name: "Varus",
     cost: 3,
-    scale: [0.015, 0.015, 0.015],
+    scale: [0.02, 0.02, 0.02],
   },
   {
     name: "Yuumi",
@@ -179,7 +179,7 @@ const champScales = [
   {
     name: "Aphelios",
     cost: 4,
-    scale: [0.013, 0.013, 0.013],
+    scale: [0.012, 0.012, 0.012],
   },
   {
     name: "Brand",
@@ -189,7 +189,7 @@ const champScales = [
   {
     name: "ChoGath",
     cost: 4,
-    scale: [0.008, 0.008, 0.008],
+    scale: [0.006, 0.006, 0.006],
   },
   {
     name: "Leona",
@@ -209,7 +209,7 @@ const champScales = [
   {
     name: "Sejuani",
     cost: 4,
-    scale: [0.011, 0.011, 0.011],
+    scale: [0.009, 0.009, 0.009],
   },
   {
     name: "Vex",

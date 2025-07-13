@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 body {
   margin: 0;
   overflow: hidden;
@@ -36,6 +40,12 @@ canvas {
 *[class*="cursor-pointer"],
 a,
 button,
-button img {
+button:hover,
+button img,
+button img:hover {
   cursor: url("/link.cur"), pointer !important;
+}
+
+.clip-hexagon {
+  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
 }

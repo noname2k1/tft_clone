@@ -1,5 +1,3 @@
-import { CHAMPS_INFOR, TRAITS_INFOR } from "~/variables.js";
-import { customFetch } from "~~/utils/callApi";
 import {
   getMyGold,
   renderExp,
@@ -13,14 +11,6 @@ import {
 
 document.addEventListener("DOMContentLoaded", async function () {
   const lockShopBtn = document.getElementById("lock-shop");
-  // get trais infor from server
-  await customFetch("traits", (data) => {
-    TRAITS_INFOR.splice(0, TRAITS_INFOR.length, ...data.traits);
-  });
-
-  await customFetch("champs", (data) => {
-    CHAMPS_INFOR.splice(0, CHAMPS_INFOR.length, ...data.champs);
-  });
   // render my gold, exp
   renderGold();
   renderExp();

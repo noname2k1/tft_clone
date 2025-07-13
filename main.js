@@ -41,6 +41,8 @@ let mixer;
 const clock = new THREE.Clock();
 let draggableObjects = [];
 let bfEnemyCells = [];
+let bfEnemies = [];
+let benchEnemies = [];
 let benchEnemiesCells = [];
 let bfCells = [];
 let benchCells = [];
@@ -66,6 +68,9 @@ const disabledOrbitControlsIds = [
   "animations",
   "left-bar",
   "champ-inspect",
+  "config",
+  "primary-modal",
+  "enemy-define",
 ];
 
 const debugControls = false;
@@ -125,6 +130,56 @@ mySquareGroup = createMyBench.squareGroup;
 xMes = createMyBench.xMes;
 zMe = createMyBench.zMe;
 benchCells = createMyBench.benchCells;
+
+function updateEnemyLineup(champNamesOrChampName) {
+  // console.log(champNamesOrChampName);
+  // console.log(bfEnemyCells);
+  // console.log(CHAMPS_INFOR);
+  if (typeof champNamesOrChampName != "string") {
+    champNamesOrChampName.forEach((champName, index) => {
+      if (bfEnemies[index]) {
+        championManager.removeChampFromScene(scene, bfEnemies[index]);
+      }
+      if (champName) {
+        const pos = bfEnemyCells[index]?.center;
+        const modelPathUrl =
+          "./assets/models/champions/" +
+          champName
+            .toLowerCase()
+            .replace(". ", "_")
+            .replace(" ", "_")
+            .replace("'", "") +
+          "_(tft_set_14).glb";
+        championManager.addChampion(
+          mixer,
+          {
+            position: pos,
+            url: modelPathUrl,
+            data: CHAMPS_INFOR.find(
+              (chamInfor) => chamInfor.name === champName
+            ),
+          },
+          (dragHelper) => {
+            bfEnemies[index] = dragHelper;
+            dragHelper.userData.champScene.rotation.x = 0;
+          }
+        );
+      } else {
+        bfEnemies[index] = champName;
+      }
+    });
+  }
+  if (typeof champNamesOrChampName === "string") {
+    const champIndex = bfEnemies.findIndex(
+      (bfE) => bfE?.userData.name === champNamesOrChampName
+    );
+    if (champIndex != -1) {
+      championManager.removeChampFromScene(scene, bfEnemies[champIndex]);
+      bfEnemies.splice(champIndex, 1);
+    }
+    return;
+  }
+}
 
 function displayGrid(hideBattleField = false, hideBench = false) {
   bfCells.forEach(({ mesh }) => (mesh.visible = !hideBattleField));
@@ -884,6 +939,7 @@ champShopList.addEventListener("click", function (e) {
           ) {
             console.log(zac);
             if (zac.bfIndex != -1) {
+              card.zacBloblet = false;
               let animID = null;
               new Model(scene, {
                 name: "virus",
@@ -931,4 +987,4 @@ champShopList.addEventListener("click", function (e) {
   }
 });
 
-export { draggableObjects };
+export { draggableObjects, updateEnemyLineup };
