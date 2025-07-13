@@ -222,6 +222,31 @@ function capitalizeFirstLetter(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+class ObserverElementChange {
+  observer = null;
+  constructor(
+    htmlNode,
+    callback,
+    opts = {
+      subtree: true, // theo dõi cả các node con
+      characterData: true, // theo dõi nội dung văn bản
+      childList: true, // theo dõi việc thêm/xóa node con
+    }
+  ) {
+    if (!htmlNode) return;
+    this.observer = new MutationObserver((mutationsList) => {
+      for (const mutation of mutationsList) {
+        callback(mutation);
+      }
+    });
+    this.observer?.observe(htmlNode, opts);
+  }
+
+  disconnect() {
+    this.observer?.disconnect();
+  }
+}
+
 export {
   loadModel,
   lightAuto,
@@ -233,4 +258,5 @@ export {
   transparentMeshs,
   lerpAngle,
   capitalizeFirstLetter,
+  ObserverElementChange,
 };

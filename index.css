@@ -49,3 +49,112 @@ button img:hover {
 .clip-hexagon {
   clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
 }
+
+/* champs shop */
+.champ-card-shop.border-run::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
+  background: linear-gradient(
+    120deg,
+    #fff 0%,
+    #000 25%,
+    #fff 50%,
+    #000 75%,
+    #000 100%
+  );
+  background-size: 400% 400%;
+  animation: borderRun 3s linear infinite;
+  z-index: 50;
+  pointer-events: none;
+  border-radius: 0.3vw;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  padding: 2px;
+  box-sizing: border-box;
+}
+.champ-card-shop.border-run.gold::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
+  background: linear-gradient(
+    120deg,
+    #ffdd11 0%,
+    #ffee00 25%,
+    #fff 50%,
+    #ffaa00 75%,
+    #000 100%
+  );
+  background-size: 400% 400%;
+  animation: borderRun 3s linear infinite;
+  z-index: 50;
+  pointer-events: none;
+  border-radius: 0.3vw;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  padding: 2px;
+  box-sizing: border-box;
+}
+.champ-card-shop.border-run.teal::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
+  background: linear-gradient(
+    120deg,
+    #5debc8 0%,
+    /* Turquoise */ #33cccc 25%,
+    /* Light Teal */ #6ce0d0 50%,
+    /* Cyan */ #fff 75%,
+    #000 100%
+  );
+  background-size: 400% 400%;
+  animation: borderRun 3s linear infinite;
+  z-index: 50;
+  pointer-events: none;
+  border-radius: 0.3vw;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  padding: 2px;
+  box-sizing: border-box;
+}
+
+@keyframes borderRun {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 400% 50%;
+  }
+}
+
+.fade-in {
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+.fade-in.loaded {
+  opacity: 1;
+}
+
+.champ-placeholder {
+  background-color: #2d2d2d;
+  animation: pulse 1.2s infinite;
+  border-radius: 0.3vw;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}

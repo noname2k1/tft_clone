@@ -4,24 +4,26 @@ import { updateEnemyLineup } from "~/main";
 
 document.addEventListener("DOMContentLoaded", async function () {
   let filterConditions = {};
-  const enemyLineupSetup = document.getElementById("eneny-lineup-setup");
-  const enemyLineupArea = enemyLineupSetup.querySelector(".enemy-lineup-area");
-  const traitsSelect = enemyLineupSetup.querySelector(".filter-by-trait");
-  const costSelect = enemyLineupSetup.querySelector(".filter-by-cost");
-  const champs = enemyLineupSetup.querySelector(".champs");
-
-  await customFetch("traits", (data) => {
-    TRAITS_INFOR.splice(0, TRAITS_INFOR.length, ...data.traits);
-  });
-
-  await customFetch("champs", (data) => {
-    CHAMPS_INFOR.splice(0, CHAMPS_INFOR.length, ...data.champs);
-  });
-
+  const lineupSetup = document.getElementById("lineup-setup");
+  const enemyLineupArea = lineupSetup.querySelector(".enemy-lineup-area");
+  const traitsSelect = lineupSetup.querySelector(".filter-by-trait");
+  const costSelect = lineupSetup.querySelector(".filter-by-cost");
+  const champs = lineupSetup.querySelector(".champs");
+  let hexSelected = null;
+  if (TRAITS_INFOR.length < 1) {
+    await customFetch("traits", (data) => {
+      TRAITS_INFOR.splice(0, TRAITS_INFOR.length, ...data.traits);
+    });
+  }
+  if (CHAMPS_INFOR.length < 1) {
+    await customFetch("champs", (data) => {
+      CHAMPS_INFOR.splice(0, CHAMPS_INFOR.length, ...data.champs);
+    });
+  }
+  const customEvent = new CustomEvent("updateAllEnemyLinup");
   const renderChamps = (fConditions = {}) => {
-    CHAMPS_INFOR.forEach((champ) => {
+    CHAMPS_INFOR.forEach((champ, index) => {
       let conditionsAccepted = true;
-
       for (const [filterKey, filterValue] of Object.entries(fConditions)) {
         if (typeof champ[filterKey] === "number") {
           conditionsAccepted = champ[filterKey] === filterValue;
@@ -40,14 +42,41 @@ document.addEventListener("DOMContentLoaded", async function () {
         champImg.src = `./assets/images/champs/icons/${champ.name}.png`;
         champImg.onload = () => {
           champImg.draggable = true;
-          champImg.className =
-            "w-[6.5vw] h-[6.5vw] hover:brightness-150 transition-[brightness] duration-150";
+          champImg.className = `champ-selectable w-[6.5vw] h-[6.5vw] hover:brightness-150 transition-[brightness] duration-150`;
+          // ondrag
           champImg.addEventListener("ondrag", function (event) {
             console.log("chamImg ondrag");
           });
+          // ondragstart
           champImg.addEventListener("dragstart", function (event) {
             event.dataTransfer.setData("img", champImg.src);
           });
+          // onclick
+          champImg.addEventListener("click", function () {
+            if (hexSelected) {
+              const hexFound = document.getElementById(hexSelected);
+              if (hexFound) {
+                const imgInsideHex = hexFound.querySelector("img");
+                if (imgInsideHex) {
+                  imgInsideHex.src = champImg.src;
+                } else {
+                  const newImg = document.createElement("img");
+                  newImg.className =
+                    "w-full h-full hover:brightness-150 transition-[brightness] duration-150";
+                  newImg.src = champImg.src;
+                  hexFound.appendChild(newImg);
+                  newImg.addEventListener("dragstart", function (event) {
+                    event.dataTransfer.setData("img", newImg.src);
+                    event.dataTransfer.setData("from", hexFound.id);
+                  });
+                }
+                hexFound.classList.replace("bg-yellow-700", "bg-gray-700");
+                hexFound.dispatchEvent(customEvent);
+                hexSelected = null;
+              }
+            }
+          });
+          champImg.data = champ;
           const champDiv = document.createElement("div");
           champDiv.className = "flex flex-col items-center mr-[1vw]";
           const champName = document.createElement("span");
@@ -134,6 +163,26 @@ document.addEventListener("DOMContentLoaded", async function () {
   const rows = 4;
   const cols = 7;
   const hexDivs = [];
+
+  const updateAllEnemyLinup = () => {
+    if (hexDivs.length < 1) return;
+    const champNames = hexDivs.map((hexId) => {
+      const hexEl = document.getElementById(hexId);
+      if (hexEl) {
+        const imgInsideHex = hexEl.querySelector("img");
+        if (imgInsideHex) {
+          return decodeURIComponent(
+            imgInsideHex.src.split("/").pop().replace(".png", "")
+          );
+        } else {
+          return null;
+        }
+      }
+      return null;
+    });
+    updateEnemyLineup(champNames);
+  };
+
   for (let row = 0; row < rows; row++) {
     const rowDiv = document.createElement("div");
     rowDiv.className = `flex items-center ${
@@ -144,18 +193,26 @@ document.addEventListener("DOMContentLoaded", async function () {
       hexDiv.id = "hex-" + Number(row * cols + col);
       hexDiv.className =
         "w-[7vw] lg:w-[5vw] lg:h-[5vw] h-[7vw] bg-gray-700 clip-hexagon relative";
+      // ondragenter
       hexDiv.addEventListener("dragenter", function (e) {
         e.preventDefault();
         hexDiv.classList.replace("bg-gray-700", "bg-yellow-700");
       });
+      // ondragleave
       hexDiv.addEventListener("dragleave", function (e) {
         e.preventDefault();
         hexDiv.classList.replace("bg-yellow-700", "bg-gray-700");
       });
+      // ondragover
       hexDiv.addEventListener("dragover", function (e) {
         e.preventDefault();
       });
-
+      // onclick
+      hexDiv.addEventListener("click", function () {
+        hexDiv.classList.replace("bg-gray-700", "bg-yellow-700");
+        hexSelected = hexDiv.id;
+      });
+      // ondrop
       hexDiv.addEventListener("drop", function (e) {
         const imgSrc = e.dataTransfer.getData("img");
         const img = document.createElement("img");
@@ -174,42 +231,32 @@ document.addEventListener("DOMContentLoaded", async function () {
           }
           fromHexElement.classList.replace("bg-yellow-700", "bg-gray-700");
         }
+        // img inside hex ondragstart
         img.addEventListener("dragstart", function (event) {
+          console.log(img.src);
           event.dataTransfer.setData("img", img.src);
           event.dataTransfer.setData("from", "hex-" + Number(row * cols + col));
         });
         img.src = imgSrc;
         hexDiv.replaceChildren(img);
-        hexDiv.addEventListener("contextmenu", function () {
-          const champImg = hexDiv.querySelector("img");
-          if (champImg) {
-            updateEnemyLineup(
-              champImg.src
-                .split("/")
-                [champImg.src.split("/").length - 1].replace("%20", " ")
-                .replace(".png", "")
-            );
-          }
-          hexDiv.replaceChildren();
-          hexDiv.classList.replace("bg-yellow-700", "bg-gray-700");
-        });
-
-        const champNames = hexDivs.map((hexId) => {
-          const hexEl = document.getElementById(hexId);
-          if (hexEl) {
-            const imgInsideHex = hexEl.querySelector("img");
-            if (imgInsideHex) {
-              return imgInsideHex.src
-                .split("/")
-                [imgInsideHex.src.split("/").length - 1].replace("%20", " ")
-                .replace(".png", "");
-            } else {
-              return null;
-            }
-          }
-          return null;
-        });
-        updateEnemyLineup(champNames);
+        updateAllEnemyLinup();
+      });
+      // oncontextmenu
+      hexDiv.addEventListener("contextmenu", function () {
+        const champImg = hexDiv.querySelector("img");
+        if (champImg) {
+          updateEnemyLineup(
+            decodeURIComponent(
+              champImg.src.split("/").pop().replace(".png", "")
+            )
+          );
+        }
+        hexDiv.replaceChildren();
+        hexDiv.classList.replace("bg-yellow-700", "bg-gray-700");
+      });
+      // custom event: updateAllEnemyLinup
+      hexDiv.addEventListener("updateAllEnemyLinup", function () {
+        updateAllEnemyLinup();
       });
       rowDiv.appendChild(hexDiv);
       hexDivs.push(hexDiv.id);

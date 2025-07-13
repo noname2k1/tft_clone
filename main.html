@@ -204,6 +204,7 @@
       <button
         class="absolute left-0 top-0 hover:brightness-125 transition-[brightness] duration-150 w-1/2"
         title="mark champs"
+        id="mark-champs-btn"
       >
         <img src="./assets/images/config-mark.png" alt="" />
       </button>
@@ -237,9 +238,10 @@
         />
       </button>
     </div>
+    <!-- primay modal -->
     <div
       id="primary-modal"
-      class="fixed top-1/2 invisible -translate-y-1/2 flex flex-col left-1/2 -translate-x-1/2 bg-[#151f20] w-[80vw] h-screen rounded-sm text-[#c8bc93] px-[1vw] py-[1vw] lg:px-[2vw]"
+      class="fixed top-1/2 invisible -translate-y-1/2 flex flex-col left-1/2 -translate-x-1/2 bg-[#151f20] min-w-[80vw] h-screen rounded-sm text-[#c8bc93] px-[1vw] py-[1vw] lg:px-[2vw]"
     >
       <header class="text-[2.75vw] font-semibold flex items-center">
         <h2>Select enemy's champs</h2>
@@ -252,7 +254,9 @@
             alt=""
             class="w-full h-full"
           />
-          <span class="absolute text-[1.5vw]">?</span>
+          <span class="absolute text-[1.5vw] top-1/2 -translate-y-[55%]"
+            >?</span
+          >
         </button>
         <button
           class="close-modal-btn relative flex items-center justify-center ml-[1vw] transition-[brightness] duration-150 hover:brightness-150"
@@ -262,20 +266,81 @@
             alt=""
             class="w-full h-full"
           />
-          <span class="absolute text-[1.5vw]">X</span>
+          <span class="absolute text-[1.5vw] top-1/2 -translate-y-[55%]"
+            >X</span
+          >
         </button>
       </header>
       <body>
         <div
           class="flex flex-col lg:flex-row items-center flex-1"
-          id="eneny-lineup-setup"
+          id="lineup-setup"
         >
           <!-- enemy's battle field -->
           <div
-            class="enemy-lineup-area flex-col flex h-full justify-center"
+            class="enemy-lineup-area flex-col hidden h-full justify-center"
           ></div>
+          <!-- mark champs -->
+          <div class="mark-champs-area flex-col hidden h-full w-full">
+            <nav class="pt-[1vw] flex items-center justify-end">
+              <button
+                class="back-btn relative items-center justify-center ml-[1vw] transition-[brightness] duration-150 hover:brightness-150 mr-auto hidden"
+                title="new mark team"
+              >
+                <img
+                  src="./assets/images/arrow.png"
+                  alt=""
+                  class="w-full h-full"
+                />
+              </button>
+              <button
+                class="add-mark-team-btn relative flex items-center justify-center ml-[1vw] transition-[brightness] duration-150 hover:brightness-150"
+                title="new mark team"
+              >
+                <img
+                  src="./assets/images/btn-circular.png"
+                  alt=""
+                  class="w-full h-full"
+                />
+                <span class="absolute text-[1.5vw] top-1/2 -translate-y-[60%]"
+                  >+</span
+                >
+              </button>
+              <button
+                class="paste-mark-team-btn relative flex items-center justify-center ml-[1vw] transition-[brightness] duration-150 hover:brightness-150"
+                title="new mark team"
+              >
+                <img
+                  src="./assets/images/btn-frame.png"
+                  alt=""
+                  class="w-full h-full"
+                />
+                <span
+                  class="absolute text-[1.5vw] top-1/2 -translate-y-[60%] capitalize"
+                  >paste team</span
+                >
+              </button>
+            </nav>
+            <!-- team slots -->
+            <div
+              class="mark-team-slots flex items-center flex-wrap min-w-[40vw]"
+            ></div>
+            <!-- mark teams -->
+            <div
+              class="mark-teams flex flex-col flex-1 py-[2vw] max-h-[80vh] xl:max-h-[70vh] overflow-y-auto"
+            >
+              <div class="bg-gray-700 mb-[1.2vw] w-full min-h-[10vw]"></div>
+              <div class="bg-gray-700 mb-[1.2vw] w-full min-h-[10vw]"></div>
+              <div class="bg-gray-700 mb-[1.2vw] w-full min-h-[10vw]"></div>
+              <div class="bg-gray-700 mb-[1.2vw] w-full min-h-[10vw]"></div>
+              <div class="bg-gray-700 mb-[1.2vw] w-full min-h-[10vw]"></div>
+              <div class="bg-gray-700 mb-[1.2vw] w-full min-h-[10vw]"></div>
+              <div class="bg-gray-700 mb-[1.2vw] w-full min-h-[10vw]"></div>
+              <div class="bg-gray-700 mb-[1.2vw] w-full min-h-[10vw]"></div>
+            </div>
+          </div>
           <!-- champs display -->
-          <div class="flex flex-col h-full">
+          <div class="champs-display flex flex-col h-full">
             <div class="flex">
               <!-- filter by trait -->
               <div class="relative w-64 filter-by-trait">
@@ -325,6 +390,10 @@
     <script
       type="module"
       src="./assets/scripts/others/modal/enemyLineup.js"
+    ></script>
+    <script
+      type="module"
+      src="./assets/scripts/others/modal/markChamps.js"
     ></script>
     <script
       type="module"

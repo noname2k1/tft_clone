@@ -401,7 +401,6 @@ export default class ChampionManager {
       this.updateBar(dragHelper.userData.hpBar, 1);
       this.updateBar(dragHelper.userData.manaBar, 1, "mp");
       this.playChampionAnimation(mixer, champScene, gltf.animations);
-      this.draggableObjects.push(dragHelper);
       callback(dragHelper);
     };
 

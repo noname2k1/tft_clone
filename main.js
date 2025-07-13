@@ -132,53 +132,51 @@ zMe = createMyBench.zMe;
 benchCells = createMyBench.benchCells;
 
 function updateEnemyLineup(champNamesOrChampName) {
-  // console.log(champNamesOrChampName);
-  // console.log(bfEnemyCells);
-  // console.log(CHAMPS_INFOR);
-  if (typeof champNamesOrChampName != "string") {
-    champNamesOrChampName.forEach((champName, index) => {
-      if (bfEnemies[index]) {
-        championManager.removeChampFromScene(scene, bfEnemies[index]);
-      }
-      if (champName) {
-        const pos = bfEnemyCells[index]?.center;
-        const modelPathUrl =
-          "./assets/models/champions/" +
-          champName
-            .toLowerCase()
-            .replace(". ", "_")
-            .replace(" ", "_")
-            .replace("'", "") +
-          "_(tft_set_14).glb";
-        championManager.addChampion(
-          mixer,
-          {
-            position: pos,
-            url: modelPathUrl,
-            data: CHAMPS_INFOR.find(
-              (chamInfor) => chamInfor.name === champName
-            ),
-          },
-          (dragHelper) => {
-            bfEnemies[index] = dragHelper;
-            dragHelper.userData.champScene.rotation.x = 0;
-          }
-        );
-      } else {
-        bfEnemies[index] = champName;
-      }
-    });
-  }
-  if (typeof champNamesOrChampName === "string") {
+  const isSingle = typeof champNamesOrChampName === "string";
+  // Xóa tướng khi chỉ truyền 1 tên
+  if (isSingle) {
     const champIndex = bfEnemies.findIndex(
-      (bfE) => bfE?.userData.name === champNamesOrChampName
+      (champ) => champ?.userData.name === champNamesOrChampName
     );
-    if (champIndex != -1) {
+    if (champIndex !== -1) {
       championManager.removeChampFromScene(scene, bfEnemies[champIndex]);
       bfEnemies.splice(champIndex, 1);
     }
     return;
   }
+  // Nếu là mảng: cập nhật toàn bộ đội hình
+  champNamesOrChampName.forEach((champName, index) => {
+    // Xóa tướng cũ (nếu có)
+    if (bfEnemies[index]) {
+      championManager.removeChampFromScene(scene, bfEnemies[index]);
+    }
+    // Nếu có tướng mới tại vị trí đó
+    if (champName) {
+      const pos = bfEnemyCells[index]?.center;
+      const safeName = champName
+        .toLowerCase()
+        .replace(". ", "_")
+        .replace(" ", "_")
+        .replace("'", "");
+      const modelPathUrl = `./assets/models/champions/${safeName}_(tft_set_14).glb`;
+      const champData = CHAMPS_INFOR.find((c) => c.name === champName);
+      championManager.addChampion(
+        mixer,
+        {
+          position: pos,
+          url: modelPathUrl,
+          data: champData,
+        },
+        (dragHelper) => {
+          bfEnemies[index] = dragHelper;
+          dragHelper.userData.champScene.rotation.x = 0;
+        }
+      );
+    } else {
+      // Nếu không có champ ở vị trí này, giữ null
+      bfEnemies[index] = null;
+    }
+  });
 }
 
 function displayGrid(hideBattleField = false, hideBench = false) {
@@ -329,6 +327,10 @@ function loadArena() {
         const intersects = raycaster.intersectObjects(draggableObjects, true);
         if (intersects.length > 0) {
           selectedObject = intersects[0].object;
+          if (!selectedObject.bfIndex && !selectedObject.benchIndex) {
+            selectedObject = null;
+            return;
+          }
           // display champion infor
           if (event.button === 2 && selectedObject) {
             rightClickTo3dObject = true;
@@ -607,6 +609,7 @@ function loadArena() {
                               dragHelper.benchIndex = i;
                               dragHelper.bfIndex = -1;
                               addingFlag = false;
+                              draggableObjects.push(dragHelper);
                               sendMessageChangeLineupToEnemy(draggableObjects);
                             }
                           );
@@ -883,108 +886,100 @@ try {
 // Shop logic
 const champShopList = document.getElementById("champ-shop-list");
 let addingFlag = false;
-champShopList.addEventListener("click", function (e) {
+
+champShopList.addEventListener("click", async (e) => {
   if (addingFlag) return;
-  const rollList = window.champsInRoll;
-  addingFlag = true;
   const card = e.target.closest(".champ-card-shop");
-  if (card) {
-    const indexCard = card.indexInRoll;
-    if (window.champsBought[indexCard] === 1) {
-      alert(
-        "Bạn đã mua tướng này rồi! nghịch devtools admin sẽ ban acc của bạn =))))"
-      );
-      addingFlag = false;
-      return;
-    }
-    const champName =
-      rollList[indexCard].name
-        .toLowerCase()
-        .replace(". ", "_")
-        .replace(" ", "_")
-        .replace("'", "") || card.champName;
-    const modelPathUrl =
-      "./assets/models/champions/" + champName + "_(tft_set_14).glb";
-    let found = false;
-    for (let i = 0; i < xMes.length; i++) {
-      const spotTaken = draggableObjects.some(
-        (champ) => champ.bfIndex === -1 && champ.benchIndex === i
-      );
-      if (!spotTaken) {
-        found = true;
-        if (!card.zacBloblet) {
-          championManager.addChampion(
-            mixer,
-            {
-              url: modelPathUrl,
-              position: [xMes[i], 0, zMe],
-              data: card.data,
-            },
-            (dragHelper) => {
-              dragHelper.benchIndex = i;
-              dragHelper.bfIndex = -1;
-              addingFlag = false;
-              champsBought[indexCard] = 1;
-              card.classList.add("invisible");
-              sendMessageChangeLineupToEnemy(draggableObjects);
-            }
-          );
-        } else {
-          const blobletOverlay = card.querySelector(".overlay-shop-champ");
-          blobletOverlay.classList.replace("opacity-100", "opacity-0");
-          addingFlag = false;
-          let zac;
-          if (
-            (zac = draggableObjects.find((obj) => obj.userData.name === "Zac"))
-          ) {
-            console.log(zac);
-            if (zac.bfIndex != -1) {
-              card.zacBloblet = false;
-              let animID = null;
-              new Model(scene, {
-                name: "virus",
-                url: "./assets/models/skills/tft14_virus_bloblet.glb",
-                position: [
-                  Math.floor(Math.random() * 21) - 10,
-                  zac.position.y,
-                  15,
-                ],
-                scale: [0.02, 0.02, 0.02],
-                onLoaded: (virusModel) => {
-                  objectsOfChamp.push(virusModel);
-                  const virusState = { isRunning: false };
-                  const virusAnime = () => {
-                    animID = requestAnimationFrame(virusAnime);
-                    moveToOtherObject(
-                      virusModel,
-                      zac,
-                      0.1,
-                      () => {
-                        cancelAnimationFrame(animID);
-                        animID = null;
-                        virusModel.removeFromScene();
-                        championManager.highlight(mixer, zac);
-                      },
-                      virusState
-                    );
-                  };
-                  virusAnime();
-                },
-                debug: false,
-              });
-            }
-          }
-        }
-        break;
-      }
-    }
-    if (!found) {
-      alert("Hàng chờ đầy, không thể mua thêm tướng");
-      addingFlag = false;
-    }
-  } else {
-    addingFlag = false;
+  if (!card) return;
+
+  const index = card.indexInRoll;
+  const champData = window.champsInRoll?.[index];
+  if (!champData || window.champsBought[index] === 1) {
+    alert(
+      "Bạn đã mua tướng này rồi! nghịch devtools admin sẽ ban acc của bạn =))))"
+    );
+    return;
   }
+
+  addingFlag = true;
+
+  // Xác định tên và đường dẫn model
+  const champName = champData.name
+    .toLowerCase()
+    .replace(". ", "_")
+    .replace(" ", "_")
+    .replace("'", "");
+  const modelPathUrl = `./assets/models/champions/${champName}_(tft_set_14).glb`;
+
+  // Tìm vị trí trống trong bench
+  const emptyIndex = xMes.findIndex(
+    (_, i) =>
+      !draggableObjects.some((c) => c.bfIndex === -1 && c.benchIndex === i)
+  );
+
+  if (emptyIndex === -1) {
+    alert("Hàng chờ đầy, không thể mua thêm tướng");
+    addingFlag = false;
+    return;
+  }
+
+  // Nếu là bloblet của Zac
+  if (card.zacBloblet) {
+    const zac = draggableObjects.find((obj) => obj.userData.name === "Zac");
+    if (zac?.bfIndex !== -1) {
+      const overlay = card.querySelector(".overlay-shop-champ");
+      overlay?.classList.replace("opacity-100", "opacity-0");
+      card.zacBloblet = false;
+
+      new Model(scene, {
+        name: "virus",
+        url: "./assets/models/skills/tft14_virus_bloblet.glb",
+        position: [Math.random() * 20 - 10, zac.position.y, 15],
+        scale: [0.02, 0.02, 0.02],
+        onLoaded: (virusModel) => {
+          objectsOfChamp.push(virusModel);
+          const virusState = { isRunning: false };
+          const animate = () => {
+            const id = requestAnimationFrame(animate);
+            moveToOtherObject(
+              virusModel,
+              zac,
+              0.1,
+              () => {
+                cancelAnimationFrame(id);
+                virusModel.removeFromScene();
+                championManager.highlight(mixer, zac);
+              },
+              virusState
+            );
+          };
+          animate();
+        },
+        debug: false,
+      });
+    }
+    addingFlag = false;
+    return;
+  }
+
+  // Mua tướng bình thường
+  championManager.addChampion(
+    mixer,
+    {
+      url: modelPathUrl,
+      position: [xMes[emptyIndex], 0, zMe],
+      data: card.data,
+    },
+    (dragHelper) => {
+      dragHelper.benchIndex = emptyIndex;
+      dragHelper.bfIndex = -1;
+      window.champsBought[index] = 1;
+      card.classList.add("invisible");
+      sendMessageChangeLineupToEnemy(draggableObjects);
+      draggableObjects.push(dragHelper);
+      addingFlag = false;
+    }
+  );
 });
 
 export { draggableObjects, updateEnemyLineup };
