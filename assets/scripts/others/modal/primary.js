@@ -1,6 +1,5 @@
 const primaryModal = document.getElementById("primary-modal");
 const enemyLineupBtn = document.getElementById("enemy-lineup-btn");
-const markChampsBtn = document.getElementById("mark-champs-btn");
 const closeModalBtn = primaryModal.querySelector(".close-modal-btn");
 const helpModalBtn = primaryModal.querySelector(".help-modal-btn");
 const enemyLineupArea = primaryModal.querySelector(".enemy-lineup-area");
@@ -14,20 +13,6 @@ enemyLineupBtn.addEventListener("click", function (e) {
   enemyLineupArea.classList.replace("hidden", "flex");
   primaryModal.querySelector("header h2").textContent = "Setup Enemy's Lineup";
   champsDisplay.classList.remove("hidden");
-});
-
-markChampsBtn.addEventListener("click", function (e) {
-  primaryModal.classList.remove("invisible");
-  markChampsArea.classList.replace("hidden", "flex");
-  primaryModal.querySelector("header h2").textContent = "Setup your mark teams";
-  champsDisplay.classList.add("hidden");
-  if (markChampsArea.dataset.feature === "add") {
-    markTeams.classList.add("hidden");
-    champsDisplay.classList.remove("hidden");
-  } else {
-    markTeams.classList.remove("hidden");
-    markTeamSlots.classList.add("hidden");
-  }
 });
 
 closeModalBtn.addEventListener("click", function () {

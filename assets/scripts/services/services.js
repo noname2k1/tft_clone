@@ -228,4 +228,59 @@ function moveToOtherObject(
   }
 }
 
-export { createDeleteZone, createBattleField, createBench, moveToOtherObject };
+const getMarkChampFromStorage = () => {
+  const existedTeams = JSON.parse(localStorage.getItem("mark-teams")) || [];
+  const enabledTeam = existedTeams.find((team) => team.enabled);
+  return { existedTeams, enabledTeam };
+};
+
+const saveMarkChampToStorage = (id, markChampNames = []) => {
+  if (!id) {
+    console.warn("No teamId provided, skipping save.");
+    return;
+  }
+  const existedTeams = getMarkChampFromStorage().existedTeams;
+  const existedTeamIndex = existedTeams.findIndex((team) => team.id === id);
+  if (existedTeamIndex !== -1) {
+    existedTeams.splice(existedTeamIndex, 1);
+  }
+  // Disable all other teams
+  existedTeams.forEach((team) => {
+    team.enabled = false;
+  });
+  // Save new team
+  existedTeams.push({
+    id,
+    enabled: true,
+    team: markChampNames,
+  });
+  localStorage.setItem("mark-teams", JSON.stringify(existedTeams));
+};
+
+const disabledMarkChamp = (teamId) => {
+  if (!teamId) {
+    console.warn("No teamId provided, skipping save.");
+    return;
+  }
+  const existedTeams = getMarkChampFromStorage().existedTeams;
+  const existedTeamIndex = existedTeams.findIndex((team) => team.id === teamId);
+  if (existedTeamIndex !== -1) {
+    existedTeams.push({
+      id: teamId,
+      enabled: false,
+      team: existedTeams[existedTeamIndex].team,
+    });
+    existedTeams.splice(existedTeamIndex, 1);
+    localStorage.setItem("mark-teams", JSON.stringify(existedTeams));
+  }
+};
+
+export {
+  createDeleteZone,
+  createBattleField,
+  createBench,
+  moveToOtherObject,
+  getMarkChampFromStorage,
+  saveMarkChampToStorage,
+  disabledMarkChamp,
+};

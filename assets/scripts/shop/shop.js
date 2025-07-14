@@ -9,6 +9,7 @@ import { EXP_TABLE, fee } from "~/variables";
 import { draggableObjects } from "~/main";
 import { markChampNames } from "../others/modal/markChamps";
 import { ObserverElementChange } from "../utils/utils";
+import { getMarkChampFromStorage } from "../services/services";
 
 document.addEventListener("DOMContentLoaded", function () {
   const buyExpBtn = document.getElementById("buy-exp-btn");
@@ -17,7 +18,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // 🧩 renderShopCards — render lại danh sách tướng trong shop
   function renderShopCards(champs) {
-    champShopList.replaceChildren();
+    champShopList.innerHTML = "";
     window.champsInRoll = champs;
     window.champsBought = Array.from({ length: 5 }).map(() => 0);
 
@@ -25,7 +26,9 @@ document.addEventListener("DOMContentLoaded", function () {
       return new Promise((resolve) => {
         const card = document.createElement("div");
         card.className = `champ-card-shop ${
-          markChampNames.includes(champ.name) ? `border-run` : ``
+          getMarkChampFromStorage()?.enabledTeam?.team.includes(champ.name)
+            ? `border-run`
+            : ``
         } h-full relative cursor-pointer hover:brightness-120 duration-100 hover:z-[100]`;
         card.indexInRoll = index;
         card.data = { ...champ };
@@ -65,7 +68,7 @@ document.addEventListener("DOMContentLoaded", function () {
             champ.name
           }</span>
           ${
-            markChampNames.includes(champ.name)
+            getMarkChampFromStorage()?.enabledTeam?.team.includes(champ.name)
               ? `<img src="./assets/images/mark.png" class="absolute top-0 right-0 w-[2vw] brightness-125"/>`
               : ``
           }
@@ -110,13 +113,28 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  let mutationTimeout = null;
+
   new ObserverElementChange(
     document.querySelector(".mark-team-slots"),
     (mutation) => {
-      // console.log(mutation);
-      renderShopCards(window.champsInRoll);
+      if (mutationTimeout) return;
+      mutationTimeout = setTimeout(() => {
+        renderShopCards(window.champsInRoll);
+        mutationTimeout = null;
+      }, 100);
     }
   );
+
+  const checkboxMarkChamps = document.querySelector(".mark-teams-notice");
+  new ObserverElementChange(checkboxMarkChamps, (mutation) => {
+    // console.log(mutation);
+    if (mutationTimeout) return;
+    mutationTimeout = setTimeout(() => {
+      renderShopCards(window.champsInRoll);
+      mutationTimeout = null;
+    }, 100);
+  });
 
   const getShopChamp = async (updateOnlyOdds = false) => {
     rerollBtn.classList.add("invisible");
