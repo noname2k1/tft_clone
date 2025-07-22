@@ -82,7 +82,12 @@ const loadingAssetsProgress = document.getElementById(
 );
 
 // initial
+let usingSkillScene = false;
+const skillSceneAddedObjs = [];
 const { scene, renderer, controls, camera } = initial(debugControls);
+const skillScene = new THREE.Scene();
+skillScene.background = new THREE.Color(0x000000);
+
 const championManager = new ChampionManager(scene, draggableObjects);
 // Utility
 function updateStatusBars() {
@@ -130,7 +135,9 @@ mySquareGroup = createMyBench.squareGroup;
 xMes = createMyBench.xMes;
 zMe = createMyBench.zMe;
 benchCells = createMyBench.benchCells;
+const startBattleBtn = document.getElementById("start-battle-btn");
 
+startBattleBtn.classList.replace("hidden", "flex");
 function updateEnemyLineup(champNamesOrChampName) {
   const isSingle = typeof champNamesOrChampName === "string";
   // Xóa tướng khi chỉ truyền 1 tên
@@ -142,6 +149,7 @@ function updateEnemyLineup(champNamesOrChampName) {
       championManager.removeChampFromScene(scene, bfEnemies[champIndex]);
       bfEnemies.splice(champIndex, 1);
     }
+    // startBattleBtn.classList.replace("flex", "hidden");
     return;
   }
   // Nếu là mảng: cập nhật toàn bộ đội hình
@@ -170,6 +178,7 @@ function updateEnemyLineup(champNamesOrChampName) {
         (dragHelper) => {
           bfEnemies[index] = dragHelper;
           dragHelper.userData.champScene.rotation.x = 0;
+          // startBattleBtn.classList.replace("hidden", "flex");
         }
       );
     } else {
@@ -178,6 +187,32 @@ function updateEnemyLineup(champNamesOrChampName) {
     }
   });
 }
+
+startBattleBtn.addEventListener("click", function () {
+  usingSkillScene = !usingSkillScene;
+  bfEnemies.forEach((enemy) => {
+    if (enemy?.userData) {
+      const cloneEnemy = enemy.userData?.champScene.clone();
+      // console.log(cloneEnemy);
+      cloneEnemy.traverse((child) => {
+        if (!child.isMesh || !child.material) return;
+        child.material = child.material.clone();
+        child.material.map = null;
+        child.material.needsUpdate = true;
+      });
+      skillSceneAddedObjs.push(cloneEnemy);
+      skillScene.add(cloneEnemy);
+    }
+  });
+  draggableObjects.forEach((obj) => {
+    const nearestTarget = championManager.findNearestTarget(obj, bfEnemies);
+    console.log(
+      "nearestTarget of %s: %s",
+      obj.userData.name,
+      nearestTarget.userData.name
+    );
+  });
+});
 
 function displayGrid(hideBattleField = false, hideBench = false) {
   bfCells.forEach(({ mesh }) => (mesh.visible = !hideBattleField));
@@ -819,7 +854,16 @@ try {
     animationId = requestAnimationFrame(animate);
     const delta = clock.getDelta();
     if (mixer) mixer.update(delta);
-    renderer.render(scene, camera);
+    if (usingSkillScene) {
+      renderer.render(skillScene, camera);
+    } else {
+      if (skillSceneAddedObjs.length > 0) {
+        skillSceneAddedObjs.forEach((obj) => {
+          skillScene.remove(obj);
+        });
+      }
+      renderer.render(scene, camera);
+    }
     itemsOutBag.forEach((item) => {
       item.update(delta);
     });

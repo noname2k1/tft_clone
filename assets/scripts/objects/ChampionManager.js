@@ -435,6 +435,23 @@ export default class ChampionManager {
     }
   }
 
+  findNearestTarget(dragHelper, objs) {
+    // console.log(objs);
+    let nearestTarget = null;
+    for (let i = 0; i < objs.length; i++) {
+      const obj = objs[i];
+      if (!obj) continue;
+      const dis = dragHelper.position.distanceTo(obj.position);
+      if (
+        !nearestTarget ||
+        (nearestTarget &&
+          dis < dragHelper.position.distanceTo(nearestTarget.position))
+      )
+        nearestTarget = obj;
+    }
+    return nearestTarget;
+  }
+
   damageChampion(dragHelper, damageAmount) {
     // Giả sử dragHelper có thuộc tính currentHp và maxHp
     if (dragHelper.userData.currentHp == null) {
@@ -460,10 +477,11 @@ export default class ChampionManager {
     );
     if (index > -1) {
       this.draggableObjects.splice(index, 1);
-      scene.remove(dragHelper.userData.champScene);
-      scene.remove(dragHelper.userData.statusBarGroup);
-      scene.remove(dragHelper);
     }
+    scene.remove(dragHelper.userData.champScene);
+    scene.remove(dragHelper.userData.statusBarGroup);
+    scene.remove(dragHelper);
+    console.log("removeChampFromScene: %s", dragHelper.userData.name);
   }
 
   highlight(mixer, dragHelper, duration = 150) {
