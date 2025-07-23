@@ -28,6 +28,8 @@ import {
   createBattleField,
   createBench,
   createDeleteZone,
+  faceToObj,
+  moveCharacter,
   moveToOtherObject,
 } from "~~/services/services.js";
 import initial from "~~/setup/initial.js";
@@ -189,7 +191,7 @@ function updateEnemyLineup(champNamesOrChampName) {
 }
 
 startBattleBtn.addEventListener("click", function () {
-  usingSkillScene = !usingSkillScene;
+  // usingSkillScene = !usingSkillScene;
   bfEnemies.forEach((enemy) => {
     if (enemy?.userData) {
       const cloneEnemy = enemy.userData?.champScene.clone();
@@ -205,12 +207,25 @@ startBattleBtn.addEventListener("click", function () {
     }
   });
   draggableObjects.forEach((obj) => {
-    const nearestTarget = championManager.findNearestTarget(obj, bfEnemies);
-    console.log(
-      "nearestTarget of %s: %s",
-      obj.userData.name,
-      nearestTarget.userData.name
-    );
+    if (obj.bfIndex != -1) {
+      const { nearestTarget, dis } = championManager.findNearestTarget(
+        obj,
+        bfEnemies
+      );
+      if (nearestTarget) {
+        faceToObj(
+          null,
+          obj.userData.champScene?.rotation,
+          nearestTarget.position,
+          obj.position
+        );
+        console.log(
+          "nearestTarget of %s: %s",
+          obj.userData.name,
+          nearestTarget.userData.name
+        );
+      }
+    }
   });
 });
 
@@ -982,22 +997,14 @@ champShopList.addEventListener("click", async (e) => {
         scale: [0.02, 0.02, 0.02],
         onLoaded: (virusModel) => {
           objectsOfChamp.push(virusModel);
-          const virusState = { isRunning: false };
-          const animate = () => {
-            const id = requestAnimationFrame(animate);
-            moveToOtherObject(
-              virusModel,
-              zac,
-              0.1,
-              () => {
-                cancelAnimationFrame(id);
-                virusModel.removeFromScene();
-                championManager.highlight(mixer, zac);
-              },
-              virusState
+          moveCharacter(virusModel, zac, 0.1, () => {
+            virusModel.removeFromScene();
+            championManager.highlight(mixer, zac);
+            objectsOfChamp.splice(
+              objectsOfChamp.findIndex((obj) => obj === virusModel),
+              1
             );
-          };
-          animate();
+          });
         },
         debug: false,
       });

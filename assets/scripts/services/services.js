@@ -154,6 +154,23 @@ function createBench(
     : { squareGroup, xBenchEnemy, zBenchEnemy, benchCells };
 }
 
+function faceToObj(dir = null, rot = null, targetPos = null, pos = null) {
+  try {
+    let direction;
+    if (!dir) {
+      if (!targetPos || !pos) return;
+      direction = new THREE.Vector3().subVectors(targetPos, pos);
+      direction.y = 0;
+      direction.normalize();
+    } else direction = dir;
+    if (rot) {
+      rot.y = Math.atan2(direction.x, direction.z);
+    }
+  } catch (error) {
+    console.log("error faceToObj: ", error);
+  }
+}
+
 function moveToOtherObject(
   fromObj,
   targetObj,
@@ -213,7 +230,7 @@ function moveToOtherObject(
     }
 
     dir.normalize();
-    if (rot) rot.y = Math.atan2(dir.x, dir.z);
+    if (rot) faceToObj(dir, rot);
     pos.add(dir.multiplyScalar(speed));
   } else {
     setPosition(fromObj, targetPos);
@@ -226,6 +243,24 @@ function moveToOtherObject(
 
     afterMoveCallBack();
   }
+}
+
+function moveCharacter(fromObj, targetObj, speed, onDone) {
+  const state = { isRunning: false };
+  const animateMove = () => {
+    const id = requestAnimationFrame(animateMove);
+    const finished = moveToOtherObject(
+      fromObj,
+      targetObj,
+      speed,
+      () => {
+        cancelAnimationFrame(id);
+        onDone?.();
+      },
+      state
+    );
+  };
+  animateMove();
 }
 
 const getMarkChampFromStorage = () => {
@@ -280,7 +315,9 @@ export {
   createBattleField,
   createBench,
   moveToOtherObject,
+  moveCharacter,
   getMarkChampFromStorage,
   saveMarkChampToStorage,
   disabledMarkChamp,
+  faceToObj,
 };

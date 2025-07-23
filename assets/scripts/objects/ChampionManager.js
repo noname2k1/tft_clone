@@ -438,10 +438,11 @@ export default class ChampionManager {
   findNearestTarget(dragHelper, objs) {
     // console.log(objs);
     let nearestTarget = null;
+    let dis;
     for (let i = 0; i < objs.length; i++) {
       const obj = objs[i];
       if (!obj) continue;
-      const dis = dragHelper.position.distanceTo(obj.position);
+      dis = dragHelper.position.distanceTo(obj.position);
       if (
         !nearestTarget ||
         (nearestTarget &&
@@ -449,7 +450,7 @@ export default class ChampionManager {
       )
         nearestTarget = obj;
     }
-    return nearestTarget;
+    return { nearestTarget, dis };
   }
 
   damageChampion(dragHelper, damageAmount) {
@@ -564,6 +565,7 @@ export default class ChampionManager {
       champInspect.classList.toggle("hidden", !display);
       champInspect.replaceChildren();
       if (!display) return;
+      // bg champs
       const champImage = document.createElement("img");
       champImage.className =
         "absolute top-[2.1vw] right-[0vw] h-[auto] w-[89%]";
@@ -580,6 +582,7 @@ export default class ChampionManager {
         class="h-full object-fill"
       />`
       );
+      // cost
       const costGradient = costGradients.find(
         (cg) => cg.cost === champ.userData.data.cost
       );
@@ -605,6 +608,7 @@ export default class ChampionManager {
         }</span>
       </div>`
       );
+      // skill img
       champInspect.insertAdjacentHTML(
         "beforeend",
         `<img
@@ -616,6 +620,23 @@ export default class ChampionManager {
         id="champ-inspect-skill"
       />`
       );
+      // pos
+      champInspect.insertAdjacentHTML(
+        "beforeend",
+        `<img
+        src="./assets/images/${
+          champ.userData.data.stats.range > 1 ? "back" : "front"
+        }.png"
+        class="absolute top-[14vw] left-[6vw] h-[2vw] w-[2.8vw]"
+        alt=""
+        id="champ-position"
+      /> <span class="absolute top-[15.5vw] left-[6.3vw] text-white text-[1vw] capitalize">${
+        champ.userData.data.stats.range > 1 ? "back" : "front"
+      }</span> <span class="absolute top-[15.5vw] left-[10vw] text-white text-[0.8vw] capitalize">${
+          champ.userData.data.stats.range
+        } Hex</span>`
+      );
+      // roles
       champInspect.insertAdjacentHTML(
         "beforeend",
         `<div class="top-[22.6vw] w-[10.1vw] h-[1.7vw] left-[2.5vw] absolute flex items-center justify-center text-white"><img class="w-[1vw] h-[1vw] mr-auto ml-[0.45vw]" src="./assets/images/roles/${champ.userData.data.role.replace(
@@ -629,6 +650,7 @@ export default class ChampionManager {
           champ.userData.data.role.slice(2).replace("HighMana", "")
         }</span></div>`
       );
+      // stats
       const stats = champ.userData.data.stats;
       const currData = champ.userData?.currData ?? {};
       const row1 = [
