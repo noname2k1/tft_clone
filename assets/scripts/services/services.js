@@ -1,5 +1,6 @@
 import * as THREE from "https://esm.sh/three";
 import { COLOR_DELETE_ZONE, COLOR_MOVEABLE, debugOn } from "~/variables";
+import { createDebugGuiFolder } from "../utils/utils";
 function createDeleteZone(
   scene,
   width = 35,
@@ -155,6 +156,7 @@ function createBench(
 }
 
 function faceToObj(dir = null, rot = null, targetPos = null, pos = null) {
+  // console.log({ targetPos, pos });
   try {
     let direction;
     if (!dir) {
@@ -234,7 +236,6 @@ function moveToOtherObject(
     pos.add(dir.multiplyScalar(speed));
   } else {
     setPosition(fromObj, targetPos);
-
     if (state.isRunning) {
       animations.run?.stop();
       animations.idle?.play();
@@ -245,9 +246,16 @@ function moveToOtherObject(
   }
 }
 
-function moveCharacter(fromObj, targetObj, speed, onDone) {
+function moveCharacter(
+  fromObj,
+  targetObj,
+  speed,
+  onDone,
+  onRunning = () => {}
+) {
   const state = { isRunning: false };
   const animateMove = () => {
+    onRunning();
     const id = requestAnimationFrame(animateMove);
     const finished = moveToOtherObject(
       fromObj,

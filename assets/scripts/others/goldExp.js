@@ -84,13 +84,20 @@ function handleReroll(callback = () => {}) {
 
 const getMyGold = () => myGold;
 const addGold = (gold) => {
-  myGold += Number(gold);
-  renderGold();
+  const addGoldTimeOut = setTimeout(() => {
+    myGold += Number(gold);
+    renderGold();
+    console.log("add gold: " + gold);
+    clearTimeout(addGoldTimeOut);
+  }, 100);
 };
 const addExp = (exp) => {
-  myExp += Number(exp);
-  renderGold();
-  renderExp();
+  const addExpTimeOut = setTimeout(() => {
+    myExp += Number(exp);
+    renderGold();
+    renderExp();
+    clearTimeout(addExpTimeOut);
+  }, 100);
 };
 
 const toggleLockShop = () => {

@@ -5,7 +5,13 @@ import {
   createDebugGuiFolder,
   capitalizeFirstLetter,
 } from "~~/utils/utils";
-import { COLOR_HP, COLOR_MP, MODEL_CACHES, TRAITS_INFOR } from "~/variables.js";
+import {
+  COLOR_HP,
+  COLOR_MP,
+  debugOn,
+  MODEL_CACHES,
+  TRAITS_INFOR,
+} from "~/variables.js";
 import { clone } from "https://esm.sh/three/examples/jsm/utils/SkeletonUtils.js";
 import { champScales, costGradients } from "~~/data/champs.js";
 import { draggableObjects } from "~/main";
@@ -15,6 +21,7 @@ export default class ChampionManager {
   traitListElement;
   draggableObjects;
   traitDisplayCount = 10;
+  attack1 = {};
   constructor(scene, draggableObjects) {
     this.scene = scene;
     this.traitListElement = document.getElementById("trait-list");
@@ -168,30 +175,59 @@ export default class ChampionManager {
     dragHelper.userData.statusBarGroup = statusBarGroup;
     dragHelper.userData.name = champData.data.name;
     dragHelper.userData.data = champData.data;
+    dragHelper.userData.champData = champData;
     this.scene.add(dragHelper);
     return dragHelper;
   }
 
-  playChampionAnimation(mixer, champScene, animations) {
-    const idle = animations.find(
-      (a) =>
-        a.name.toLowerCase().startsWith("idle") &&
-        a.name.toLowerCase() !== "idlein"
-    );
-    mixer = new THREE.AnimationMixer(champScene);
-    if (idle) {
-      mixer.clipAction(idle).play();
-    } else {
-      animations.forEach((clip) => mixer.clipAction(clip).play());
-    }
+  isOccupied = function (pos) {
+    return draggableObjects.some((obj) => obj.position.distanceTo(pos) < 1);
+  };
 
-    const clock = new THREE.Clock();
-    const animate = () => {
-      requestAnimationFrame(animate);
-      const delta = clock.getDelta();
-      if (mixer) mixer.update(delta);
-    };
-    animate();
+  playChampionAnimation(
+    mixer,
+    animations,
+    name = "idle",
+    callBack = () => {},
+    loopTimes = 1
+  ) {
+    if (!mixer || !animations) return;
+
+    const anim = animations.find(
+      (a) =>
+        a.name.toLowerCase().includes(name) && a.name.toLowerCase() !== "idlein"
+    );
+    if (anim) {
+      const action = mixer.clipAction(anim);
+      action.timeScale = 0.5;
+      mixer.stopAllAction(); // Dừng tất cả trước khi play mới
+
+      if (name !== "idle") {
+        action.reset(); // Đảm bảo từ đầu
+        action.setLoop(loopTimes);
+        action.clampWhenFinished = true;
+        action.play();
+        setTimeout(() => {
+          callBack();
+        }, 200);
+        setTimeout(() => {
+          mixer.addEventListener("finished", (e) => {
+            const idleAnim = animations.find(
+              (a) =>
+                a.name.toLowerCase().includes("idle") &&
+                a.name.toLowerCase() !== "idlein"
+            );
+            if (idleAnim) {
+              const idleAction = mixer.clipAction(idleAnim);
+              idleAction.reset();
+              idleAction.play();
+            }
+          });
+        }, 500);
+      } else {
+        action.reset().play();
+      }
+    }
   }
 
   addTraitItemToList(
@@ -202,7 +238,7 @@ export default class ChampionManager {
     viewMore
   ) {
     if (index <= this.traitDisplayCount - 1) {
-      console.log({ data });
+      // console.log({ data });
       const champCount = champs.length;
       // console.log({ effect, nextEffect });
       // console.log({ champCount });
@@ -370,7 +406,7 @@ export default class ChampionManager {
     }
   }
 
-  addChampion(mixer, champData, callback = () => {}) {
+  addChampion(champData, callback = () => {}) {
     console.log("addChampion: ", champData);
     const scale = this.getChampionScale(
       champData.data.name.replaceAll("_", " ")
@@ -381,8 +417,19 @@ export default class ChampionManager {
       this.scene.add(champScene);
       champScene.position.set(...champData.position);
       champScene.scale.set(...scale);
-      champScene.rotation.x = -0.5;
+      champScene.rotation.set(-0.5, 0, 0);
+      // console.log(champScene.rotation);
       const size = gltf.size;
+
+      if (debugOn) {
+        const objectDebug = {
+          name: "champion (C)",
+          object: champScene,
+          key: "c",
+          isOpen: true,
+        };
+        createDebugGuiFolder(objectDebug);
+      }
 
       const { statusBarGroup, hpBar, manaBar } = this.setupStatusBars(
         champScene,
@@ -400,7 +447,12 @@ export default class ChampionManager {
       this.upgrade(dragHelper);
       this.updateBar(dragHelper.userData.hpBar, 1);
       this.updateBar(dragHelper.userData.manaBar, 1, "mp");
-      this.playChampionAnimation(mixer, champScene, gltf.animations);
+      const mixerChamp = new THREE.AnimationMixer(champScene);
+      this.playChampionAnimation(mixerChamp, gltf.animations, "idle");
+      dragHelper.animations = gltf.animations;
+      dragHelper.mixer = mixerChamp;
+      dragHelper.userData.champScene.animations = gltf.animations;
+      dragHelper.userData.champScene.mixer = mixerChamp;
       callback(dragHelper);
     };
 
@@ -453,7 +505,23 @@ export default class ChampionManager {
     return { nearestTarget, dis };
   }
 
-  damageChampion(dragHelper, damageAmount) {
+  attack(obj, afterAnimationCallback = () => {}) {
+    if (this.attack1[obj.uuid] != undefined) {
+      this.attack1[obj.uuid] = !this.attack1[obj.uuid];
+    } else {
+      this.attack1[obj.uuid] = false;
+    }
+    this.playChampionAnimation(
+      obj.mixer,
+      obj.animations,
+      this.attack1[obj.uuid] ? "attack1" : "attack2",
+      () => {
+        afterAnimationCallback();
+      }
+    );
+  }
+
+  damageChampion(dragHelper, damageAmount, afterTargetDied = () => {}) {
     // Giả sử dragHelper có thuộc tính currentHp và maxHp
     if (dragHelper.userData.currentHp == null) {
       dragHelper.userData.maxHp = 1000;
@@ -468,11 +536,21 @@ export default class ChampionManager {
 
     if (dragHelper.userData.currentHp <= 0) {
       console.log(`${dragHelper.userData.name} has died.`);
-      this.removeChampFromScene(this.scene, dragHelper);
+      this.playChampionAnimation(
+        dragHelper.mixer,
+        dragHelper.animations,
+        "death",
+        () => {
+          setTimeout(() => {
+            this.removeChampFromScene(this.scene, dragHelper);
+            afterTargetDied();
+          }, 200);
+        }
+      );
     }
   }
 
-  removeChampFromScene(scene, dragHelper) {
+  removeChampFromScene(scene, dragHelper, callback = () => {}) {
     const index = this.draggableObjects.findIndex(
       (obj) => obj.uuid === dragHelper.uuid
     );
@@ -483,6 +561,8 @@ export default class ChampionManager {
     scene.remove(dragHelper.userData.statusBarGroup);
     scene.remove(dragHelper);
     console.log("removeChampFromScene: %s", dragHelper.userData.name);
+    delete this.attack1[dragHelper.uuid];
+    callback();
   }
 
   highlight(mixer, dragHelper, duration = 150) {
@@ -713,7 +793,6 @@ export default class ChampionManager {
     }
   }
 
-  attack() {}
   useSkill() {}
   useItem() {}
 }

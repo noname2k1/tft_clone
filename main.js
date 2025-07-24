@@ -33,6 +33,7 @@ import {
   moveToOtherObject,
 } from "~~/services/services.js";
 import initial from "~~/setup/initial.js";
+import { addGold } from "./assets/scripts/others/goldExp";
 
 // Globals
 let xMes = [];
@@ -95,7 +96,9 @@ const championManager = new ChampionManager(scene, draggableObjects);
 function updateStatusBars() {
   draggableObjects.forEach((obj) => {
     if (obj.userData.statusBarGroup) {
-      obj.userData.statusBarGroup.position.copy(obj.position);
+      obj.userData.statusBarGroup.position.copy(
+        obj.userData.champScene.position
+      );
     }
   });
 }
@@ -139,7 +142,7 @@ zMe = createMyBench.zMe;
 benchCells = createMyBench.benchCells;
 const startBattleBtn = document.getElementById("start-battle-btn");
 
-startBattleBtn.classList.replace("hidden", "flex");
+// startBattleBtn.classList.replace("hidden", "flex");
 function updateEnemyLineup(champNamesOrChampName) {
   const isSingle = typeof champNamesOrChampName === "string";
   // Xóa tướng khi chỉ truyền 1 tên
@@ -171,7 +174,6 @@ function updateEnemyLineup(champNamesOrChampName) {
       const modelPathUrl = `./assets/models/champions/${safeName}_(tft_set_14).glb`;
       const champData = CHAMPS_INFOR.find((c) => c.name === champName);
       championManager.addChampion(
-        mixer,
         {
           position: pos,
           url: modelPathUrl,
@@ -180,7 +182,7 @@ function updateEnemyLineup(champNamesOrChampName) {
         (dragHelper) => {
           bfEnemies[index] = dragHelper;
           dragHelper.userData.champScene.rotation.x = 0;
-          // startBattleBtn.classList.replace("hidden", "flex");
+          startBattleBtn.classList.replace("hidden", "flex");
         }
       );
     } else {
@@ -190,43 +192,183 @@ function updateEnemyLineup(champNamesOrChampName) {
   });
 }
 
-startBattleBtn.addEventListener("click", function () {
-  // usingSkillScene = !usingSkillScene;
-  bfEnemies.forEach((enemy) => {
-    if (enemy?.userData) {
-      const cloneEnemy = enemy.userData?.champScene.clone();
-      // console.log(cloneEnemy);
-      cloneEnemy.traverse((child) => {
-        if (!child.isMesh || !child.material) return;
-        child.material = child.material.clone();
-        child.material.map = null;
-        child.material.needsUpdate = true;
-      });
-      skillSceneAddedObjs.push(cloneEnemy);
-      skillScene.add(cloneEnemy);
+const buyChampion = (selectedObject, gold = 3) => {
+  championManager.removeChampFromScene(scene, selectedObject);
+  addGold(gold);
+};
+
+let startBattleInterval = null;
+const oldBfChamps = [];
+
+function fireBullet(attacker, target, onHit) {
+  const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+  const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  const bullet = new THREE.Mesh(geometry, material);
+
+  const bbox = new THREE.Box3().setFromObject(attacker.userData.champScene);
+  const center = new THREE.Vector3();
+  bbox.getCenter(center);
+
+  bullet.position.set(attacker.position.x, center.y, attacker.position.z);
+  scene.add(bullet);
+
+  moveCharacter(bullet, target, 0.2, () => {
+    scene.remove(bullet);
+    onHit();
+  });
+}
+
+function handleDamage(target, dmg, attacker, intervalId) {
+  championManager.damageChampion(target, dmg, () => {
+    const index = bfEnemies.findIndex((enemy) => enemy === target);
+    bfEnemies.splice(index, 1);
+
+    const hexEl = document.getElementById("hex-" + index);
+    if (hexEl) {
+      hexEl.classList.replace("bg-yellow-700", "bg-gray-700");
+      hexEl.replaceChildren();
+    }
+
+    if (!bfEnemies.some((bfEnemy) => bfEnemy)) {
+      championManager.playChampionAnimation(
+        attacker.mixer,
+        attacker.animations,
+        "celebration",
+        () => {},
+        3
+      );
+
+      setTimeout(() => {
+        clearInterval(startBattleInterval);
+        startBattleInterval = null;
+        startBattleBtn.classList.replace("flex", "hidden");
+        oldBfChamps.forEach(([uuid, pos, rot]) => {
+          const champ = scene.getObjectByProperty("uuid", uuid);
+          if (champ && pos) {
+            champ.position.copy(pos);
+            champ.userData?.champScene?.position.copy(pos);
+            champ.rotation.copy(rot);
+            champ.userData?.champScene?.rotation.copy(rot);
+            updateStatusBars();
+            championManager.playChampionAnimation(
+              attacker.mixer,
+              attacker.animations,
+              "idle",
+              () => {}
+            );
+          }
+        });
+      }, 3000);
     }
   });
-  draggableObjects.forEach((obj) => {
-    if (obj.bfIndex != -1) {
+}
+
+function startAttacking(attacker, target, dmg = 100) {
+  if (attacker.userData.isAttacking) return;
+  attacker.userData.isAttacking = true;
+
+  const attackInterval = setInterval(() => {
+    if (target.userData.currentHp <= 0 || !bfEnemies.includes(target)) {
+      clearInterval(attackInterval);
+      attacker.userData.isAttacking = false;
+      return;
+    }
+
+    championManager.attack(attacker, () => {
+      const isRanged = attacker.userData.data.stats.range > 1;
+      if (isRanged) {
+        fireBullet(attacker, target, () => {
+          handleDamage(target, dmg, attacker, attackInterval);
+        });
+      } else {
+        handleDamage(target, dmg, attacker, attackInterval);
+      }
+    });
+  }, 1000);
+}
+
+startBattleBtn.addEventListener("click", () => {
+  // Clone enemy models to skillScene
+  bfEnemies.forEach((enemy) => {
+    if (enemy?.userData) {
+      const clone = enemy.userData.champScene.clone();
+      clone.traverse((child) => {
+        if (child.isMesh && child.material) {
+          child.material = child.material.clone();
+          child.material.map = null;
+          child.material.needsUpdate = true;
+        }
+      });
+      skillSceneAddedObjs.push(clone);
+      skillScene.add(clone);
+    }
+  });
+
+  if (!draggableObjects.some((obj) => obj.bfIndex !== -1)) return;
+  draggableObjects.forEach((draggableObject) => {
+    if (draggableObject.bfIndex != -1) {
+      oldBfChamps.push([
+        draggableObject.uuid,
+        draggableObject.position.clone(),
+        draggableObject.rotation.clone(),
+      ]);
+    }
+  });
+
+  startBattleInterval = setInterval(() => {
+    draggableObjects.forEach((obj) => {
+      if (obj.bfIndex === -1) return;
+
       const { nearestTarget, dis } = championManager.findNearestTarget(
         obj,
         bfEnemies
       );
-      if (nearestTarget) {
-        faceToObj(
-          null,
-          obj.userData.champScene?.rotation,
-          nearestTarget.position,
-          obj.position
-        );
-        console.log(
-          "nearestTarget of %s: %s",
-          obj.userData.name,
-          nearestTarget.userData.name
-        );
+      if (!nearestTarget) return;
+
+      faceToObj(
+        null,
+        obj.userData.champScene?.rotation,
+        nearestTarget.position,
+        obj.userData.champScene.position
+      );
+
+      const hexSize = 4.5;
+      const attackRange = obj.userData.data.stats.range * hexSize;
+      const currentDistance = obj.position.distanceTo(nearestTarget.position);
+
+      if (currentDistance > attackRange) {
+        const direction = new THREE.Vector3()
+          .subVectors(nearestTarget.position, obj.position)
+          .normalize();
+        const targetPos = nearestTarget.position
+          .clone()
+          .addScaledVector(direction, -attackRange + 0.8);
+        const isBlocked = championManager.isOccupied(targetPos);
+
+        if (!isBlocked) {
+          moveCharacter(
+            obj.userData.champScene,
+            targetPos,
+            0.1,
+            () => {
+              obj.position.copy(targetPos);
+              startAttacking(obj, nearestTarget);
+            },
+            updateStatusBars
+          );
+        } else {
+          // Nếu bị chắn thì vẫn tấn công nếu đủ tầm (khoảng cách thực tế > range nhưng không di chuyển được)
+          startAttacking(obj, nearestTarget);
+        }
+      } else {
+        startAttacking(obj, nearestTarget);
       }
-    }
-  });
+
+      console.log(
+        `nearestTarget of ${obj.userData.name}: ${nearestTarget.userData.name} - dis: ${dis}`
+      );
+    });
+  }, 1000);
 });
 
 function displayGrid(hideBattleField = false, hideBench = false) {
@@ -405,21 +547,32 @@ function loadArena() {
         }
       });
 
+      let champWantBuy = null;
+
       renderer.domElement.addEventListener("mousemove", (event) => {
         if (!controls.enabled) {
           controls.enabled = true;
         }
+
         raycaster.setFromCamera(
           getNormalizedPointer(event, renderer.domElement),
           camera
         );
         const intersects = raycaster.intersectObjects(draggableObjects, true);
+
         renderer.domElement.style.cursor =
           intersects.length > 0
             ? isDragging
               ? "grabbing"
               : "grab"
             : "default";
+
+        if (intersects.length === 1) {
+          champWantBuy = intersects[0].object; // lưu object đang hover
+        } else {
+          champWantBuy = null;
+        }
+
         if (selectedObject) {
           const worldPos = selectedObject.position.clone();
           const deleteBox = new THREE.Box3().setFromObject(deleteZone);
@@ -428,6 +581,13 @@ function loadArena() {
               ? COLOR_DELETE_MOVEIN
               : COLOR_DELETE_ZONE
           );
+        }
+      });
+
+      // buy champion buy press "e"
+      window.addEventListener("keyup", function (e) {
+        if (e.key === "e" && champWantBuy) {
+          buyChampion(champWantBuy);
         }
       });
 
@@ -508,7 +668,7 @@ function loadArena() {
         let highlightMesh = null;
         const deleteBox = new THREE.Box3().setFromObject(deleteZone);
         if (deleteBox.containsPoint(worldPos)) {
-          championManager.removeChampFromScene(scene, selectedObject);
+          buyChampion(selectedObject);
           // add coin to my bag
           console.log("buy champion");
           nearestType = null;
@@ -649,7 +809,6 @@ function loadArena() {
                         if (!spotTaken) {
                           found = true;
                           championManager.addChampion(
-                            mixer,
                             {
                               position: [xMes[i], 0.1, zMe],
                               url: modelPathUrl,
@@ -865,10 +1024,19 @@ let animationId = null;
 const tacticianState = { isRunning: false, isAttacking: false };
 // Animate
 try {
+  const slowFactor = 0.5;
   function animate() {
     animationId = requestAnimationFrame(animate);
     const delta = clock.getDelta();
-    if (mixer) mixer.update(delta);
+    if (mixer) mixer.update(delta * slowFactor);
+    draggableObjects.forEach((draggableObject) => {
+      draggableObject.mixer?.update(delta * slowFactor);
+      draggableObject.userData.champScene?.mixer.update(delta * slowFactor);
+    });
+    bfEnemies.forEach((bfEnemy) => {
+      bfEnemy?.mixer?.update(delta * slowFactor);
+      bfEnemy?.userData.champScene?.mixer.update(delta * slowFactor);
+    });
     if (usingSkillScene) {
       renderer.render(skillScene, camera);
     } else {
@@ -880,13 +1048,13 @@ try {
       renderer.render(scene, camera);
     }
     itemsOutBag.forEach((item) => {
-      item.update(delta);
+      item.update(delta * slowFactor);
     });
     tftArguments.forEach((item) => {
-      item.update(delta);
+      item.update(delta * slowFactor);
     });
     tacticians.forEach((tactician) => {
-      tactician.update(delta);
+      tactician.update(delta * slowFactor);
     });
 
     // carousel.update();
@@ -920,14 +1088,15 @@ try {
           item.removeFromScene();
         }
       });
-      if (tacticianMixerGlobal) tacticianMixerGlobal.update(delta);
+      // mixer.update(delta * slowFactor);
+      if (tacticianMixerGlobal) tacticianMixerGlobal.update(delta * slowFactor);
     }
     // right click effect
     if (rightClickEffect) rightClickEffect.update();
     if (objectsOfChamp.length > 0) {
       objectsOfChamp.forEach((obj) => {
         if (obj.mixer && obj.update) {
-          obj.update(delta);
+          obj.update(delta * slowFactor);
         }
       });
     }
@@ -1015,7 +1184,6 @@ champShopList.addEventListener("click", async (e) => {
 
   // Mua tướng bình thường
   championManager.addChampion(
-    mixer,
     {
       url: modelPathUrl,
       position: [xMes[emptyIndex], 0, zMe],
