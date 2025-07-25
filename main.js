@@ -1,88 +1,43 @@
 import * as THREE from "https://esm.sh/three";
 import {
-  createDebugGuiFolder,
-  lightAuto,
-  loadModel,
-  transparentMeshs,
-} from "~~/utils/utils.js";
-import {
-  COLOR_DELETE_ZONE,
-  COLOR_SELECTABLE,
-  COLOR_MOVEABLE,
-  COLOR_SELECTING,
-  COLOR_DELETE_MOVEIN,
   ARENA_DATAS,
-  debugOn,
   tacticianSpeed,
   LOW_GRAPHICS_MODE,
   CHAMPS_INFOR,
 } from "~/variables.js";
-import { useItem } from "~~/item/item.js";
 import ChampionManager from "~~/objects/ChampionManager.js";
 import Model from "~~/objects/Model.js";
-import { RightClickEffect } from "~~/objects/effects.js";
 import SecretSphere from "~~/objects/SecretSphere.js";
 import TFTCarousel from "~~/objects/Carousel.js";
-import { sendMessageChangeLineupToEnemy } from "~~/utils/callApi.js";
 import {
   createBattleField,
-  createBench,
-  createDeleteZone,
   faceToObj,
   moveCharacter,
   moveToOtherObject,
 } from "~~/services/services.js";
 import initial from "~~/setup/initial.js";
-import { addGold } from "./assets/scripts/others/goldExp";
+import Team from "./assets/scripts/objects/Team";
+import Battle from "./assets/scripts/objects/Battle";
 
 // Globals
-let xMes = [];
-let xBenchEnemy = [];
-let mySquareGroup;
-let enemySquareGroup;
 let mixer;
 const clock = new THREE.Clock();
-let draggableObjects = [];
 let bfEnemyCells = [];
 let bfEnemies = [];
-let benchEnemies = [];
-let benchEnemiesCells = [];
 let bfCells = [];
-let benchCells = [];
-let deleteZone;
 const itemsOutBag = [];
-const objectsOfChamp = [];
 const tftArguments = [];
-const tacticians = [];
+
 let tactician,
   tacticianTarget = null;
 let tacticianMixerGlobal;
 let tacticianActions = {};
 let taticianAnimations;
-let arenaBox;
-let rightClickEffect;
-let loadingAllPercent = 0;
-const selectedArena = ARENA_DATAS[0];
-let zMe = selectedArena.bench[0][2];
-let zBenchEnemy = 0;
-const primaryY = 0;
-const disabledOrbitControlsIds = [
-  "shop",
-  "animations",
-  "left-bar",
-  "champ-inspect",
-  "config",
-  "primary-modal",
-  "enemy-define",
-];
+
+const arenaId = 0;
+const selectedArena = ARENA_DATAS[arenaId];
 
 const debugControls = false;
-
-// elements
-const loadingAll = document.getElementById("loading-all");
-const loadingAssetsProgress = document.getElementById(
-  "loading-assets-progress"
-);
 
 // initial
 let usingSkillScene = false;
@@ -91,17 +46,17 @@ const { scene, renderer, controls, camera } = initial(debugControls);
 const skillScene = new THREE.Scene();
 skillScene.background = new THREE.Color(0x000000);
 
-const championManager = new ChampionManager(scene, draggableObjects);
-// Utility
-function updateStatusBars() {
-  draggableObjects.forEach((obj) => {
-    if (obj.userData.statusBarGroup) {
-      obj.userData.statusBarGroup.position.copy(
-        obj.userData.champScene.position
-      );
-    }
-  });
-}
+const myTeam = new Team(
+  scene,
+  renderer,
+  controls,
+  camera,
+  selectedArena,
+  debugControls,
+  "Ninh Nam"
+);
+
+const championManager = myTeam.getChampionManager();
 
 bfCells = createBattleField(scene, 4, 7, selectedArena.battlefield);
 bfEnemyCells = createBattleField(
@@ -113,33 +68,6 @@ bfEnemyCells = createBattleField(
 );
 
 // enemy's bench
-const createEnemyBench = createBench(
-  scene,
-  1,
-  9,
-  2,
-  selectedArena.benchGap,
-  selectedArena.enemyBench[0],
-  "enemy"
-);
-// my bench
-const createMyBench = createBench(
-  scene,
-  1,
-  9,
-  2,
-  selectedArena.benchGap,
-  selectedArena.bench[0]
-);
-
-enemySquareGroup = createEnemyBench.squareGroup;
-xBenchEnemy = createEnemyBench.xBenchEnemy;
-zBenchEnemy = createEnemyBench.zBenchEnemy;
-benchEnemiesCells = createEnemyBench.benchCells;
-mySquareGroup = createMyBench.squareGroup;
-xMes = createMyBench.xMes;
-zMe = createMyBench.zMe;
-benchCells = createMyBench.benchCells;
 const startBattleBtn = document.getElementById("start-battle-btn");
 
 // startBattleBtn.classList.replace("hidden", "flex");
@@ -192,11 +120,6 @@ function updateEnemyLineup(champNamesOrChampName) {
   });
 }
 
-const buyChampion = (selectedObject, gold = 3) => {
-  championManager.removeChampFromScene(scene, selectedObject);
-  addGold(gold);
-};
-
 let startBattleInterval = null;
 const oldBfChamps = [];
 
@@ -212,7 +135,7 @@ function fireBullet(attacker, target, onHit) {
   bullet.position.set(attacker.position.x, center.y, attacker.position.z);
   scene.add(bullet);
 
-  moveCharacter(bullet, target, 0.2, () => {
+  moveCharacter(bullet, target, 10, () => {
     scene.remove(bullet);
     onHit();
   });
@@ -249,7 +172,7 @@ function handleDamage(target, dmg, attacker, intervalId) {
             champ.userData?.champScene?.position.copy(pos);
             champ.rotation.copy(rot);
             champ.userData?.champScene?.rotation.copy(rot);
-            updateStatusBars();
+            ChampionManager.updateStatusBars();
             championManager.playChampionAnimation(
               attacker.mixer,
               attacker.animations,
@@ -304,8 +227,9 @@ startBattleBtn.addEventListener("click", () => {
     }
   });
 
-  if (!draggableObjects.some((obj) => obj.bfIndex !== -1)) return;
-  draggableObjects.forEach((draggableObject) => {
+  if (!ChampionManager.draggableObjects.some((obj) => obj.bfIndex !== -1))
+    return;
+  ChampionManager.draggableObjects.forEach((draggableObject) => {
     if (draggableObject.bfIndex != -1) {
       oldBfChamps.push([
         draggableObject.uuid,
@@ -316,7 +240,7 @@ startBattleBtn.addEventListener("click", () => {
   });
 
   startBattleInterval = setInterval(() => {
-    draggableObjects.forEach((obj) => {
+    ChampionManager.draggableObjects.forEach((obj) => {
       if (obj.bfIndex === -1) return;
 
       const { nearestTarget, dis } = championManager.findNearestTarget(
@@ -349,12 +273,12 @@ startBattleBtn.addEventListener("click", () => {
           moveCharacter(
             obj.userData.champScene,
             targetPos,
-            0.1,
+            10,
             () => {
               obj.position.copy(targetPos);
               startAttacking(obj, nearestTarget);
             },
-            updateStatusBars
+            ChampionManager.updateStatusBars
           );
         } else {
           // Nếu bị chắn thì vẫn tấn công nếu đủ tầm (khoảng cách thực tế > range nhưng không di chuyển được)
@@ -370,506 +294,6 @@ startBattleBtn.addEventListener("click", () => {
     });
   }, 1000);
 });
-
-function displayGrid(hideBattleField = false, hideBench = false) {
-  bfCells.forEach(({ mesh }) => (mesh.visible = !hideBattleField));
-  benchCells.forEach(({ mesh }) => (mesh.visible = !hideBench));
-}
-
-// Delete Zone
-deleteZone = createDeleteZone(scene, 35, 5, COLOR_DELETE_ZONE, [
-  0 - selectedArena.arena[2][0],
-  0.01,
-  19,
-]);
-
-function displayDeleteZone(isShow = true) {
-  deleteZone.visible = isShow;
-}
-
-function getNormalizedPointer(event, domElement) {
-  const rect = domElement.getBoundingClientRect();
-  return new THREE.Vector2(
-    ((event.clientX - rect.left) / rect.width) * 2 - 1,
-    -((event.clientY - rect.top) / rect.height) * 2 + 1
-  );
-}
-
-// Map Loader & Drag Logic
-function loadArena() {
-  loadModel(
-    selectedArena.url,
-    (gltf) => {
-      let rightClickTo3dObject = false;
-      const arena = gltf.scene;
-      arena.name = selectedArena.name;
-      arena.position.set(...selectedArena.arena[0]);
-      arena.scale.set(...selectedArena.arena[2]);
-      arenaBox = new THREE.Box3().setFromObject(arena);
-      rightClickEffect = new RightClickEffect(scene, "#c9f73d");
-      // console.log(arena);
-      // addHelper(scene, arenaBox);
-      lightAuto(arena);
-      if (debugOn) {
-        const debugObjects = [
-          { name: "arena (A)", object: arena, key: "a", isOpen: false },
-
-          { name: "Camera (C)", object: camera, key: "c", isOpen: false },
-          {
-            name: "Delete Zone (D)",
-            object: deleteZone,
-            key: "d",
-            isOpen: false,
-          },
-          {
-            name: "Controls (V)",
-            object: controls.target,
-            parent: controls,
-            key: "v",
-            isOpen: false,
-          },
-        ];
-        debugObjects.forEach(createDebugGuiFolder);
-      }
-      scene.add(arena);
-      transparentMeshs(arena);
-      arena.receiveShadow = true;
-      mixer = new THREE.AnimationMixer(arena);
-      if (gltf.animations.length > 0) {
-        const animations = gltf.animations;
-        mixer = new THREE.AnimationMixer(arena);
-        const firstAnimation = animations[0];
-        mixer.clipAction(firstAnimation).play();
-      }
-      // Drag logic
-      let isDragging = false,
-        selectedObject = null,
-        dragOffset = new THREE.Vector3();
-      let dragBenchIndex = -1,
-        dragBfIndex = -1,
-        currPos = null,
-        currBenchIndex = -1,
-        currBfIndex = -1;
-      const raycaster = new THREE.Raycaster();
-      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-
-      const shop = document.getElementById("shop");
-      function disabledOrbitControls() {
-        disabledOrbitControlsIds.forEach((id) => {
-          const element = document.getElementById(id);
-          if (element) {
-            element.addEventListener("contextmenu", function (e) {
-              e.preventDefault();
-            });
-            element.addEventListener(
-              "mouseenter",
-              () => (controls.enabled = false)
-            );
-            element.addEventListener(
-              "mousemove",
-              () => (controls.enabled = false)
-            );
-            element.addEventListener(
-              "mouseleave",
-              () => (controls.enabled = true)
-            );
-          }
-        });
-
-        if (debugOn) {
-          const debugContainer = document.querySelector(".dg.ac");
-          debugContainer.addEventListener(
-            "mouseenter",
-            () => (controls.enabled = false)
-          );
-          debugContainer.addEventListener(
-            "mousemove",
-            () => (controls.enabled = false)
-          );
-          debugContainer.addEventListener(
-            "mouseleave",
-            () => (controls.enabled = true)
-          );
-        }
-      }
-      disabledOrbitControls();
-
-      renderer.domElement.addEventListener("pointerdown", (event) => {
-        if (event.button === 0) {
-          championManager.displayChampInfor(false);
-        }
-        if (event.button === 2 && debugControls) {
-          raycaster.setFromCamera(
-            getNormalizedPointer(event, renderer.domElement),
-            camera
-          );
-
-          const intersectPoint = new THREE.Vector3();
-          raycaster.ray.intersectPlane(plane, intersectPoint);
-
-          console.log("📌 Tọa độ 3D chuột phải:", intersectPoint);
-        }
-        if (!debugControls) {
-          controls.enabled = false;
-        }
-        raycaster.setFromCamera(
-          getNormalizedPointer(event, renderer.domElement),
-          camera
-        );
-        const intersects = raycaster.intersectObjects(draggableObjects, true);
-        if (intersects.length > 0) {
-          selectedObject = intersects[0].object;
-          if (!selectedObject.bfIndex && !selectedObject.benchIndex) {
-            selectedObject = null;
-            return;
-          }
-          // display champion infor
-          if (event.button === 2 && selectedObject) {
-            rightClickTo3dObject = true;
-            championManager.displayChampInfor(true, selectedObject);
-            setTimeout(() => {
-              rightClickTo3dObject = false;
-            }, 150);
-          } else {
-            currPos = { ...selectedObject.position };
-            currBenchIndex = selectedObject.benchIndex;
-            currBfIndex = selectedObject.bfIndex;
-            const intersection = new THREE.Vector3();
-            raycaster.ray.intersectPlane(plane, intersection);
-            dragOffset.copy(intersection).sub(selectedObject.position);
-            displayGrid(false, false);
-            isDragging = true;
-          }
-          if (isDragging) {
-            displayDeleteZone();
-            shop.classList.replace("bottom-1", "bottom-[-20vh]");
-          }
-        }
-      });
-
-      let champWantBuy = null;
-
-      renderer.domElement.addEventListener("mousemove", (event) => {
-        if (!controls.enabled) {
-          controls.enabled = true;
-        }
-
-        raycaster.setFromCamera(
-          getNormalizedPointer(event, renderer.domElement),
-          camera
-        );
-        const intersects = raycaster.intersectObjects(draggableObjects, true);
-
-        renderer.domElement.style.cursor =
-          intersects.length > 0
-            ? isDragging
-              ? "grabbing"
-              : "grab"
-            : "default";
-
-        if (intersects.length === 1) {
-          champWantBuy = intersects[0].object; // lưu object đang hover
-        } else {
-          champWantBuy = null;
-        }
-
-        if (selectedObject) {
-          const worldPos = selectedObject.position.clone();
-          const deleteBox = new THREE.Box3().setFromObject(deleteZone);
-          deleteZone.material.color.set(
-            deleteBox.containsPoint(worldPos)
-              ? COLOR_DELETE_MOVEIN
-              : COLOR_DELETE_ZONE
-          );
-        }
-      });
-
-      // buy champion buy press "e"
-      window.addEventListener("keyup", function (e) {
-        if (e.key === "e" && champWantBuy) {
-          buyChampion(champWantBuy);
-        }
-      });
-
-      renderer.domElement.addEventListener("pointermove", (event) => {
-        if (!isDragging || !selectedObject) return;
-        raycaster.setFromCamera(
-          getNormalizedPointer(event, renderer.domElement),
-          camera
-        );
-        const intersection = new THREE.Vector3();
-        raycaster.ray.intersectPlane(plane, intersection);
-        const newPosition = intersection.sub(dragOffset);
-        newPosition.y = 0;
-        selectedObject.position.copy(newPosition);
-        selectedObject.userData.champScene.position.copy(newPosition);
-
-        const worldPos = selectedObject.position.clone();
-        let highlighted = false;
-        bfCells.forEach(({ mesh }) => mesh.material.color.set(COLOR_MOVEABLE));
-        benchCells.forEach(({ mesh }) =>
-          mesh.material.color.set(COLOR_MOVEABLE)
-        );
-        for (let i = 0; i < bfCells.length; i++) {
-          const { mesh, center } = bfCells[i];
-          const dist = center.distanceTo(worldPos);
-          if (dist < selectedArena.battlefield.radius * 0.95) {
-            mesh.material.color.set(COLOR_SELECTABLE);
-            highlighted = true;
-            dragBfIndex = i;
-          } else {
-            mesh.material.color.set(COLOR_MOVEABLE);
-          }
-        }
-        if (!highlighted) {
-          for (let i = 0; i < benchCells.length; i++) {
-            const { mesh, box } = benchCells[i];
-            const localPos = mySquareGroup?.worldToLocal(worldPos.clone());
-            if (box.containsPoint(localPos)) {
-              mesh.material.color.set(COLOR_SELECTABLE);
-              dragBenchIndex = i;
-              highlighted = true;
-              break;
-            }
-          }
-        }
-        updateStatusBars();
-      });
-
-      renderer.domElement.addEventListener("pointerup", () => {
-        if (!selectedObject) return;
-        let deleting = false;
-        displayDeleteZone(false);
-        shop.classList.replace("bottom-[-20vh]", "bottom-1");
-        controls.enabled = true;
-        const worldPos = selectedObject.position.clone();
-        let nearestCell = null,
-          nearestType = null,
-          minDistance = Infinity;
-        bfCells.forEach(({ mesh, center }) => {
-          const dist = center.distanceTo(worldPos);
-          if (dist < minDistance) {
-            minDistance = dist;
-            nearestCell = center.clone();
-            nearestType = "bf";
-          }
-        });
-        benchCells.forEach(({ box }, index) => {
-          const center = new THREE.Vector3();
-          box.getCenter(center);
-          const worldCenter = mySquareGroup?.localToWorld(center.clone());
-          const dist = worldCenter.distanceTo(worldPos);
-          if (dist < minDistance) {
-            minDistance = dist;
-            nearestCell = worldCenter.clone();
-            nearestType = "bench";
-          }
-        });
-        let highlightMesh = null;
-        const deleteBox = new THREE.Box3().setFromObject(deleteZone);
-        if (deleteBox.containsPoint(worldPos)) {
-          buyChampion(selectedObject);
-          // add coin to my bag
-          console.log("buy champion");
-          nearestType = null;
-          deleting = true;
-        }
-        if (!deleting && !rightClickTo3dObject && selectedObject) {
-          let isBench = nearestType === "bench";
-          let targetIndex = isBench ? dragBenchIndex : dragBfIndex;
-          let currTargetIndex = isBench ? currBenchIndex : currBfIndex;
-          let indexKey = isBench ? "benchIndex" : "bfIndex";
-          let otherIndexKey = isBench ? "bfIndex" : "benchIndex";
-          let cells = isBench ? benchCells : bfCells;
-
-          const existObj = draggableObjects.find(
-            (champ) => champ[indexKey] === targetIndex
-          );
-          if (existObj) {
-            existObj.position.copy(currPos);
-            existObj.userData.champScene.position.copy(currPos);
-            existObj[indexKey] = currTargetIndex;
-            existObj[otherIndexKey] = isBench ? currBfIndex : currBenchIndex;
-          }
-
-          selectedObject[indexKey] = targetIndex;
-          selectedObject[otherIndexKey] = -1;
-
-          cells.forEach(({ mesh, box, center }) => {
-            let worldCenter = center;
-            if (isBench && box) {
-              worldCenter = new THREE.Vector3();
-              box.getCenter(worldCenter);
-              worldCenter = mySquareGroup.localToWorld(worldCenter);
-            }
-            if (worldCenter.distanceTo(nearestCell) < 0.01) {
-              highlightMesh = mesh;
-              highlightMesh.material.color.set(COLOR_SELECTING);
-            }
-          });
-        }
-
-        if (nearestCell) {
-          selectedObject.position.set(nearestCell.x, 0.1, nearestCell.z);
-          selectedObject.userData.champScene.position.set(
-            nearestCell.x,
-            0.1,
-            nearestCell.z
-          );
-          updateStatusBars();
-        }
-        displayGrid(true, true);
-        deleting = false;
-        dragBenchIndex = -1;
-        currPos = null;
-        selectedObject = null;
-        isDragging = false;
-        // reload my traits
-        championManager.renderTraits();
-      });
-
-      renderer.domElement.addEventListener("contextmenu", (event) => {
-        event.preventDefault();
-        if (!tactician) return;
-
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(
-          getNormalizedPointer(event, renderer.domElement),
-          camera
-        );
-
-        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-        const intersection = new THREE.Vector3();
-        raycaster.ray.intersectPlane(plane, intersection);
-        if (selectedObject) {
-          console.log(selectedObject);
-        }
-
-        if (arenaBox && arenaBox.containsPoint(intersection)) {
-          // console.log("righclick");
-          if (!rightClickTo3dObject) {
-            rightClickEffect.trigger(intersection);
-            tacticianTarget = intersection;
-          }
-        }
-      });
-
-      // Equipment drag & drop
-      const equipmentBar = document.getElementById("equipment-bar");
-      let draggingEquipImg = null;
-      equipmentBar.childNodes.forEach((el) => {
-        el.addEventListener("dragstart", (e) => {
-          e.dataTransfer.setData("itemId", e.target.dataset.itemId);
-          e.dataTransfer.setData("itemName", e.target.dataset.itemName);
-          draggingEquipImg = e.target;
-        });
-      });
-      renderer.domElement.addEventListener("dragover", (event) =>
-        event.preventDefault()
-      );
-      renderer.domElement.addEventListener("drop", (event) => {
-        event.preventDefault();
-        const itemId = event.dataTransfer.getData("itemId");
-        const itemName = event.dataTransfer.getData("itemName");
-        if (!itemId || !itemName) return;
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(
-          getNormalizedPointer(event, renderer.domElement),
-          camera
-        );
-        const intersects = raycaster.intersectObjects(draggableObjects, true);
-        if (intersects.length > 0) {
-          const targetObject = intersects[0].object;
-          useItem(itemId, itemName, targetObject.uuid, (data) => {
-            if (data.champUuid === targetObject.uuid) {
-              const item = data.item;
-              const [num, stat] = item.stat.split("_");
-              let consumableItem = false,
-                found = false;
-              switch (item.type) {
-                case "consumable":
-                  alert(
-                    `Bạn đã sử dụng ${item.name} cho tướng ${targetObject.name}`
-                  );
-                  switch (stat) {
-                    case "champion":
-                      const modelPathUrl =
-                        "./assets/models/champions/" +
-                        targetObject.userData.name
-                          .toLowerCase()
-                          .replace(". ", "_")
-                          .replace(" ", "_")
-                          .replace("'", "") +
-                        "_(tft_set_14).glb";
-                      for (let i = 0; i < xMes.length; i++) {
-                        const spotTaken = draggableObjects.some(
-                          (champ) =>
-                            champ.bfIndex === -1 && champ.benchIndex === i
-                        );
-                        if (!spotTaken) {
-                          found = true;
-                          championManager.addChampion(
-                            {
-                              position: [xMes[i], 0.1, zMe],
-                              url: modelPathUrl,
-                              data: targetObject.userData.data,
-                            },
-                            (dragHelper) => {
-                              dragHelper.benchIndex = i;
-                              dragHelper.bfIndex = -1;
-                              addingFlag = false;
-                              draggableObjects.push(dragHelper);
-                              sendMessageChangeLineupToEnemy(draggableObjects);
-                            }
-                          );
-                          consumableItem = true;
-                          break;
-                        }
-                      }
-                      if (!found) alert("Hàng chờ đầy, không thể thêm tướng");
-                      break;
-                    default:
-                      break;
-                  }
-                  break;
-                case "item":
-                  alert(
-                    `Bạn đã trang bị ${item.name} cho tướng ${targetObject.name}`
-                  );
-                  break;
-                case "component":
-                  alert(
-                    `Bạn đã trang bị ${item.name} (component) cho tướng ${targetObject.name}`
-                  );
-                  break;
-              }
-              if (consumableItem) {
-                draggingEquipImg?.remove();
-                draggingEquipImg = null;
-              }
-            }
-          });
-        }
-      });
-    },
-    (e) => {
-      console.log("error when load arena: ", e);
-    },
-    (progress) => {
-      if (progress) {
-        loadingAllPercent = (progress.loaded / progress.total) * 100;
-        loadingAssetsProgress.style.width = loadingAllPercent + "%";
-        if (loadingAllPercent >= 100) {
-          setTimeout(() => {
-            loadingAll.style.visibility = "hidden";
-          }, 100);
-        }
-      } else {
-        loadingAll.style.visibility = "hidden";
-      }
-    }
-  );
-}
 
 const LoadAllModel = () => {
   // load tactician
@@ -905,8 +329,7 @@ const LoadAllModel = () => {
     { enabled: false, color: "blue" },
     { enabled: false }
   );
-  tacticians.push(tacticianModel);
-
+  Battle.tacticians.push(tacticianModel);
   // load coin (ex)
   const itemOutBagY = 1;
   const coinCount = 10;
@@ -974,15 +397,16 @@ const LoadAllModel = () => {
   // load carousel
   // const carousel = new TFTCarousel(scene, 8, 12);
   // setTimeout(() => carousel.deactivateBarrier(2), 3000);
-  loadArena();
 };
 LoadAllModel();
 
 // open tactician's animations panel
+let animationsPanelShowed = false;
 window.addEventListener("keydown", (e) => {
-  if (e.key === "a") {
+  if (e.key.toLocaleLowerCase() === "a") {
     const animations = document.getElementById("animations");
-    animations.classList.remove("hidden");
+    animationsPanelShowed = !animationsPanelShowed;
+    animations.classList.toggle("hidden", !animationsPanelShowed);
     if (taticianAnimations) {
       // console.log(taticianAnimations);
       taticianAnimations.forEach((ani) => {
@@ -993,23 +417,22 @@ window.addEventListener("keydown", (e) => {
         animationItem.addEventListener("click", function (e) {
           const action = tacticianMixerGlobal?.clipAction(ani);
           if (!action) return;
-
           // Dừng các animation đang chạy
           tacticianMixerGlobal.stopAllAction();
-
           // Chạy animation được chọn
           action.reset();
           action.setLoop(THREE.LoopOnce);
           action.clampWhenFinished = true;
           action.play();
 
-          animations.classList.add("hidden");
-
           // Lắng nghe sự kiện 'finished' từ mixer
           const onFinished = (e) => {
             if (e.action === action) {
-              tacticianActions.idle?.play();
+              tacticianMixerGlobal.stopAllAction();
+              tacticianActions?.idle?.play();
               tacticianMixerGlobal.removeEventListener("finished", onFinished);
+              animations.classList.add("hidden");
+              animationsPanelShowed = false;
             }
           };
           tacticianMixerGlobal.addEventListener("finished", onFinished);
@@ -1021,7 +444,7 @@ window.addEventListener("keydown", (e) => {
 });
 
 let animationId = null;
-const tacticianState = { isRunning: false, isAttacking: false };
+const tacticianState = { isRunning: false, isAttack: false };
 // Animate
 try {
   const slowFactor = 0.5;
@@ -1029,7 +452,7 @@ try {
     animationId = requestAnimationFrame(animate);
     const delta = clock.getDelta();
     if (mixer) mixer.update(delta * slowFactor);
-    draggableObjects.forEach((draggableObject) => {
+    ChampionManager.draggableObjects.forEach((draggableObject) => {
       draggableObject.mixer?.update(delta * slowFactor);
       draggableObject.userData.champScene?.mixer.update(delta * slowFactor);
     });
@@ -1053,23 +476,30 @@ try {
     tftArguments.forEach((item) => {
       item.update(delta * slowFactor);
     });
-    tacticians.forEach((tactician) => {
+    Battle.tacticians.forEach((tactician) => {
       tactician.update(delta * slowFactor);
     });
-
-    // carousel.update();
-
+    tacticianTarget = myTeam.getTacticianTarget();
     if (tactician && tacticianTarget) {
       moveToOtherObject(
         tactician,
         tacticianTarget,
         tacticianSpeed,
         () => {
-          tacticianTarget = null;
+          myTeam.updateTacticianTarget();
         },
         tacticianState,
         tacticianActions
       );
+      itemsOutBag.forEach((item, index) => {
+        if (item.checkCollision(tactician)) {
+          itemsOutBag.splice(index, 1);
+          console.log("nhặt " + item.name);
+          item.removeFromScene();
+        }
+      });
+
+      // carousel.update();
       // if (!carousel.checkBarrierCollision(tactician)) {
       //   // ✅ Được di chuyển
       //   tactician.position.add(dir.multiplyScalar(tacticianSpeed));
@@ -1081,25 +511,8 @@ try {
       //   tactician.position.y = selectedArena.tactacianFirstPos[1];;
       //   tactician.rotation.y = Math.atan2(dir.x, dir.z); // xoay theo hướng di chuyển
       // }
-      itemsOutBag.forEach((item, index) => {
-        if (item.checkCollision(tactician)) {
-          itemsOutBag.splice(index, 1);
-          console.log("nhặt " + item.name);
-          item.removeFromScene();
-        }
-      });
-      // mixer.update(delta * slowFactor);
-      if (tacticianMixerGlobal) tacticianMixerGlobal.update(delta * slowFactor);
     }
-    // right click effect
-    if (rightClickEffect) rightClickEffect.update();
-    if (objectsOfChamp.length > 0) {
-      objectsOfChamp.forEach((obj) => {
-        if (obj.mixer && obj.update) {
-          obj.update(delta * slowFactor);
-        }
-      });
-    }
+    myTeam.updateAll(delta * slowFactor);
   }
   animate();
 } catch (err) {
@@ -1111,94 +524,4 @@ try {
   }
 }
 
-// Shop logic
-const champShopList = document.getElementById("champ-shop-list");
-let addingFlag = false;
-
-champShopList.addEventListener("click", async (e) => {
-  if (addingFlag) return;
-  const card = e.target.closest(".champ-card-shop");
-  if (!card) return;
-
-  const index = card.indexInRoll;
-  const champData = window.champsInRoll?.[index];
-  if (!champData || window.champsBought[index] === 1) {
-    alert(
-      "Bạn đã mua tướng này rồi! nghịch devtools admin sẽ ban acc của bạn =))))"
-    );
-    return;
-  }
-
-  addingFlag = true;
-
-  // Xác định tên và đường dẫn model
-  const champName = champData.name
-    .toLowerCase()
-    .replace(". ", "_")
-    .replace(" ", "_")
-    .replace("'", "");
-  const modelPathUrl = `./assets/models/champions/${champName}_(tft_set_14).glb`;
-
-  // Tìm vị trí trống trong bench
-  const emptyIndex = xMes.findIndex(
-    (_, i) =>
-      !draggableObjects.some((c) => c.bfIndex === -1 && c.benchIndex === i)
-  );
-
-  if (emptyIndex === -1) {
-    alert("Hàng chờ đầy, không thể mua thêm tướng");
-    addingFlag = false;
-    return;
-  }
-
-  // Nếu là bloblet của Zac
-  if (card.zacBloblet) {
-    const zac = draggableObjects.find((obj) => obj.userData.name === "Zac");
-    if (zac?.bfIndex !== -1) {
-      const overlay = card.querySelector(".overlay-shop-champ");
-      overlay?.classList.replace("opacity-100", "opacity-0");
-      card.zacBloblet = false;
-
-      new Model(scene, {
-        name: "virus",
-        url: "./assets/models/skills/tft14_virus_bloblet.glb",
-        position: [Math.random() * 20 - 10, zac.position.y, 15],
-        scale: [0.02, 0.02, 0.02],
-        onLoaded: (virusModel) => {
-          objectsOfChamp.push(virusModel);
-          moveCharacter(virusModel, zac, 0.1, () => {
-            virusModel.removeFromScene();
-            championManager.highlight(mixer, zac);
-            objectsOfChamp.splice(
-              objectsOfChamp.findIndex((obj) => obj === virusModel),
-              1
-            );
-          });
-        },
-        debug: false,
-      });
-    }
-    addingFlag = false;
-    return;
-  }
-
-  // Mua tướng bình thường
-  championManager.addChampion(
-    {
-      url: modelPathUrl,
-      position: [xMes[emptyIndex], 0, zMe],
-      data: card.data,
-    },
-    (dragHelper) => {
-      dragHelper.benchIndex = emptyIndex;
-      dragHelper.bfIndex = -1;
-      window.champsBought[index] = 1;
-      card.classList.add("invisible");
-      sendMessageChangeLineupToEnemy(draggableObjects);
-      draggableObjects.push(dragHelper);
-      addingFlag = false;
-    }
-  );
-});
-
-export { draggableObjects, updateEnemyLineup };
+export { updateEnemyLineup };

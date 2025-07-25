@@ -1,5 +1,5 @@
 export const debugOn = false;
-export const tacticianSpeed = 0.2;
+export const tacticianSpeed = 10;
 export const fee = {
   buyExp: 4,
   reroll: 2,

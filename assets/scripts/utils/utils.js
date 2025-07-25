@@ -247,6 +247,14 @@ class ObserverElementChange {
   }
 }
 
+function getNormalizedPointer(event, domElement) {
+  const rect = domElement.getBoundingClientRect();
+  return new THREE.Vector2(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1
+  );
+}
+
 export {
   loadModel,
   lightAuto,
@@ -259,4 +267,5 @@ export {
   lerpAngle,
   capitalizeFirstLetter,
   ObserverElementChange,
+  getNormalizedPointer,
 };

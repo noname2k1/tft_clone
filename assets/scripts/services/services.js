@@ -179,7 +179,8 @@ function moveToOtherObject(
   speed,
   afterMoveCallBack = () => {},
   state = { isRunning: false },
-  fromObjAnimations = { idle: null, run: null }
+  fromObjAnimations = { idle: null, run: null },
+  delta = 0.016 // mặc định ~60fps
 ) {
   // Utility: Get actual position reference
   const getPosition = (obj) =>
@@ -233,7 +234,7 @@ function moveToOtherObject(
 
     dir.normalize();
     if (rot) faceToObj(dir, rot);
-    pos.add(dir.multiplyScalar(speed));
+    pos.add(dir.multiplyScalar(speed * delta));
   } else {
     setPosition(fromObj, targetPos);
     if (state.isRunning) {

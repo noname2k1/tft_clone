@@ -6,10 +6,10 @@ import {
   handleReroll,
 } from "~/assets/scripts/others/goldExp.js";
 import { EXP_TABLE, fee } from "~/variables";
-import { draggableObjects } from "~/main";
 import { markChampNames } from "../others/modal/markChamps";
 import { ObserverElementChange } from "../utils/utils";
 import { getMarkChampFromStorage } from "../services/services";
+import ChampionManager from "../objects/ChampionManager";
 
 document.addEventListener("DOMContentLoaded", function () {
   const buyExpBtn = document.getElementById("buy-exp-btn");
@@ -88,7 +88,7 @@ document.addEventListener("DOMContentLoaded", function () {
       cards.forEach((card) => {
         if (card) {
           const overlay = card.querySelector(".overlay-shop-champ");
-          const zacFound = draggableObjects.find(
+          const zacFound = ChampionManager.draggableObjects.find(
             (obj) =>
               obj.userData.name?.toLowerCase() === "zac" && obj.bfIndex !== -1
           );

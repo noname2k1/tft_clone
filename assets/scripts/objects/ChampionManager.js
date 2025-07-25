@@ -14,18 +14,16 @@ import {
 } from "~/variables.js";
 import { clone } from "https://esm.sh/three/examples/jsm/utils/SkeletonUtils.js";
 import { champScales, costGradients } from "~~/data/champs.js";
-import { draggableObjects } from "~/main";
 
 export default class ChampionManager {
   scene;
   traitListElement;
-  draggableObjects;
-  traitDisplayCount = 10;
+  static draggableObjects = [];
+  maxTraitDisplay = 10;
   attack1 = {};
-  constructor(scene, draggableObjects) {
+  constructor(scene) {
     this.scene = scene;
     this.traitListElement = document.getElementById("trait-list");
-    this.draggableObjects = draggableObjects;
   }
 
   getChampionScale(champName) {
@@ -181,7 +179,9 @@ export default class ChampionManager {
   }
 
   isOccupied = function (pos) {
-    return draggableObjects.some((obj) => obj.position.distanceTo(pos) < 1);
+    return ChampionManager.draggableObjects.some(
+      (obj) => obj.position.distanceTo(pos) < 1
+    );
   };
 
   playChampionAnimation(
@@ -237,7 +237,7 @@ export default class ChampionManager {
     lastIndex,
     viewMore
   ) {
-    if (index <= this.traitDisplayCount - 1) {
+    if (index <= this.maxTraitDisplay - 1) {
       // console.log({ data });
       const champCount = champs.length;
       // console.log({ effect, nextEffect });
@@ -302,7 +302,7 @@ export default class ChampionManager {
       this.traitListElement?.appendChild(div);
       if (
         lastIndex &&
-        ((viewMore && totalTraits - this.traitDisplayCount > 0) || !viewMore)
+        ((viewMore && totalTraits - this.maxTraitDisplay > 0) || !viewMore)
       ) {
         const viewMoreBtn = document.createElement("button");
         viewMoreBtn.className = "relative w-[3vw] h-[3vw] cursor-pointer";
@@ -311,8 +311,8 @@ export default class ChampionManager {
           `<img src="./assets/images/view-more.png" class="h-full w-full"/>
           <span class="absolute top-[20%] left-[50%] text-[1vw]">${
             viewMore
-              ? totalTraits - this.traitDisplayCount
-              : totalTraits - (totalTraits - this.traitDisplayCount)
+              ? totalTraits - this.maxTraitDisplay
+              : totalTraits - (totalTraits - this.maxTraitDisplay)
           }</span>`
         );
         viewMoreBtn.addEventListener("click", (e) => {
@@ -324,7 +324,9 @@ export default class ChampionManager {
   }
 
   renderTraits(viewMore = false) {
-    const champsInBf = draggableObjects.filter((c) => c.bfIndex != -1);
+    const champsInBf = ChampionManager.draggableObjects.filter(
+      (c) => c.bfIndex != -1
+    );
     const traitsMap = {};
 
     champsInBf.forEach((champ) => {
@@ -376,9 +378,9 @@ export default class ChampionManager {
 
     this.traitListElement?.replaceChildren();
     if (viewMore) {
-      if (traitsArray.length > this.traitDisplayCount) {
+      if (traitsArray.length > this.maxTraitDisplay) {
         const chunkedTraitsArray = traitsArray.slice(
-          this.traitDisplayCount,
+          this.maxTraitDisplay,
           traitsArray.length
         );
         // console.log(chunkedTraitsArray);
@@ -388,7 +390,7 @@ export default class ChampionManager {
             index,
             traitsArray.length,
             index ===
-              Math.min(this.traitDisplayCount, chunkedTraitsArray.length) - 1,
+              Math.min(this.maxTraitDisplay, chunkedTraitsArray.length) - 1,
             !viewMore
           );
         });
@@ -399,7 +401,7 @@ export default class ChampionManager {
           trait,
           index,
           traitsArray.length,
-          index === this.traitDisplayCount - 1,
+          index === this.maxTraitDisplay - 1,
           !viewMore
         );
       });
@@ -551,11 +553,11 @@ export default class ChampionManager {
   }
 
   removeChampFromScene(scene, dragHelper, callback = () => {}) {
-    const index = this.draggableObjects.findIndex(
+    const index = ChampionManager.draggableObjects.findIndex(
       (obj) => obj.uuid === dragHelper.uuid
     );
     if (index > -1) {
-      this.draggableObjects.splice(index, 1);
+      ChampionManager.draggableObjects.splice(index, 1);
     }
     scene.remove(dragHelper.userData.champScene);
     scene.remove(dragHelper.userData.statusBarGroup);
@@ -795,4 +797,14 @@ export default class ChampionManager {
 
   useSkill() {}
   useItem() {}
+
+  static updateStatusBars() {
+    ChampionManager.draggableObjects.forEach((obj) => {
+      if (obj.userData.statusBarGroup) {
+        obj.userData.statusBarGroup.position.copy(
+          obj.userData.champScene.position
+        );
+      }
+    });
+  }
 }
