@@ -121,6 +121,7 @@ function updateEnemyLineup(champNamesOrChampName) {
 }
 
 let startBattleInterval = null;
+let allEnemiesDied = false;
 const oldBfChamps = [];
 
 function fireBullet(attacker, target, onHit) {
@@ -135,62 +136,85 @@ function fireBullet(attacker, target, onHit) {
   bullet.position.set(attacker.position.x, center.y, attacker.position.z);
   scene.add(bullet);
 
-  moveCharacter(bullet, target, 10, () => {
-    scene.remove(bullet);
-    onHit();
-  });
+  const attackSpeed = attacker.userData.data.stats.attackSpeed || 0.5;
+  moveCharacter(
+    bullet,
+    target,
+    attackSpeed * 10,
+    () => {
+      scene.remove(bullet);
+      onHit();
+    },
+    () => {
+      if (target.userData.currentHp <= 0) {
+        scene.remove(bullet);
+      }
+    }
+  );
 }
 
 function handleDamage(target, dmg, attacker, intervalId) {
+  console.log(bfEnemies);
   championManager.damageChampion(target, dmg, () => {
-    const index = bfEnemies.findIndex((enemy) => enemy === target);
-    bfEnemies.splice(index, 1);
+    const index = bfEnemies.findIndex((enemy) => enemy?.uuid === target.uuid);
+    if (index != -1) {
+      bfEnemies.splice(index, 1);
+    }
 
     const hexEl = document.getElementById("hex-" + index);
     if (hexEl) {
       hexEl.classList.replace("bg-yellow-700", "bg-gray-700");
       hexEl.replaceChildren();
     }
-
+    console.log(bfEnemies);
     if (!bfEnemies.some((bfEnemy) => bfEnemy)) {
-      championManager.playChampionAnimation(
-        attacker.mixer,
-        attacker.animations,
-        "celebration",
-        () => {},
-        3
-      );
-
-      setTimeout(() => {
-        clearInterval(startBattleInterval);
-        startBattleInterval = null;
-        startBattleBtn.classList.replace("flex", "hidden");
-        oldBfChamps.forEach(([uuid, pos, rot]) => {
-          const champ = scene.getObjectByProperty("uuid", uuid);
-          if (champ && pos) {
+      console.log(bfEnemies);
+      allEnemiesDied = true;
+      clearInterval(startBattleInterval);
+      startBattleInterval = null;
+      startBattleBtn.classList.replace("flex", "hidden");
+      oldBfChamps.forEach(([uuid, pos, rot]) => {
+        const champ = scene.getObjectByProperty("uuid", uuid);
+        if (champ && pos) {
+          champ.mixer.stopAllAction();
+          championManager.playChampionAnimation(
+            champ.mixer,
+            champ.animations,
+            "celebration",
+            () => {},
+            3
+          );
+          setTimeout(() => {
             champ.position.copy(pos);
             champ.userData?.champScene?.position.copy(pos);
             champ.rotation.copy(rot);
             champ.userData?.champScene?.rotation.copy(rot);
             ChampionManager.updateStatusBars();
+            champ.mixer.stopAllAction();
             championManager.playChampionAnimation(
-              attacker.mixer,
-              attacker.animations,
+              champ.mixer,
+              champ.animations,
               "idle",
-              () => {}
+              () => {
+                allEnemiesDied = false;
+              }
             );
-          }
-        });
-      }, 3000);
+          }, 4000);
+        }
+      });
+      allEnemiesDied = false;
     }
   });
 }
 
-function startAttacking(attacker, target, dmg = 100) {
-  if (attacker.userData.isAttacking) return;
+function startAttacking(attacker, target) {
+  if (attacker.userData.isAttacking || allEnemiesDied) return;
   attacker.userData.isAttacking = true;
-
+  const attackSpeed = attacker.userData.data.stats.attackSpeed || 0.5;
+  const delay = attackSpeed * 2000;
+  const dmg = attacker.userData.data.stats.damage;
   const attackInterval = setInterval(() => {
+    console.log(target.userData.currentHp);
     if (target.userData.currentHp <= 0 || !bfEnemies.includes(target)) {
       clearInterval(attackInterval);
       attacker.userData.isAttacking = false;
@@ -207,11 +231,12 @@ function startAttacking(attacker, target, dmg = 100) {
         handleDamage(target, dmg, attacker, attackInterval);
       }
     });
-  }, 1000);
+  }, delay);
 }
 
 startBattleBtn.addEventListener("click", () => {
   // Clone enemy models to skillScene
+  console.log(bfEnemies);
   bfEnemies.forEach((enemy) => {
     if (enemy?.userData) {
       const clone = enemy.userData.champScene.clone();
@@ -240,29 +265,31 @@ startBattleBtn.addEventListener("click", () => {
   });
 
   startBattleInterval = setInterval(() => {
-    ChampionManager.draggableObjects.forEach((obj) => {
-      if (obj.bfIndex === -1) return;
+    ChampionManager.draggableObjects.forEach((myChamp) => {
+      if (myChamp.bfIndex === -1) return;
 
-      const { nearestTarget, dis } = championManager.findNearestTarget(
-        obj,
+      const { nearestTarget, dis } = ChampionManager.findNearestTarget(
+        myChamp,
         bfEnemies
       );
-      if (!nearestTarget) return;
+      if (!nearestTarget || nearestTarget.userData.currentHp <= 0) return;
 
       faceToObj(
         null,
-        obj.userData.champScene?.rotation,
+        myChamp.userData.champScene?.rotation,
         nearestTarget.position,
-        obj.userData.champScene.position
+        myChamp.userData.champScene.position
       );
 
       const hexSize = 4.5;
-      const attackRange = obj.userData.data.stats.range * hexSize;
-      const currentDistance = obj.position.distanceTo(nearestTarget.position);
+      const attackRange = myChamp.userData.data.stats.range * hexSize;
+      const currentDistance = myChamp.position.distanceTo(
+        nearestTarget.position
+      );
 
       if (currentDistance > attackRange) {
         const direction = new THREE.Vector3()
-          .subVectors(nearestTarget.position, obj.position)
+          .subVectors(nearestTarget.position, myChamp.position)
           .normalize();
         const targetPos = nearestTarget.position
           .clone()
@@ -271,28 +298,28 @@ startBattleBtn.addEventListener("click", () => {
 
         if (!isBlocked) {
           moveCharacter(
-            obj.userData.champScene,
+            myChamp.userData.champScene,
             targetPos,
             10,
             () => {
-              obj.position.copy(targetPos);
-              startAttacking(obj, nearestTarget);
+              myChamp.position.copy(targetPos);
+              startAttacking(myChamp, nearestTarget);
             },
             ChampionManager.updateStatusBars
           );
         } else {
           // Nếu bị chắn thì vẫn tấn công nếu đủ tầm (khoảng cách thực tế > range nhưng không di chuyển được)
-          startAttacking(obj, nearestTarget);
+          startAttacking(myChamp, nearestTarget);
         }
       } else {
-        startAttacking(obj, nearestTarget);
+        startAttacking(myChamp, nearestTarget);
       }
 
       console.log(
-        `nearestTarget of ${obj.userData.name}: ${nearestTarget.userData.name} - dis: ${dis}`
+        `nearestTarget of ${myChamp.userData.name}: ${nearestTarget.userData.name} - dis: ${dis}`
       );
     });
-  }, 1000);
+  }, 100);
 });
 
 const LoadAllModel = () => {

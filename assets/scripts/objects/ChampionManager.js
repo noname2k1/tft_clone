@@ -4,6 +4,7 @@ import {
   lightAuto,
   createDebugGuiFolder,
   capitalizeFirstLetter,
+  addHelper,
 } from "~~/utils/utils";
 import {
   COLOR_HP,
@@ -125,24 +126,24 @@ export default class ChampionManager {
     hpBar.position.copy(hpBarGroup.position);
     statusBarGroup.add(hpBarGroup);
 
-    const { barGroup: manaBarGroup, fgBar: manaBar } = this.createBarGroup(
+    const { barGroup: mpBarGroup, fgBar: mpBar } = this.createBarGroup(
       COLOR_MP,
       0,
       barWidth,
       barHeight
     );
-    manaBarGroup.position.set(0, barYOffset - 0.15, 0);
-    manaBar.position.copy(manaBarGroup.position);
-    statusBarGroup.add(manaBarGroup);
+    mpBarGroup.position.set(0, barYOffset - 0.15, 0);
+    mpBar.position.copy(mpBarGroup.position);
+    statusBarGroup.add(mpBarGroup);
 
     statusBarGroup.add(hpBar);
-    statusBarGroup.add(manaBar);
+    statusBarGroup.add(mpBar);
     statusBarGroup.position.copy(champScene.position);
     statusBarGroup.rotation.x = -0.5;
 
     this.scene.add(statusBarGroup);
 
-    return { statusBarGroup, hpBar, manaBar };
+    return { statusBarGroup, hpBar, mpBar };
   }
 
   setupDragHelper(
@@ -151,7 +152,7 @@ export default class ChampionManager {
     champData,
     rotation,
     hpBar,
-    manaBar,
+    mpBar,
     statusBarGroup
   ) {
     const dragHelper = new THREE.Mesh(
@@ -169,7 +170,7 @@ export default class ChampionManager {
     dragHelper.userData.currentMp = champData.data.stats.initialMana;
     dragHelper.userData.champScene = champScene;
     dragHelper.userData.hpBar = hpBar;
-    dragHelper.userData.manaBar = manaBar;
+    dragHelper.userData.mpBar = mpBar;
     dragHelper.userData.statusBarGroup = statusBarGroup;
     dragHelper.userData.name = champData.data.name;
     dragHelper.userData.data = champData.data;
@@ -189,7 +190,7 @@ export default class ChampionManager {
     animations,
     name = "idle",
     callBack = () => {},
-    loopTimes = 1
+    loopTimes = THREE.loopOnce
   ) {
     if (!mixer || !animations) return;
 
@@ -212,6 +213,7 @@ export default class ChampionManager {
         }, 200);
         setTimeout(() => {
           mixer.addEventListener("finished", (e) => {
+            mixer.stopAllAction();
             const idleAnim = animations.find(
               (a) =>
                 a.name.toLowerCase().includes("idle") &&
@@ -433,7 +435,7 @@ export default class ChampionManager {
         createDebugGuiFolder(objectDebug);
       }
 
-      const { statusBarGroup, hpBar, manaBar } = this.setupStatusBars(
+      const { statusBarGroup, hpBar, mpBar } = this.setupStatusBars(
         champScene,
         size
       );
@@ -443,18 +445,21 @@ export default class ChampionManager {
         champData,
         champScene.rotation,
         hpBar,
-        manaBar,
+        mpBar,
         statusBarGroup
       );
       this.upgrade(dragHelper);
       this.updateBar(dragHelper.userData.hpBar, 1);
-      this.updateBar(dragHelper.userData.manaBar, 1, "mp");
+      this.updateBar(dragHelper.userData.mpBar, 0, "mp");
       const mixerChamp = new THREE.AnimationMixer(champScene);
       this.playChampionAnimation(mixerChamp, gltf.animations, "idle");
       dragHelper.animations = gltf.animations;
       dragHelper.mixer = mixerChamp;
       dragHelper.userData.champScene.animations = gltf.animations;
       dragHelper.userData.champScene.mixer = mixerChamp;
+      dragHelper.position.y = 1;
+      dragHelper.rotation.y = -0.5;
+      dragHelper.scale.y += 1;
       callback(dragHelper);
     };
 
@@ -489,13 +494,13 @@ export default class ChampionManager {
     }
   }
 
-  findNearestTarget(dragHelper, objs) {
+  static findNearestTarget(dragHelper, objs) {
     // console.log(objs);
     let nearestTarget = null;
     let dis;
     for (let i = 0; i < objs.length; i++) {
       const obj = objs[i];
-      if (!obj) continue;
+      if (obj?.userData.currentHp <= 0 || obj === null) continue;
       dis = dragHelper.position.distanceTo(obj.position);
       if (
         !nearestTarget ||
@@ -507,20 +512,29 @@ export default class ChampionManager {
     return { nearestTarget, dis };
   }
 
-  attack(obj, afterAnimationCallback = () => {}) {
-    if (this.attack1[obj.uuid] != undefined) {
-      this.attack1[obj.uuid] = !this.attack1[obj.uuid];
+  attack(attacker, afterAnimationCallback = () => {}) {
+    console.log("attack");
+    if (this.attack1[attacker.uuid] != undefined) {
+      this.attack1[attacker.uuid] = !this.attack1[attacker.uuid];
     } else {
-      this.attack1[obj.uuid] = false;
+      this.attack1[attacker.uuid] = false;
     }
     this.playChampionAnimation(
-      obj.mixer,
-      obj.animations,
-      this.attack1[obj.uuid] ? "attack1" : "attack2",
+      attacker.mixer,
+      attacker.animations,
+      this.attack1[attacker.uuid] ? "attack1" : "attack2",
       () => {
         afterAnimationCallback();
       }
     );
+    if (attacker.userData.currentMp < attacker.userData.maxMp) {
+      attacker.userData.currentMp += 5;
+    } else {
+      this.useSkill(attacker);
+    }
+    console.log(attacker);
+    const mpRatio = attacker.userData.currentMp / attacker.userData.maxMp;
+    this.updateBar(attacker.userData.mpBar, mpRatio, "mp");
   }
 
   damageChampion(dragHelper, damageAmount, afterTargetDied = () => {}) {
@@ -532,9 +546,13 @@ export default class ChampionManager {
 
     dragHelper.userData.currentHp -= damageAmount;
     dragHelper.userData.currentHp = Math.max(0, dragHelper.userData.currentHp);
-
+    if (dragHelper.userData.currentMp < dragHelper.userData.maxMp) {
+      dragHelper.userData.currentMp += 5;
+    }
     const hpRatio = dragHelper.userData.currentHp / dragHelper.userData.maxHp;
     this.updateBar(dragHelper.userData.hpBar, hpRatio, "hp");
+    const mpRatio = dragHelper.userData.currentMp / dragHelper.userData.maxMp;
+    this.updateBar(dragHelper.userData.mpBar, mpRatio, "mp");
 
     if (dragHelper.userData.currentHp <= 0) {
       console.log(`${dragHelper.userData.name} has died.`);
@@ -546,8 +564,9 @@ export default class ChampionManager {
           setTimeout(() => {
             this.removeChampFromScene(this.scene, dragHelper);
             afterTargetDied();
-          }, 200);
-        }
+          }, 500);
+        },
+        1
       );
     }
   }
@@ -690,6 +709,31 @@ export default class ChampionManager {
         }</span>
       </div>`
       );
+      // hp/mp
+      champInspect.insertAdjacentHTML(
+        "beforeend",
+        `<div
+        id="hp-mp"
+        class="absolute right-0 top-[10.8vw] w-[11.8vw] flex flex-col text-white font-light text-[0.85vw]"
+      >
+        <div class="w-full h-[1.65vh] xl:h-[2.4vh] flex items-center justify-center relative">
+          <div class="bg-[#00782A] w-full absolute left-0 h-full"  style="width: ${
+            (champ.userData.currentHp / champ.userData.maxHp) * 100
+          }%"></div>
+          <span class="absolute">${champ.userData.currentHp}/${
+          champ.userData.maxHp
+        }</span>
+        </div>
+        <div class="w-full h-[1.65vh] xl:h-[2.4vh] flex justify-center items-center relative -ml-[0.005vw]">
+          <div class="bg-[#00B8FF] w-full absolute left-0 h-full"  style="width: ${
+            (champ.userData.currentMp / champ.userData.maxMp) * 100
+          }%"></div>
+          <span class="absolute">${champ.userData.currentMp}/${
+          champ.userData.maxMp
+        }</span>
+        </div> 
+      </div>`
+      );
       // skill img
       champInspect.insertAdjacentHTML(
         "beforeend",
@@ -795,7 +839,11 @@ export default class ChampionManager {
     }
   }
 
-  useSkill() {}
+  useSkill(champion) {
+    console.log(champion.userData.name + " use skill");
+    champion.userData.currentMp = 0;
+    this.updateBar(champion.userData.mpBar, 0, "mp");
+  }
   useItem() {}
 
   static updateStatusBars() {

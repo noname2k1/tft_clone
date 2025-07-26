@@ -13,6 +13,7 @@ import {
   tacticianSpeed,
 } from "~/variables";
 import {
+  addHelper,
   getNormalizedPointer,
   lightAuto,
   loadModel,
@@ -707,6 +708,7 @@ export default class Team {
           this.sendMessageChangeLineupToEnemy(draggableObjects);
           draggableObjects.push(dragHelper);
           addingFlag = false;
+          // addHelper(this.scene, dragHelper);
         }
       );
     });
