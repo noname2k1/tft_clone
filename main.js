@@ -133,14 +133,18 @@ function fireBullet(attacker, target, onHit) {
   const center = new THREE.Vector3();
   bbox.getCenter(center);
 
-  bullet.position.set(attacker.position.x, center.y, attacker.position.z);
+  bullet.position.set(
+    attacker.position.x + 1,
+    center.y,
+    attacker.position.z - 1
+  );
   scene.add(bullet);
 
   const attackSpeed = attacker.userData.data.stats.attackSpeed || 0.5;
   moveCharacter(
     bullet,
     target,
-    attackSpeed * 10,
+    attackSpeed * 15,
     () => {
       scene.remove(bullet);
       onHit();
@@ -154,7 +158,7 @@ function fireBullet(attacker, target, onHit) {
 }
 
 function handleDamage(target, dmg, attacker, intervalId) {
-  console.log(bfEnemies);
+  // console.log(bfEnemies);
   championManager.damageChampion(target, dmg, () => {
     const index = bfEnemies.findIndex((enemy) => enemy?.uuid === target.uuid);
     if (index != -1) {
@@ -166,9 +170,8 @@ function handleDamage(target, dmg, attacker, intervalId) {
       hexEl.classList.replace("bg-yellow-700", "bg-gray-700");
       hexEl.replaceChildren();
     }
-    console.log(bfEnemies);
+
     if (!bfEnemies.some((bfEnemy) => bfEnemy)) {
-      console.log(bfEnemies);
       allEnemiesDied = true;
       clearInterval(startBattleInterval);
       startBattleInterval = null;
@@ -208,13 +211,14 @@ function handleDamage(target, dmg, attacker, intervalId) {
 }
 
 function startAttacking(attacker, target) {
-  if (attacker.userData.isAttacking || allEnemiesDied) return;
+  if (attacker.userData.isAttacking || allEnemiesDied || attacker.isUsingSkill)
+    return;
   attacker.userData.isAttacking = true;
   const attackSpeed = attacker.userData.data.stats.attackSpeed || 0.5;
   const delay = attackSpeed * 2000;
   const dmg = attacker.userData.data.stats.damage;
   const attackInterval = setInterval(() => {
-    console.log(target.userData.currentHp);
+    // console.log(target.userData.currentHp);
     if (target.userData.currentHp <= 0 || !bfEnemies.includes(target)) {
       clearInterval(attackInterval);
       attacker.userData.isAttacking = false;
@@ -236,7 +240,7 @@ function startAttacking(attacker, target) {
 
 startBattleBtn.addEventListener("click", () => {
   // Clone enemy models to skillScene
-  console.log(bfEnemies);
+  // console.log(bfEnemies);
   bfEnemies.forEach((enemy) => {
     if (enemy?.userData) {
       const clone = enemy.userData.champScene.clone();
@@ -300,7 +304,7 @@ startBattleBtn.addEventListener("click", () => {
           moveCharacter(
             myChamp.userData.champScene,
             targetPos,
-            10,
+            0.5,
             () => {
               myChamp.position.copy(targetPos);
               startAttacking(myChamp, nearestTarget);
@@ -309,7 +313,7 @@ startBattleBtn.addEventListener("click", () => {
           );
         } else {
           // Nếu bị chắn thì vẫn tấn công nếu đủ tầm (khoảng cách thực tế > range nhưng không di chuyển được)
-          startAttacking(myChamp, nearestTarget);
+          // startAttacking(myChamp, nearestTarget);
         }
       } else {
         startAttacking(myChamp, nearestTarget);

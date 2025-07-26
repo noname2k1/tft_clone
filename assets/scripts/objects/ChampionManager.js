@@ -190,46 +190,42 @@ export default class ChampionManager {
     animations,
     name = "idle",
     callBack = () => {},
-    loopTimes = THREE.loopOnce
+    loopTimes = THREE.LoopRepeat
   ) {
     if (!mixer || !animations) return;
-
     const anim = animations.find(
       (a) =>
         a.name.toLowerCase().includes(name) && a.name.toLowerCase() !== "idlein"
     );
-    if (anim) {
-      const action = mixer.clipAction(anim);
-      action.timeScale = 0.5;
-      mixer.stopAllAction(); // Dừng tất cả trước khi play mới
-
-      if (name !== "idle") {
-        action.reset(); // Đảm bảo từ đầu
-        action.setLoop(loopTimes);
-        action.clampWhenFinished = true;
-        action.play();
-        setTimeout(() => {
-          callBack();
-        }, 200);
-        setTimeout(() => {
-          mixer.addEventListener("finished", (e) => {
-            mixer.stopAllAction();
-            const idleAnim = animations.find(
-              (a) =>
-                a.name.toLowerCase().includes("idle") &&
-                a.name.toLowerCase() !== "idlein"
-            );
-            if (idleAnim) {
-              const idleAction = mixer.clipAction(idleAnim);
-              idleAction.reset();
-              idleAction.play();
-            }
-          });
-        }, 500);
-      } else {
-        action.reset().play();
+    if (!anim) return;
+    // console.log(anim);
+    const action = mixer.clipAction(anim);
+    mixer.stopAllAction(); // Dừng trước
+    action.reset();
+    action.setLoop(loopTimes);
+    action.clampWhenFinished = true;
+    action.timeScale = 1;
+    action.play();
+    // console.log("play anim: " + anim.name);
+    if (loopTimes === THREE.LoopRepeat) return;
+    setTimeout(() => {
+      callBack();
+    }, (anim.duration * 1000) / 2);
+    const onFinished = (e) => {
+      mixer.removeEventListener("finished", onFinished);
+      console.log("anim " + anim.name + " finished!");
+      const idle = animations.find(
+        (a) =>
+          a.name.toLowerCase().includes("idle") &&
+          a.name.toLowerCase() !== "idlein"
+      );
+      if (idle) {
+        const act = mixer.clipAction(idle);
+        mixer.stopAllAction();
+        act.reset().play();
       }
-    }
+    };
+    mixer.addEventListener("finished", onFinished);
   }
 
   addTraitItemToList(
@@ -452,7 +448,13 @@ export default class ChampionManager {
       this.updateBar(dragHelper.userData.hpBar, 1);
       this.updateBar(dragHelper.userData.mpBar, 0, "mp");
       const mixerChamp = new THREE.AnimationMixer(champScene);
-      this.playChampionAnimation(mixerChamp, gltf.animations, "idle");
+      this.playChampionAnimation(
+        mixerChamp,
+        gltf.animations,
+        "idle",
+        () => {},
+        THREE.LoopRepeat
+      );
       dragHelper.animations = gltf.animations;
       dragHelper.mixer = mixerChamp;
       dragHelper.userData.champScene.animations = gltf.animations;
@@ -513,28 +515,49 @@ export default class ChampionManager {
   }
 
   attack(attacker, afterAnimationCallback = () => {}) {
-    console.log("attack");
+    // console.log("attack");
     if (this.attack1[attacker.uuid] != undefined) {
       this.attack1[attacker.uuid] = !this.attack1[attacker.uuid];
     } else {
       this.attack1[attacker.uuid] = false;
     }
-    this.playChampionAnimation(
-      attacker.mixer,
-      attacker.animations,
-      this.attack1[attacker.uuid] ? "attack1" : "attack2",
-      () => {
-        afterAnimationCallback();
-      }
-    );
+
     if (attacker.userData.currentMp < attacker.userData.maxMp) {
       attacker.userData.currentMp += 5;
+      this.playChampionAnimation(
+        attacker.mixer,
+        attacker.animations,
+        this.attack1[attacker.uuid] ? "attack1" : "attack2",
+        () => {
+          afterAnimationCallback();
+        },
+        THREE.LoopOnce
+      );
     } else {
-      this.useSkill(attacker);
+      if (!attacker.isUsingSkill) {
+        this.useSkill(attacker, afterAnimationCallback);
+      }
+      attacker.isUsingSkill = true;
     }
-    console.log(attacker);
+    // console.log(attacker);
     const mpRatio = attacker.userData.currentMp / attacker.userData.maxMp;
     this.updateBar(attacker.userData.mpBar, mpRatio, "mp");
+  }
+
+  useSkill(champion, callback) {
+    console.log(champion.userData.name + " use skill");
+    this.playChampionAnimation(
+      champion.mixer,
+      champion.animations,
+      "spell",
+      () => {
+        callback();
+        champion.isUsingSkill = false;
+        champion.userData.currentMp = 0;
+        this.updateBar(champion.userData.mpBar, 0, "mp");
+      },
+      THREE.LoopOnce
+    );
   }
 
   damageChampion(dragHelper, damageAmount, afterTargetDied = () => {}) {
@@ -566,7 +589,7 @@ export default class ChampionManager {
             afterTargetDied();
           }, 500);
         },
-        1
+        THREE.LoopOnce
       );
     }
   }
@@ -839,11 +862,6 @@ export default class ChampionManager {
     }
   }
 
-  useSkill(champion) {
-    console.log(champion.userData.name + " use skill");
-    champion.userData.currentMp = 0;
-    this.updateBar(champion.userData.mpBar, 0, "mp");
-  }
   useItem() {}
 
   static updateStatusBars() {
