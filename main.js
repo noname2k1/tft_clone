@@ -188,12 +188,7 @@ function handleDamage(target, dmg, attacker, intervalId) {
             3
           );
           setTimeout(() => {
-            champ.position.copy(pos);
-            champ.userData?.champScene?.position.copy(pos);
-            champ.rotation.copy(rot);
-            champ.userData?.champScene?.rotation.copy(rot);
-            ChampionManager.updateStatusBars();
-            champ.mixer.stopAllAction();
+            ChampionManager.resetAfterBattle(champ, pos, rot);
             championManager.playChampionAnimation(
               champ.mixer,
               champ.animations,

@@ -7,6 +7,7 @@ import {
   addHelper,
 } from "~~/utils/utils";
 import {
+  CHAMPS_INFOR,
   COLOR_HP,
   COLOR_MP,
   debugOn,
@@ -15,6 +16,7 @@ import {
 } from "~/variables.js";
 import { clone } from "https://esm.sh/three/examples/jsm/utils/SkeletonUtils.js";
 import { champScales, costGradients } from "~~/data/champs.js";
+import { injectVariables, onTooltip } from "../services/services";
 
 export default class ChampionManager {
   scene;
@@ -82,7 +84,7 @@ export default class ChampionManager {
     return { barGroup: group, fgBar, ticks };
   }
 
-  updateBar(barMesh, value, type = "hp", barWidth = 2) {
+  static updateBar(barMesh, value, type = "hp", barWidth = 2) {
     const clamped = Math.max(0, Math.min(1, value));
     barMesh.scale.x = clamped;
     barMesh.position.x = (-(1 - barMesh.scale.x) * barWidth) / 2;
@@ -298,6 +300,31 @@ export default class ChampionManager {
       }
     `;
       this.traitListElement?.appendChild(div);
+      onTooltip(
+        div,
+        (tt) => {
+          tt.style["max-width"] = "30vw";
+          // console.log({ name, champs, data, effect, nextEffect });
+          const eff = effect ?? {};
+          eff.champs = champs;
+          eff.allChamps = CHAMPS_INFOR.filter((champ) =>
+            champ.traits.includes(name)
+          ).sort((prev, curr) => (prev.cost < curr.cost ? -1 : 1));
+          const html = `
+            <h2 class="text-[1.5vw] font-semibold">${name}</h2>
+            <p class="text-[1vw] font-medium whitespace-pre-wrap break-words">${injectVariables(
+              data.desc,
+              data.effects,
+              eff,
+              1,
+              "trait"
+            )}</p>
+          `;
+          tt.insertAdjacentHTML("beforeend", html);
+        },
+        "bottom,right",
+        true
+      );
       if (
         lastIndex &&
         ((viewMore && totalTraits - this.maxTraitDisplay > 0) || !viewMore)
@@ -445,8 +472,9 @@ export default class ChampionManager {
         statusBarGroup
       );
       this.upgrade(dragHelper);
-      this.updateBar(dragHelper.userData.hpBar, 1);
-      this.updateBar(dragHelper.userData.mpBar, 0, "mp");
+      ChampionManager.updateBar(dragHelper.userData.hpBar, 1);
+      const mpRatio = dragHelper.userData.currentMp / dragHelper.userData.maxMp;
+      ChampionManager.updateBar(dragHelper.userData.mpBar, mpRatio, "mp");
       const mixerChamp = new THREE.AnimationMixer(champScene);
       this.playChampionAnimation(
         mixerChamp,
@@ -541,7 +569,7 @@ export default class ChampionManager {
     }
     // console.log(attacker);
     const mpRatio = attacker.userData.currentMp / attacker.userData.maxMp;
-    this.updateBar(attacker.userData.mpBar, mpRatio, "mp");
+    ChampionManager.updateBar(attacker.userData.mpBar, mpRatio, "mp");
   }
 
   useSkill(champion, callback) {
@@ -554,7 +582,7 @@ export default class ChampionManager {
         callback();
         champion.isUsingSkill = false;
         champion.userData.currentMp = 0;
-        this.updateBar(champion.userData.mpBar, 0, "mp");
+        updateBar(champion.userData.mpBar, 0, "mp");
       },
       THREE.LoopOnce
     );
@@ -573,9 +601,9 @@ export default class ChampionManager {
       dragHelper.userData.currentMp += 5;
     }
     const hpRatio = dragHelper.userData.currentHp / dragHelper.userData.maxHp;
-    this.updateBar(dragHelper.userData.hpBar, hpRatio, "hp");
+    ChampionManager.updateBar(dragHelper.userData.hpBar, hpRatio, "hp");
     const mpRatio = dragHelper.userData.currentMp / dragHelper.userData.maxMp;
-    this.updateBar(dragHelper.userData.mpBar, mpRatio, "mp");
+    ChampionManager.updateBar(dragHelper.userData.mpBar, mpRatio, "mp");
 
     if (dragHelper.userData.currentHp <= 0) {
       console.log(`${dragHelper.userData.name} has died.`);
@@ -864,6 +892,20 @@ export default class ChampionManager {
 
   useItem() {}
 
+  static resetAfterBattle(champ, pos, rot) {
+    champ.position.copy(pos);
+    champ.userData?.champScene?.position.copy(pos);
+    champ.rotation.copy(rot);
+    champ.userData?.champScene?.rotation.copy(rot);
+    champ.userData.champScene.rotation.x = -0.5;
+    champ.userData.champScene.rotation.y = 0;
+    ChampionManager.updateStatusBars();
+    ChampionManager.updateBar(champ.userData.hpBar, 1, "hp");
+    const mpRatio =
+      champ.userData.data.stats.initialMana / champ.userData.maxMp;
+    ChampionManager.updateBar(champ.userData.mpBar, mpRatio, "mp");
+    champ.mixer.stopAllAction();
+  }
   static updateStatusBars() {
     ChampionManager.draggableObjects.forEach((obj) => {
       if (obj.userData.statusBarGroup) {

@@ -319,6 +319,413 @@ const disabledMarkChamp = (teamId) => {
   }
 };
 
+function renderDesc(desc, effects, effect) {
+  // Tách theo từng <row> để xử lý biến riêng biệt cho mỗi cấp
+  let activeEffectIndex = -1;
+  const currentEffectIndex = effects.findIndex(
+    (eff) => eff.minUnits === effect.minUnits
+  );
+  if (currentEffectIndex != -1) {
+    activeEffectIndex = currentEffectIndex;
+  }
+  let rows = desc.split(/<row>/g);
+  let mainDesc = rows.splice(0, 1)[0];
+  let endDesc = "";
+  if (rows.length === 0) {
+    rows = desc.split(/<expandRow>/g);
+    mainDesc = rows.splice(0, 1)[0];
+    const matches = desc.match(/<expandRow>(.*?)<\/expandRow>/gs) || [];
+    rows = matches.map((row) => row.replace(/<\/?expandRow>/g, ""));
+    endDesc =
+      desc.split(/<\/expandRow>/g)[desc.split(/<\/expandRow>/g).length - 1];
+    // console.log(endDesc);
+    // console.log({ rows, mainDesc });
+
+    const content = rows[0];
+    Array.from({ length: effects.length }).forEach((_, index) => {
+      rows[index] =
+        `<span class='${
+          activeEffectIndex === index ? "text-white" : "text-gray-500"
+        }'>` +
+        content +
+        "</span>" +
+        (content?.includes("<br>") ? "" : "<br>");
+    });
+    if (endDesc) {
+      endDesc = endDesc.split(/<br\s*\/?>/).filter((p) => p.trim() !== "");
+      endDesc[0] = "<br>" + endDesc[0];
+      endDesc = endDesc.map((eDesc) => {
+        const hasChampion = effect?.champs?.some((champName) =>
+          eDesc.includes(champName)
+        );
+        if (hasChampion) {
+          return `<span class="text-white">${eDesc}</span>`;
+        } else {
+          return `<span class="text-gray-500">${eDesc}</span>`;
+        }
+      });
+      endDesc = endDesc.join("<br>");
+    }
+  }
+
+  // console.log(rows);
+  // console.log(mainDesc);
+  const renderedRows = rows.map((row, index) => {
+    // Dùng biến ứng với từng cấp trong effects[index]
+    const variablesParent = effects[index] || {};
+    // console.log(variablesParent);
+    const variables = effects[index]?.variables || {};
+    // console.log(variablesParent, variables);
+    row =
+      `<span class='${
+        activeEffectIndex === index ? "text-white" : "text-gray-500"
+      }'>` +
+      row +
+      "</span>" +
+      (row.includes("<br>") ? "" : "<br>");
+    // Thay thế @VariableName@ hoặc @VariableName*Multiplier@
+    return row.replace(
+      /@([\w.]+)(\*([\d.]+))?@/g,
+      (match, varName, _full, multiplier) => {
+        if (
+          variablesParent.hasOwnProperty(
+            varName.charAt(0).toLowerCase() + varName.slice(1, varName.length)
+          )
+        ) {
+          const vName =
+            varName.charAt(0).toLowerCase() + varName.slice(1, varName.length);
+          // console.log(vName);
+          let val = variablesParent[vName];
+          if (multiplier) val *= parseFloat(multiplier);
+          return Math.round(val);
+        }
+        if (variables.hasOwnProperty(varName)) {
+          let val = variables[varName];
+          if (multiplier) val *= parseFloat(multiplier);
+          return Math.round(val);
+        }
+        return "[" + varName + "]";
+      }
+    );
+  });
+  // console.log(endDesc);
+  const variables = effect?.variables || effects[0]?.variables;
+  // Ghép lại các đoạn đã xử lý
+  return (
+    mainDesc.replace(
+      /@([\w.]+)(\*([\d.]+))?@/g,
+      (match, varName, _full, multiplier) => {
+        const cypherCashouts = [
+          "CashoutStage1",
+          "CashoutRound1",
+          "CashoutStage2",
+          "CashoutRound2",
+          "CashoutStage3",
+          "CashoutRound3",
+          "CashoutStage4",
+          "CashoutRound4",
+          "CashoutStage5",
+          "CashoutRound5",
+        ];
+        const rounds = [3, 3, 3, 7, 4, 3, 4, 7, 5, 5];
+
+        const cypherIndex = cypherCashouts.indexOf(varName);
+        if (cypherIndex !== -1) {
+          return rounds[cypherIndex];
+        }
+
+        const vName = varName.charAt(0).toLowerCase() + varName.slice(1);
+
+        if (effect?.hasOwnProperty(vName)) {
+          let val = effect[vName];
+          if (multiplier) val *= parseFloat(multiplier);
+          return Math.round(val);
+        }
+        // console.log(varName);
+        // console.log(effects);
+        // console.log(variables);
+        if (variables?.hasOwnProperty(varName)) {
+          let val = variables[varName];
+          if (multiplier) val *= parseFloat(multiplier);
+          return Math.round(val);
+        }
+
+        return "[" + varName + "]";
+      }
+    ) +
+    renderedRows
+      .join("<row>")
+      .replace(
+        /@([^@*]+)(\*([\d.]+))?@/g,
+        (match, varName, _full, multiplier) => {
+          let vName;
+          const animaSquadVars = [
+            "TFTUnitProperty.trait:TFT14_AnimaSquad_Bonus_1",
+            "TFTUnitProperty.trait:TFT14_AnimaSquad_Bonus_2",
+            "TFTUnitProperty.trait:TFT14_AnimaSquad_Bonus_3",
+            "TFTUnitProperty.trait:TFT14_AnimaSquad_Bonus_4",
+          ];
+          const varIndex = animaSquadVars.findIndex((vari) => vari === varName);
+          if (varIndex != -1) {
+            vName = "DamageAmp";
+          }
+          // console.log(vName);
+          // console.log(effect);
+          if (effects[varIndex]?.variables?.hasOwnProperty(vName)) {
+            let val = effects[varIndex]?.variables[vName];
+            if (multiplier) val *= parseFloat(multiplier);
+            return "";
+          }
+          return "[" + varName + "]";
+        }
+      ) +
+    endDesc.replace(
+      /@([^@*]+)(\*([\d.]+))?@/g,
+      (match, varName, _full, multiplier) => {
+        let vName;
+        const divinicorpsVariables = [
+          "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_AP",
+          "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_Defenses",
+          "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_AD",
+          "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_Health",
+          "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_Crit",
+          "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_AS",
+          "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_Omnivamp",
+        ];
+        const divinicorpsKey = [
+          "{19e47528}",
+          "{f82ecbac}",
+          "{912546f4}",
+          "{a8a84fe9}",
+          "{414a2beb}",
+          "{4803a4eb}",
+          "{3c9e3624}",
+        ];
+        const divinicorpIndex = divinicorpsVariables.indexOf(varName);
+        if (divinicorpIndex !== -1) {
+          vName = divinicorpsKey[divinicorpIndex];
+        }
+        // console.log(vName);
+        // console.log(effect);
+        if (effect?.variables?.hasOwnProperty(vName)) {
+          let val = effect.variables[vName];
+          if (multiplier) val *= parseFloat(multiplier);
+          return Math.round(val);
+        }
+        return "[" + varName + "]";
+      }
+    ) +
+    "<div class='flex items-center flex-wrap mt-[1vw]'>" +
+    effect.allChamps.reduce((acc, champ) => {
+      const hasChamp = effect.champs.includes(champ.name);
+      return (
+        acc +
+        `<img class="w-[3.5vw] h-[3.5vw] mr-[0.5vw] mb-[0.5vw] ${
+          hasChamp ? "" : "grayscale"
+        }" src="./assets/images/champs/icons/${champ.name}.png" alt="${
+          champ.name
+        }-icon" title="${champ.name}"/>`
+      );
+    }, "") +
+    "</div>"
+  );
+}
+
+function injectVariables(
+  desc,
+  variables,
+  stats = {},
+  starLevel = 1,
+  type = "champ"
+) {
+  const unusedVars = [...variables];
+
+  const valueAtLevel = (name) => {
+    const lowerName = name.toLowerCase();
+    let v = variables.find((v) => v.name.toLowerCase().includes(lowerName));
+
+    if (v) {
+      unusedVars.splice(
+        unusedVars.findIndex((u) => u.name === v.name),
+        1
+      );
+      return v.value[starLevel];
+    }
+
+    // Special case: TotalDamage
+    if (name === "TotalDamage") {
+      try {
+        const ratioVar = variables.find((v) =>
+          /ap|ad/.test(v.name.toLowerCase())
+        );
+        const percentVar = variables.find((v) =>
+          /percent.*damage/.test(v.name.toLowerCase())
+        );
+        if (!percentVar) return `[${name}]`;
+
+        return Math.round(
+          (stats.damage + (ratioVar ? 0 : stats.armor)) *
+            percentVar.value[starLevel] +
+            (ratioVar?.value[starLevel] ?? 0)
+        );
+      } catch {
+        return `[${name}]`;
+      }
+    }
+
+    // Special case: Modified
+    if (lowerName.includes("modified")) {
+      const ratio = variables.find((v) =>
+        v.name.toLowerCase().includes("ratio")
+      );
+      const obj = variables.find((v) => /ap|ad/.test(v.name.toLowerCase()));
+
+      if (ratio && obj && name === "ModifiedDamage") {
+        return Math.floor(
+          ratio.value[starLevel] * obj.value[starLevel] + obj.value[starLevel]
+        );
+      } else {
+        const key = lowerName.split("modified")[1];
+        v = variables.find((v) => v.name.toLowerCase().includes(key));
+        return v?.value[starLevel] ?? `[${name}]`;
+      }
+    }
+
+    return `[${name}]`;
+  };
+
+  const descConverted =
+    type === "champ"
+      ? desc.replace(/@([\w]+)(\*[\d.]+)?@/g, (_, name, mul) => {
+          let val = valueAtLevel(name);
+          if (val === "N/A") return "N/A";
+          if (mul) val = Math.round(val * parseFloat(mul.slice(1)));
+          return val;
+        })
+      : renderDesc(desc, variables, stats);
+
+  const iconMap = {
+    scaleAP: "scaleAP.svg",
+    scaleAD: "scaleAD.svg",
+    scaleArmor: "scaleArmor.svg",
+    scaleHealth: "scaleHealth.svg",
+    scaleMana: "scaleMana.svg",
+    scaleMR: "scaleMR.png",
+    scaleDA: "scaleDA.png",
+    scaleSV: "scaleSV.svg",
+    scaleAS: "scaleAS.svg",
+    scaleDR: "scaleDR.png",
+    scaleCrit: "scaleCrit.png",
+    set14AmpIcon: "A.M.P._TFT_Stat_icon.png",
+  };
+
+  return Object.entries(iconMap).reduce((out, [key, file]) => {
+    return out.replaceAll(
+      `%i:${key}%`,
+      `<img src="./assets/images/items/${file}" class="w-[1vw] h-[1vw] inline"/>`
+    );
+  }, descConverted);
+}
+
+const posTooltip = (ev, tooltip, pos, cb) => {
+  const offsetX = 8;
+  const offsetY = 8;
+  const tooltipHeight = tooltip.offsetHeight || 0;
+  const tooltipWidth = tooltip.offsetWidth || 0;
+  const positions = pos.split(",");
+
+  // -------- X Position (horizontal)
+  if (positions.includes("right")) {
+    const proposedLeft = ev.clientX + offsetX;
+    if (proposedLeft + tooltipWidth > window.innerWidth) {
+      // Nếu tooltip vượt qua phải màn hình → hiển thị bên trái
+      tooltip.style.left = ev.clientX - tooltipWidth - offsetX + "px";
+    } else {
+      tooltip.style.left = proposedLeft + "px";
+    }
+    tooltip.style.right = "auto";
+  } else if (positions.includes("left")) {
+    const proposedRight = window.innerWidth - ev.clientX + offsetX;
+    if (proposedRight + tooltipWidth > window.innerWidth) {
+      tooltip.style.left = ev.clientX - tooltipWidth - offsetX + "px";
+      tooltip.style.right = "auto";
+    } else {
+      tooltip.style.left = "auto";
+      tooltip.style.right = proposedRight + "px";
+    }
+  }
+
+  // -------- Y Position (vertical)
+  if (positions.includes("top")) {
+    const proposedTop = ev.clientY - tooltipHeight - offsetY;
+    if (proposedTop < 0) {
+      // Nếu tooltip vượt lên trên → chuyển xuống dưới
+      tooltip.style.top = ev.clientY + offsetY + "px";
+    } else {
+      tooltip.style.top = proposedTop + "px";
+    }
+    tooltip.style.bottom = "auto";
+  } else if (positions.includes("bottom")) {
+    const proposedBottom = ev.clientY + tooltipHeight + offsetY;
+    if (proposedBottom > window.innerHeight) {
+      // Nếu tooltip vượt xuống dưới → chuyển lên trên
+      tooltip.style.top = ev.clientY - tooltipHeight - offsetY + "px";
+    } else {
+      tooltip.style.top = ev.clientY + offsetY + "px";
+    }
+    tooltip.style.bottom = "auto";
+  }
+
+  cb(tooltip);
+};
+
+function onTooltip(
+  element,
+  cbMouseEnter = () => {},
+  pos = "top,right",
+  clickToOpen = false,
+  cbMouseMove = () => {},
+  cbMouseLeave = () => {}
+) {
+  const tooltip = document.getElementById("tooltip");
+  if (!clickToOpen) {
+    element.addEventListener("mouseenter", (e) => {
+      tooltip.classList.remove("hidden");
+      cbMouseEnter(tooltip);
+    });
+
+    element.addEventListener("mousemove", (ev) => {
+      posTooltip(ev, tooltip, pos, cbMouseMove);
+    });
+
+    element.addEventListener("mouseleave", () => {
+      tooltip.classList.add("hidden");
+      tooltip.replaceChildren();
+      cbMouseLeave(tooltip);
+    });
+  } else {
+    element.addEventListener("click", (ev) => {
+      ev.stopPropagation(); // Ngăn click lan ra document
+      tooltip.replaceChildren();
+      posTooltip(ev, tooltip, pos, cbMouseMove);
+      tooltip.classList.remove("hidden");
+      cbMouseEnter(tooltip);
+    });
+
+    // Tắt tooltip nếu click ra ngoài cả element lẫn tooltip
+    document.addEventListener("click", (event) => {
+      const isClickInsideElement = element.contains(event.target);
+      const isClickInsideTooltip = tooltip.contains(event.target);
+
+      if (!isClickInsideElement && !isClickInsideTooltip) {
+        tooltip.classList.add("hidden");
+        tooltip.replaceChildren();
+        cbMouseLeave(tooltip);
+      }
+    });
+  }
+}
+
 export {
   createDeleteZone,
   createBattleField,
@@ -329,4 +736,6 @@ export {
   saveMarkChampToStorage,
   disabledMarkChamp,
   faceToObj,
+  injectVariables,
+  onTooltip,
 };

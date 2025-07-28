@@ -7,8 +7,12 @@ import {
 } from "~/assets/scripts/others/goldExp.js";
 import { EXP_TABLE, fee } from "~/variables";
 import { markChampNames } from "../others/modal/markChamps";
-import { ObserverElementChange } from "../utils/utils";
-import { getMarkChampFromStorage } from "../services/services";
+import { capitalizeFirstLetter, ObserverElementChange } from "../utils/utils";
+import {
+  getMarkChampFromStorage,
+  injectVariables,
+  onTooltip,
+} from "../services/services";
 import ChampionManager from "../objects/ChampionManager";
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -32,7 +36,37 @@ document.addEventListener("DOMContentLoaded", function () {
         } h-full relative cursor-pointer hover:brightness-120 duration-100 hover:z-[100]`;
         card.indexInRoll = index;
         card.data = { ...champ };
-
+        onTooltip(
+          card,
+          (tooltip) => {
+            tooltip.style.maxWidth = "unset";
+            // console.log(card.data);
+            const ability = card.data.ability;
+            // console.log(ability);
+            const newDesc = injectVariables(
+              ability.desc,
+              ability.variables,
+              card.data.stats,
+              1
+            );
+            // console.log(newDesc);
+            const cardImgHtml = `<div class="flex">
+            <img
+              src="./assets/images/champs/skill_icons/${capitalizeFirstLetter(
+                card.data.name
+              )}.png"
+              class="w-[5vw] h-[5vw]"
+              alt="${card.data.name}-skill"
+            />
+            <div class="flex flex-col pl-[0.5vw] ">
+              <h2 class="font-semibold text-[1.2vw]">${ability.name}</h2>
+              <p class="font-medium text-[0.875vw] max-w-[20vw] break-words whitespace-pre-wrap">${newDesc}</p>
+            </div>
+          </div>`;
+            tooltip.insertAdjacentHTML("beforeend", cardImgHtml);
+          },
+          "top,left"
+        );
         const img = new Image();
         img.src = `./assets/images/champs/bgs/${champ.name}.png`;
         img.className = "w-full";
@@ -55,7 +89,6 @@ document.addEventListener("DOMContentLoaded", function () {
           </div>`
             )
             .join("");
-
           card.innerHTML = `
           <img src="./assets/images/${
             champ.cost
