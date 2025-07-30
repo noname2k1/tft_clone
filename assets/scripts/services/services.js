@@ -1,6 +1,9 @@
 import * as THREE from "https://esm.sh/three";
 import { COLOR_DELETE_ZONE, COLOR_MOVEABLE, debugOn } from "~/variables";
-import { createDebugGuiFolder } from "../utils/utils";
+import {
+  createDebugGuiFolder,
+  generateIconURLFromRawCommunityDragon,
+} from "../utils/utils";
 function createDeleteZone(
   scene,
   width = 35,
@@ -522,9 +525,9 @@ function renderDesc(desc, effects, effect) {
         acc +
         `<img class="w-[3.5vw] h-[3.5vw] mr-[0.5vw] mb-[0.5vw] ${
           hasChamp ? "" : "grayscale"
-        }" src="./assets/images/champs/icons/${champ.name}.png" alt="${
-          champ.name
-        }-icon" title="${champ.name}"/>`
+        }" src="${generateIconURLFromRawCommunityDragon(
+          champ.squareIcon
+        )}" alt="${champ.name}-icon" title="${champ.name}"/>`
       );
     }, "") +
     "</div>"

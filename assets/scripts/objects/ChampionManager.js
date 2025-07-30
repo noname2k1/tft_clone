@@ -5,6 +5,7 @@ import {
   createDebugGuiFolder,
   capitalizeFirstLetter,
   addHelper,
+  generateIconURLFromRawCommunityDragon,
 } from "~~/utils/utils";
 import {
   CHAMPS_INFOR,
@@ -197,22 +198,28 @@ export default class ChampionManager {
     if (!mixer || !animations) return;
     const anim = animations.find(
       (a) =>
-        a.name.toLowerCase().includes(name) && a.name.toLowerCase() !== "idlein"
+        a.name.toLowerCase().includes(name) &&
+        a.name.toLowerCase() !== "idlein" &&
+        !a.name.toLowerCase().includes("idle_in")
     );
     if (!anim) return;
     // console.log(anim);
+
     const action = mixer.clipAction(anim);
     mixer.stopAllAction(); // Dừng trước
     action.reset();
+
     action.setLoop(loopTimes);
     action.clampWhenFinished = true;
-    action.timeScale = 1;
+    if (name === "spell" && anim.duration >= 5) {
+      action.timeScale = 3;
+    } else action.timeScale = 1;
     action.play();
     // console.log("play anim: " + anim.name);
     if (loopTimes === THREE.LoopRepeat) return;
     setTimeout(() => {
       callBack();
-    }, (anim.duration * 1000) / 2);
+    }, (anim.duration * 1000) / 8);
     const onFinished = (e) => {
       mixer.removeEventListener("finished", onFinished);
       console.log("anim " + anim.name + " finished!");
@@ -237,6 +244,7 @@ export default class ChampionManager {
     lastIndex,
     viewMore
   ) {
+    console.log(data);
     if (index <= this.maxTraitDisplay - 1) {
       // console.log({ data });
       const champCount = champs.length;
@@ -288,15 +296,13 @@ export default class ChampionManager {
       ${
         effect
           ? `<div
-        class="z-[11] mask-[url('/assets/images/classes_icons/${name.replaceAll(
-          " ",
-          "_"
-        )}_TFT_icon.svg')] bg-black mask-no-repeat mask-center mask-contain w-[1.5vw] h-[1.5vw] absolute"
+        class="z-[11] mask-[url('${generateIconURLFromRawCommunityDragon(
+          data.icon
+        )}')] bg-black mask-no-repeat mask-center mask-contain w-[1.5vw] h-[1.5vw] absolute"
       >`
-          : `<div class="mask-[url('/assets/images/classes_icons/${name.replaceAll(
-              " ",
-              "_"
-            )}_TFT_icon.svg')] bg-white/30 mask-no-repeat mask-center mask-contain w-[1.2vw] h-[1.2vw] absolute"></div>`
+          : `<div class="mask-[url('${generateIconURLFromRawCommunityDragon(
+              data.icon
+            )}')] bg-white/30 mask-no-repeat mask-center mask-contain w-[1.2vw] h-[1.2vw] absolute"></div>`
       }
     `;
       this.traitListElement?.appendChild(div);
@@ -435,6 +441,14 @@ export default class ChampionManager {
 
   addChampion(champData, callback = () => {}) {
     console.log("addChampion: ", champData);
+    const setFolder = "Set15";
+    const beforeFix = "(tft_set_15)";
+    const safeName = champData.data.name
+      .toLowerCase()
+      .replace(". ", "_")
+      .replace(" ", "_")
+      .replace("'", "");
+    const url = `./assets/models/champions/${setFolder}/${safeName}_${beforeFix}.glb`;
     const scale = this.getChampionScale(
       champData.data.name.replaceAll("_", " ")
     );
@@ -446,7 +460,11 @@ export default class ChampionManager {
       champScene.scale.set(...scale);
       champScene.rotation.set(-0.5, 0, 0);
       // console.log(champScene.rotation);
-      const size = gltf.size;
+      const box = new THREE.Box3().setFromObject(gltf.scene, true);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      // gltf.size = size;
+      // const size = gltf.size;
 
       if (debugOn) {
         const objectDebug = {
@@ -493,8 +511,8 @@ export default class ChampionManager {
       callback(dragHelper);
     };
 
-    if (MODEL_CACHES[champData.url]) {
-      const cached = MODEL_CACHES[champData.url];
+    if (MODEL_CACHES[url]) {
+      const cached = MODEL_CACHES[url];
       const cloned = clone(cached.scene);
       const clonedGltf = {
         scene: cloned,
@@ -503,9 +521,9 @@ export default class ChampionManager {
       };
       handleLoad(clonedGltf);
     } else {
-      // console.log(champData);
+      console.log("model dont loaded: ", champData.data.name);
       loadModel(
-        champData.url,
+        url,
         (gltf) => {
           const champScene = gltf.scene;
           champScene.position.set(...champData.position);
@@ -515,7 +533,7 @@ export default class ChampionManager {
           const size = new THREE.Vector3();
           box.getSize(size);
           gltf.size = size;
-          MODEL_CACHES[champData.url] = gltf;
+          MODEL_CACHES[url] = gltf;
           handleLoad(gltf);
         },
         (err) => console.error(err),
@@ -550,7 +568,10 @@ export default class ChampionManager {
       this.attack1[attacker.uuid] = false;
     }
 
-    if (attacker.userData.currentMp < attacker.userData.maxMp) {
+    if (
+      attacker.userData.currentMp < attacker.userData.maxMp ||
+      attacker.userData.maxMp === 0
+    ) {
       attacker.userData.currentMp += 5;
       this.playChampionAnimation(
         attacker.mixer,
@@ -561,7 +582,7 @@ export default class ChampionManager {
         },
         THREE.LoopOnce
       );
-    } else {
+    } else if (attacker.userData.maxMp != 0) {
       if (!attacker.isUsingSkill) {
         this.useSkill(attacker, afterAnimationCallback);
       }
@@ -582,7 +603,7 @@ export default class ChampionManager {
         callback();
         champion.isUsingSkill = false;
         champion.userData.currentMp = 0;
-        updateBar(champion.userData.mpBar, 0, "mp");
+        ChampionManager.updateBar(champion.userData.mpBar, 0, "mp");
       },
       THREE.LoopOnce
     );
@@ -720,11 +741,10 @@ export default class ChampionManager {
       // bg champs
       const champImage = document.createElement("img");
       champImage.className =
-        "absolute top-[2.1vw] right-[0vw] h-[auto] w-[89%]";
-      champImage.src =
-        "./assets/images/champs/bgs/" +
-        capitalizeFirstLetter(champ.userData.name) +
-        ".png";
+        "absolute top-[2.1vw] right-[0vw] h-[7.5vw] w-[89%]";
+      champImage.src = generateIconURLFromRawCommunityDragon(
+        champ.userData.data.icon
+      );
       champInspect.appendChild(champImage);
       champInspect.insertAdjacentHTML(
         "beforeend",
@@ -789,9 +809,9 @@ export default class ChampionManager {
       champInspect.insertAdjacentHTML(
         "beforeend",
         `<img
-        src="./assets/images/champs/skill_icons/${capitalizeFirstLetter(
-          champ.userData.name
-        )}.png"
+        src="${generateIconURLFromRawCommunityDragon(
+          champ.userData.data.ability.icon
+        )}"
         class="absolute top-[13.9vw] left-[2.45vw] w-[3vw] h-[3vw]"
         alt=""
         id="champ-inspect-skill"
@@ -904,6 +924,8 @@ export default class ChampionManager {
     const mpRatio =
       champ.userData.data.stats.initialMana / champ.userData.maxMp;
     ChampionManager.updateBar(champ.userData.mpBar, mpRatio, "mp");
+    champ.userData.currentHp = champ.userData.data.stats.hp;
+    champ.userData.currentMp = champ.userData.data.stats.initialMana;
     champ.mixer.stopAllAction();
   }
   static updateStatusBars() {

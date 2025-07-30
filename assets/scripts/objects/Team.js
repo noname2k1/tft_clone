@@ -11,6 +11,8 @@ import {
   COLOR_SPECIAL,
   debugOn,
   tacticianSpeed,
+  MODEL_CACHES,
+  CHAMPS_INFOR,
 } from "~/variables";
 import {
   addHelper,
@@ -30,6 +32,7 @@ import ChampionManager from "./ChampionManager";
 import { addGold } from "../others/goldExp";
 import Model from "./Model";
 import Battle from "./Battle";
+import { customFetch } from "../utils/callApi";
 
 export default class Team {
   #arena;
@@ -141,6 +144,7 @@ export default class Team {
     loadModel(
       this.selectedArena.url,
       (gltf) => {
+        loadingAll.style.visibility = "hidden";
         let rightClickTo3dObject = false;
         const arena = gltf.scene;
         arena.name = this.selectedArena.name;
@@ -539,14 +543,6 @@ export default class Team {
                     );
                     switch (stat) {
                       case "champion":
-                        const modelPathUrl =
-                          "./assets/models/champions/" +
-                          targetObject.userData.name
-                            .toLowerCase()
-                            .replace(". ", "_")
-                            .replace(" ", "_")
-                            .replace("'", "") +
-                          "_(tft_set_14).glb";
                         for (let i = 0; i < xMes.length; i++) {
                           const spotTaken = draggableObjects.some(
                             (champ) =>
@@ -557,7 +553,6 @@ export default class Team {
                             this.#championManager.addChampion(
                               {
                                 position: [xMes[i], 0.1, zMe],
-                                url: modelPathUrl,
                                 data: targetObject.userData.data,
                               },
                               (dragHelper) => {
@@ -609,12 +604,37 @@ export default class Team {
           loadingAssetsProgress.style.width = loadingAllPercent + "%";
           if (loadingAllPercent >= 100) {
             setTimeout(() => {
-              loadingAll.style.visibility = "hidden";
+              // let loadedModelCount = 0;
+              CHAMPS_INFOR.forEach((champ) => {
+                const setFolder = "Set15";
+                const beforeFix = "(tft_set_15)";
+                const safeName = champ.name
+                  .toLowerCase()
+                  .replace(". ", "_")
+                  .replace(" ", "_")
+                  .replace("'", "");
+                const url = `./assets/models/champions/${setFolder}/${safeName}_${beforeFix}.glb`;
+                // console.log(url);
+                loadModel(
+                  url,
+                  (gltf) => {
+                    const champScene = gltf.scene;
+                    champScene.rotation.x = -0.5;
+                    MODEL_CACHES[url] = gltf;
+                    // loadedModelCount += 1;
+                    // console.log(loadedModelCount);
+                  },
+                  (err) => console.error(err),
+                  null
+                );
+              });
             }, 100);
           }
         } else {
           loadingAll.style.visibility = "hidden";
         }
+        // load all model before start game
+        // console.log(CHAMPS_INFOR);
       }
     );
 
@@ -637,14 +657,6 @@ export default class Team {
       }
 
       addingFlag = true;
-
-      // Xác định tên và đường dẫn model
-      const champName = champData.name
-        .toLowerCase()
-        .replace(". ", "_")
-        .replace(" ", "_")
-        .replace("'", "");
-      const modelPathUrl = `./assets/models/champions/${champName}_(tft_set_14).glb`;
 
       // Tìm vị trí trống trong bench
       const emptyIndex = xMes.findIndex(
@@ -696,7 +708,6 @@ export default class Team {
       // Mua tướng bình thường
       this.#championManager.addChampion(
         {
-          url: modelPathUrl,
           position: [xMes[emptyIndex], 0, zMe],
           data: card.data,
         },
@@ -715,7 +726,10 @@ export default class Team {
   }
 
   sendMessageChangeLineupToEnemy() {
-    console.log(ChampionManager.draggableObjects);
+    console.log(
+      "sendMessageChangeLineupToEnemy: ",
+      ChampionManager.draggableObjects
+    );
   }
 
   getTacticianTarget() {

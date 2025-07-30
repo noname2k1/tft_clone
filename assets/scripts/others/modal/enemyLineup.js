@@ -1,6 +1,7 @@
 import { CHAMPS_INFOR, TRAITS_INFOR } from "~/variables";
 import { customFetch } from "../../utils/callApi";
 import { updateEnemyLineup } from "~/main";
+import { generateIconURLFromRawCommunityDragon } from "../../utils/utils";
 
 document.addEventListener("DOMContentLoaded", async function () {
   let filterConditions = {};
@@ -12,18 +13,28 @@ document.addEventListener("DOMContentLoaded", async function () {
   let hexSelected = null;
   if (TRAITS_INFOR.length < 1) {
     await customFetch("traits", (data) => {
+      // console.log(data);
       TRAITS_INFOR.splice(0, TRAITS_INFOR.length, ...data.traits);
     });
   }
   if (CHAMPS_INFOR.length < 1) {
     await customFetch("champs", (data) => {
-      CHAMPS_INFOR.splice(0, CHAMPS_INFOR.length, ...data.champs);
+      // console.log(data);
+      const isChamps = data?.champs
+        ?.filter((c) => c.squareIcon && c.icon && c.role && c.traits.length > 0)
+        .sort((prev, curr) => (prev.cost < curr.cost ? -1 : 1));
+      CHAMPS_INFOR.splice(0, CHAMPS_INFOR.length, ...isChamps);
     });
   }
   const customEvent = new CustomEvent("updateAllEnemyLinup");
   const renderChamps = (fConditions = {}) => {
+    // console.log(fConditions);
+    let champLength = 0;
+    champs.replaceChildren();
+
     CHAMPS_INFOR.forEach((champ, index) => {
       let conditionsAccepted = true;
+      // console.log(champ);
       for (const [filterKey, filterValue] of Object.entries(fConditions)) {
         if (typeof champ[filterKey] === "number") {
           conditionsAccepted = champ[filterKey] === filterValue;
@@ -35,11 +46,17 @@ document.addEventListener("DOMContentLoaded", async function () {
         // console.log({ [filterKey]: filterValue }, conditionsAccepted);
         if (!conditionsAccepted) break; // thoát sớm nếu không thỏa mãn
       }
-      //   console.log(champ, fConditions);
       if (conditionsAccepted || Object.keys(fConditions).length < 1) {
-        champs.replaceChildren();
+        champLength += 1;
+        // console.log({ name: champ.name, traits: champ.traits });
         const champImg = document.createElement("img");
-        champImg.src = `./assets/images/champs/icons/${champ.name}.png`;
+        champImg.src = `${generateIconURLFromRawCommunityDragon(
+          champ?.squareIcon
+        )}`;
+        champImg.champData = CHAMPS_INFOR.find((c) => c.name === champ.name);
+        champImg.onerror = function (e) {
+          console.error("champImg error at: " + champ.name);
+        };
         champImg.onload = () => {
           champImg.draggable = true;
           champImg.className = `champ-selectable w-[6.5vw] h-[6.5vw] hover:brightness-150 transition-[brightness] duration-150`;
@@ -49,7 +66,13 @@ document.addEventListener("DOMContentLoaded", async function () {
           });
           // ondragstart
           champImg.addEventListener("dragstart", function (event) {
-            event.dataTransfer.setData("img", champImg.src);
+            event.dataTransfer.setData(
+              "img",
+              JSON.stringify({
+                src: champImg.src,
+                champData: champImg.champData,
+              })
+            );
           });
           // onclick
           champImg.addEventListener("click", function () {
@@ -64,9 +87,16 @@ document.addEventListener("DOMContentLoaded", async function () {
                   newImg.className =
                     "w-full h-full hover:brightness-150 transition-[brightness] duration-150";
                   newImg.src = champImg.src;
+                  newImg.champData = champImg.champData;
                   hexFound.appendChild(newImg);
                   newImg.addEventListener("dragstart", function (event) {
-                    event.dataTransfer.setData("img", newImg.src);
+                    event.dataTransfer.setData(
+                      "img",
+                      JSON.stringify({
+                        src: newImg.src,
+                        champData: newImg.champData,
+                      })
+                    );
                     event.dataTransfer.setData("from", hexFound.id);
                   });
                 }
@@ -76,11 +106,22 @@ document.addEventListener("DOMContentLoaded", async function () {
               }
             }
           });
-          champImg.data = champ;
           const champDiv = document.createElement("div");
           champDiv.className = "flex flex-col items-center mr-[1vw]";
           const champName = document.createElement("span");
-          champName.className = "text-[1.2vw]";
+          champName.className =
+            "text-[1.2vw] " +
+            (champ.cost === 1
+              ? "text-white"
+              : champ.cost === 2
+              ? "text-green-500"
+              : champ.cost === 3
+              ? "text-blue-500"
+              : champ.cost === 4
+              ? "text-purple-500"
+              : champ.cost === 5
+              ? "text-orange-500"
+              : "text-pink-500");
           champName.textContent = champ.name;
           champDiv.appendChild(champImg);
           champDiv.appendChild(champName);
@@ -88,6 +129,8 @@ document.addEventListener("DOMContentLoaded", async function () {
         };
       }
     });
+    champs.classList.toggle("justify-center", champLength > 11);
+    champs.classList.toggle("justify-start", champLength <= 11);
   };
   renderChamps(filterConditions);
 
@@ -100,12 +143,12 @@ document.addEventListener("DOMContentLoaded", async function () {
     options.classList.toggle("hidden");
   });
 
-  TRAITS_INFOR.forEach((trait) => {
+  const filterTraits = TRAITS_INFOR.filter(
+    (trait) => !trait.apiName.includes("MechanicTrait")
+  );
+  filterTraits.forEach((trait) => {
     const optionDiv = document.createElement("div");
-    const imgSrc = `./assets/images/classes_icons/${trait.name.replaceAll(
-      " ",
-      "_"
-    )}_TFT_icon.svg`;
+    const imgSrc = generateIconURLFromRawCommunityDragon(trait.icon);
     optionDiv.className =
       "option flex items-center px-3 py-2 hover:bg-gray-500 cursor-pointer";
     const innerHtml = `
@@ -171,9 +214,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       if (hexEl) {
         const imgInsideHex = hexEl.querySelector("img");
         if (imgInsideHex) {
-          return decodeURIComponent(
-            imgInsideHex.src.split("/").pop().replace(".png", "")
-          );
+          return imgInsideHex.champData;
         } else {
           return null;
         }
@@ -214,7 +255,9 @@ document.addEventListener("DOMContentLoaded", async function () {
       });
       // ondrop
       hexDiv.addEventListener("drop", function (e) {
-        const imgSrc = e.dataTransfer.getData("img");
+        const { src: imgSrc, champData } = JSON.parse(
+          e.dataTransfer.getData("img")
+        );
         const img = document.createElement("img");
         const fromHexId = e.dataTransfer.getData("from");
         img.className =
@@ -233,11 +276,13 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
         // img inside hex ondragstart
         img.addEventListener("dragstart", function (event) {
-          console.log(img.src);
+          // console.log(img.src);
           event.dataTransfer.setData("img", img.src);
           event.dataTransfer.setData("from", "hex-" + Number(row * cols + col));
         });
         img.src = imgSrc;
+        img.champData = champData;
+        console.log(img.champData);
         hexDiv.replaceChildren(img);
         updateAllEnemyLinup();
       });
@@ -245,11 +290,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       hexDiv.addEventListener("contextmenu", function () {
         const champImg = hexDiv.querySelector("img");
         if (champImg) {
-          updateEnemyLineup(
-            decodeURIComponent(
-              champImg.src.split("/").pop().replace(".png", "")
-            )
-          );
+          updateEnemyLineup(champImg.champData.name);
         }
         hexDiv.replaceChildren();
         hexDiv.classList.replace("bg-yellow-700", "bg-gray-700");

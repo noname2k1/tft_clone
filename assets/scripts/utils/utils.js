@@ -255,6 +255,23 @@ function getNormalizedPointer(event, domElement) {
   );
 }
 
+function generateIconURLFromRawCommunityDragon(icon) {
+  return `${import.meta.env.VITE_RAW_COMMUNITYDRAGON}${icon
+    .replace("tex", "png")
+    .toLowerCase()}`;
+}
+
+function generateModelUrl(champName) {
+  const setFolder = "Set15";
+  const beforeFix = "(tft_set_15)";
+  const safeName = champ.name
+    .toLowerCase()
+    .replace(". ", "_")
+    .replace(" ", "_")
+    .replace("'", "");
+  return `./assets/models/champions/${setFolder}/${safeName}_${beforeFix}.glb`;
+}
+
 export {
   loadModel,
   lightAuto,
@@ -268,4 +285,6 @@ export {
   capitalizeFirstLetter,
   ObserverElementChange,
   getNormalizedPointer,
+  generateIconURLFromRawCommunityDragon,
+  generateModelUrl,
 };

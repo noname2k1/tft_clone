@@ -5,9 +5,13 @@ import {
   handleBuyExp,
   handleReroll,
 } from "~/assets/scripts/others/goldExp.js";
-import { EXP_TABLE, fee } from "~/variables";
+import { EXP_TABLE, fee, TRAITS_INFOR } from "~/variables";
 import { markChampNames } from "../others/modal/markChamps";
-import { capitalizeFirstLetter, ObserverElementChange } from "../utils/utils";
+import {
+  capitalizeFirstLetter,
+  generateIconURLFromRawCommunityDragon,
+  ObserverElementChange,
+} from "../utils/utils";
 import {
   getMarkChampFromStorage,
   injectVariables,
@@ -27,13 +31,14 @@ document.addEventListener("DOMContentLoaded", function () {
     window.champsBought = Array.from({ length: 5 }).map(() => 0);
 
     const cardPromises = champs.map((champ, index) => {
+      // console.log(champ);
       return new Promise((resolve) => {
         const card = document.createElement("div");
         card.className = `champ-card-shop ${
           getMarkChampFromStorage()?.enabledTeam?.team.includes(champ.name)
             ? `border-run`
             : ``
-        } h-full relative cursor-pointer hover:brightness-120 duration-100 hover:z-[100]`;
+        } w-full h-full relative cursor-pointer hover:brightness-120 duration-100 hover:z-[100]`;
         card.indexInRoll = index;
         card.data = { ...champ };
         onTooltip(
@@ -52,9 +57,7 @@ document.addEventListener("DOMContentLoaded", function () {
             // console.log(newDesc);
             const cardImgHtml = `<div class="flex">
             <img
-              src="./assets/images/champs/skill_icons/${capitalizeFirstLetter(
-                card.data.name
-              )}.png"
+              src="${generateIconURLFromRawCommunityDragon(champ.ability.icon)}"
               class="w-[5vw] h-[5vw]"
               alt="${card.data.name}-skill"
             />
@@ -68,32 +71,37 @@ document.addEventListener("DOMContentLoaded", function () {
           "top,left"
         );
         const img = new Image();
-        img.src = `./assets/images/champs/bgs/${champ.name}.png`;
+        img.src = `${import.meta.env.VITE_DDRAGON_ENDPOINT}/img/tft-champion/${
+          champ.characterName
+        }.${import.meta.env.VITE_SET_KEY}.png`;
         img.className = "w-full";
 
         img.onload = () => {
           const traitsHtml = champ.traits
-            .map(
-              (trait, i) => `
+            .map((trait, i) => {
+              const traitIcon = TRAITS_INFOR.find(
+                (traitObj) => traitObj.name === trait
+              );
+              // console.log(traitIcon);
+              return `
           <div class="flex items-center mt-[0.2vw] max-lg:mt-[0.4vw]">
             <div class="relative flex items-center justify-center">
               <div class="bg-black w-full h-full absolute p-2 rounded-full"></div>
               <div class="${
                 i === 0 ? "bg-yellow-500" : "bg-white"
-              } z-10 mask-[url('/assets/images/classes_icons/${trait.replaceAll(
-                " ",
-                "_"
-              )}_TFT_icon.svg')] mask-no-repeat mask-center mask-contain w-[0.8vw] h-[0.8vw] max-lg:w-[1.2vw] max-lg:h-[1.2vw]"></div>
+              } z-10 mask-[url('${generateIconURLFromRawCommunityDragon(
+                traitIcon?.icon
+              )}')] mask-no-repeat mask-center mask-contain w-[0.8vw] h-[0.8vw] max-lg:w-[1.2vw] max-lg:h-[1.2vw]"></div>
             </div>
             <span class="text-[0.65vw] ml-[0.4vw] max-lg:ml-[1vw] text-xs max-lg:text-[1.2vw] tracking-wider">${trait}</span>
-          </div>`
-            )
+          </div>`;
+            })
             .join("");
           card.innerHTML = `
           <img src="./assets/images/${
             champ.cost
           }_gold-frame.png" class="absolute z-10 top-0 w-full h-full object-fill left-0 right-0" />
-          <img src="${img.src}" class="w-full" />
+          <img src="${img.src}" class="w-full h-full" />
           <div class="absolute z-10 bottom-[2vw] left-[0.5vw] flex flex-col max-lg:left-[1.2vw] max-lg:bottom-[3.5vw]">
             ${traitsHtml}
           </div>
@@ -125,7 +133,11 @@ document.addEventListener("DOMContentLoaded", function () {
             (obj) =>
               obj.userData.name?.toLowerCase() === "zac" && obj.bfIndex !== -1
           );
-          if (overlay && zacFound) {
+          if (
+            overlay &&
+            zacFound &&
+            import.meta.env.VITE_SET_KEY === "TFT_Set14"
+          ) {
             if (Math.random() <= 0.1) {
               card.zacBloblet = true;
               overlay.style.backgroundImage =
@@ -175,6 +187,7 @@ document.addEventListener("DOMContentLoaded", function () {
       "champs/random?count=5&level=" + getLeftExpAndMyLevel().level,
       (data) => {
         if (data.champs.length > 0) {
+          // console.log(data.champs);
           // cập nhật tỉ lệ
           Object.entries(data.odds).forEach(([cost, percent]) => {
             const span = document.getElementById("cost-" + cost);

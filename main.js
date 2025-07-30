@@ -71,12 +71,13 @@ bfEnemyCells = createBattleField(
 const startBattleBtn = document.getElementById("start-battle-btn");
 
 // startBattleBtn.classList.replace("hidden", "flex");
-function updateEnemyLineup(champNamesOrChampName) {
-  const isSingle = typeof champNamesOrChampName === "string";
+function updateEnemyLineup(champsOrChampName) {
+  // console.log(champsOrChampName);
+  const isSingle = typeof champsOrChampName === "string";
   // Xóa tướng khi chỉ truyền 1 tên
   if (isSingle) {
     const champIndex = bfEnemies.findIndex(
-      (champ) => champ?.userData.name === champNamesOrChampName
+      (champ) => champ?.userData.name === champsOrChampName
     );
     if (champIndex !== -1) {
       championManager.removeChampFromScene(scene, bfEnemies[champIndex]);
@@ -86,25 +87,19 @@ function updateEnemyLineup(champNamesOrChampName) {
     return;
   }
   // Nếu là mảng: cập nhật toàn bộ đội hình
-  champNamesOrChampName.forEach((champName, index) => {
+  champsOrChampName.forEach((champData, index) => {
     // Xóa tướng cũ (nếu có)
     if (bfEnemies[index]) {
       championManager.removeChampFromScene(scene, bfEnemies[index]);
     }
     // Nếu có tướng mới tại vị trí đó
-    if (champName) {
+    if (champData) {
+      console.log(champData);
       const pos = bfEnemyCells[index]?.center;
-      const safeName = champName
-        .toLowerCase()
-        .replace(". ", "_")
-        .replace(" ", "_")
-        .replace("'", "");
-      const modelPathUrl = `./assets/models/champions/${safeName}_(tft_set_14).glb`;
-      const champData = CHAMPS_INFOR.find((c) => c.name === champName);
+      console.log("champData: ", champData);
       championManager.addChampion(
         {
           position: pos,
-          url: modelPathUrl,
           data: champData,
         },
         (dragHelper) => {
@@ -125,36 +120,44 @@ let allEnemiesDied = false;
 const oldBfChamps = [];
 
 function fireBullet(attacker, target, onHit) {
-  const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-  const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-  const bullet = new THREE.Mesh(geometry, material);
+  try {
+    const isUsingSkill = attacker.isUsingSkill;
+    const sizes = isUsingSkill ? 0.4 : 0.2;
+    const geometry = new THREE.BoxGeometry(sizes, sizes, sizes);
+    const material = new THREE.MeshBasicMaterial({
+      color: isUsingSkill ? 0xbbff : 0x00ff00,
+    });
+    const bullet = new THREE.Mesh(geometry, material);
 
-  const bbox = new THREE.Box3().setFromObject(attacker.userData.champScene);
-  const center = new THREE.Vector3();
-  bbox.getCenter(center);
+    const bbox = new THREE.Box3().setFromObject(attacker.userData.champScene);
+    const center = new THREE.Vector3();
+    bbox.getCenter(center);
 
-  bullet.position.set(
-    attacker.position.x + 1,
-    center.y,
-    attacker.position.z - 1
-  );
-  scene.add(bullet);
+    bullet.position.set(
+      attacker.position.x + 1,
+      center.y,
+      attacker.position.z - 1
+    );
+    scene.add(bullet);
 
-  const attackSpeed = attacker.userData.data.stats.attackSpeed || 0.5;
-  moveCharacter(
-    bullet,
-    target,
-    attackSpeed * 15,
-    () => {
-      scene.remove(bullet);
-      onHit();
-    },
-    () => {
-      if (target.userData.currentHp <= 0) {
+    const attackSpeed = attacker.userData.data.stats.attackSpeed || 0.5;
+    moveCharacter(
+      bullet,
+      target,
+      attackSpeed * 15,
+      () => {
         scene.remove(bullet);
+        onHit();
+      },
+      () => {
+        if (target.userData.currentHp <= 0) {
+          scene.remove(bullet);
+        }
       }
-    }
-  );
+    );
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 function handleDamage(target, dmg, attacker, intervalId) {
