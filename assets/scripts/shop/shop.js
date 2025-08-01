@@ -32,32 +32,35 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const cardPromises = champs.map((champ, index) => {
       // console.log(champ);
-      return new Promise((resolve) => {
-        const card = document.createElement("div");
-        card.className = `champ-card-shop ${
-          getMarkChampFromStorage()?.enabledTeam?.team.includes(champ.name)
-            ? `border-run`
-            : ``
-        } w-full h-full relative cursor-pointer hover:brightness-120 duration-100 hover:z-[100]`;
-        card.indexInRoll = index;
-        card.data = { ...champ };
-        onTooltip(
-          card,
-          (tooltip) => {
-            tooltip.style.maxWidth = "unset";
-            // console.log(card.data);
-            const ability = card.data.ability;
-            // console.log(ability);
-            const newDesc = injectVariables(
-              ability.desc,
-              ability.variables,
-              card.data.stats,
-              1
-            );
-            // console.log(newDesc);
-            const cardImgHtml = `<div class="flex">
+      return new Promise((resolve, reject) => {
+        try {
+          const card = document.createElement("div");
+          card.className = `champ-card-shop ${
+            getMarkChampFromStorage()?.enabledTeam?.team.includes(champ.name)
+              ? `border-run`
+              : ``
+          } w-full h-full relative cursor-pointer hover:brightness-120 duration-100 hover:z-[100]`;
+          card.indexInRoll = index;
+          card.data = { ...champ };
+          onTooltip(
+            card,
+            (tooltip) => {
+              tooltip.style.maxWidth = "unset";
+              // console.log(card.data);
+              const ability = card.data.ability;
+              // console.log(ability);
+              const newDesc = injectVariables(
+                ability.desc,
+                ability.variables,
+                card.data.stats,
+                1
+              );
+              // console.log(newDesc);
+              const cardImgHtml = `<div class="flex">
             <img
-              src="${generateIconURLFromRawCommunityDragon(champ.ability.icon)}"
+              src="${generateIconURLFromRawCommunityDragon(
+                champ?.ability?.icon
+              )}"
               class="w-[5vw] h-[5vw]"
               alt="${card.data.name}-skill"
             />
@@ -66,38 +69,40 @@ document.addEventListener("DOMContentLoaded", function () {
               <p class="font-medium text-[0.875vw] max-w-[20vw] break-words whitespace-pre-wrap">${newDesc}</p>
             </div>
           </div>`;
-            tooltip.insertAdjacentHTML("beforeend", cardImgHtml);
-          },
-          "top,left"
-        );
-        const img = new Image();
-        img.src = `${import.meta.env.VITE_DDRAGON_ENDPOINT}/img/tft-champion/${
-          champ.characterName
-        }.${import.meta.env.VITE_SET_KEY}.png`;
-        img.className = "w-full";
+              tooltip.insertAdjacentHTML("beforeend", cardImgHtml);
+            },
+            "top,left"
+          );
+          const img = new Image();
+          img.src = `${
+            import.meta.env.VITE_DDRAGON_ENDPOINT
+          }/img/tft-champion/${champ.characterName}.${
+            import.meta.env.VITE_SET_KEY
+          }.png`;
+          img.className = "w-full";
 
-        img.onload = () => {
-          const traitsHtml = champ.traits
-            .map((trait, i) => {
-              const traitIcon = TRAITS_INFOR.find(
-                (traitObj) => traitObj.name === trait
-              );
-              // console.log(traitIcon);
-              return `
+          img.onload = () => {
+            const traitsHtml = champ.traits
+              .map((trait, i) => {
+                const traitIcon = TRAITS_INFOR.find(
+                  (traitObj) => traitObj.name === trait
+                );
+                // console.log(traitIcon);
+                return `
           <div class="flex items-center mt-[0.2vw] max-lg:mt-[0.4vw]">
             <div class="relative flex items-center justify-center">
               <div class="bg-black w-full h-full absolute p-2 rounded-full"></div>
               <div class="${
                 i === 0 ? "bg-yellow-500" : "bg-white"
               } z-10 mask-[url('${generateIconURLFromRawCommunityDragon(
-                traitIcon?.icon
-              )}')] mask-no-repeat mask-center mask-contain w-[0.8vw] h-[0.8vw] max-lg:w-[1.2vw] max-lg:h-[1.2vw]"></div>
+                  traitIcon?.icon
+                )}')] mask-no-repeat mask-center mask-contain w-[0.8vw] h-[0.8vw] max-lg:w-[1.2vw] max-lg:h-[1.2vw]"></div>
             </div>
             <span class="text-[0.65vw] ml-[0.4vw] max-lg:ml-[1vw] text-xs max-lg:text-[1.2vw] tracking-wider">${trait}</span>
           </div>`;
-            })
-            .join("");
-          card.innerHTML = `
+              })
+              .join("");
+            card.innerHTML = `
           <img src="./assets/images/${
             champ.cost
           }_gold-frame.png" class="absolute z-10 top-0 w-full h-full object-fill left-0 right-0" />
@@ -115,47 +120,57 @@ document.addEventListener("DOMContentLoaded", function () {
           }
           <div class="overlay-shop-champ cursor-pointer bg-black/50 absolute z-[1000] top-0 right-0 left-0 bottom-0 opacity-100 duration-200"></div>
         `;
-          resolve(card);
-        };
+            resolve(card);
+          };
 
-        img.onerror = () => {
-          console.warn("Lỗi load ảnh:", img.src);
-          resolve(null);
-        };
-      });
-    });
-
-    Promise.all(cardPromises).then((cards) => {
-      cards.forEach((card) => {
-        if (card) {
-          const overlay = card.querySelector(".overlay-shop-champ");
-          const zacFound = ChampionManager.draggableObjects.find(
-            (obj) =>
-              obj.userData.name?.toLowerCase() === "zac" && obj.bfIndex !== -1
-          );
-          if (
-            overlay &&
-            zacFound &&
-            import.meta.env.VITE_SET_KEY === "TFT_Set14"
-          ) {
-            if (Math.random() <= 0.1) {
-              card.zacBloblet = true;
-              overlay.style.backgroundImage =
-                "url('./assets/images/bloblet.png')";
-              overlay.style.backgroundPosition = "center";
-              overlay.style.backgroundRepeat = "no-repeat";
-              overlay.style.backgroundSize = "cover";
-            } else {
-              overlay.classList.replace("opacity-100", "opacity-0");
-            }
-          } else if (overlay) {
-            overlay.classList.replace("opacity-100", "opacity-0");
-          }
-
-          champShopList.appendChild(card);
+          img.onerror = () => {
+            console.warn("Lỗi load ảnh:", img.src);
+            resolve(null);
+          };
+        } catch (error) {
+          reject(error);
         }
       });
     });
+
+    Promise.all(cardPromises)
+      .then((cards) => {
+        cards.forEach((card) => {
+          if (card) {
+            const overlay = card.querySelector(".overlay-shop-champ");
+            const zacFound = ChampionManager.draggableObjects.find(
+              (obj) =>
+                obj.userData.name?.toLowerCase() === "zac" && obj.bfIndex !== -1
+            );
+            if (
+              overlay &&
+              zacFound &&
+              import.meta.env.VITE_SET_KEY === "TFT_Set14"
+            ) {
+              if (Math.random() <= 0.1) {
+                card.zacBloblet = true;
+                overlay.style.backgroundImage =
+                  "url('./assets/images/bloblet.png')";
+                overlay.style.backgroundPosition = "center";
+                overlay.style.backgroundRepeat = "no-repeat";
+                overlay.style.backgroundSize = "cover";
+              } else {
+                overlay.classList.replace("opacity-100", "opacity-0");
+              }
+            } else if (overlay) {
+              overlay.classList.replace("opacity-100", "opacity-0");
+            }
+
+            champShopList.appendChild(card);
+          }
+        });
+      })
+      .catch((error) => {
+        console.log("error: ", error);
+        setTimeout(() => {
+          getShopChamp();
+        }, 500);
+      });
   }
 
   let mutationTimeout = null;
@@ -208,21 +223,30 @@ document.addEventListener("DOMContentLoaded", function () {
   };
 
   getShopChamp();
-
-  buyExpBtn.addEventListener("click", (event) => {
-    handleBuyExp();
-    getShopChamp(true);
-    const myLevel = getLeftExpAndMyLevel().level;
-    let highestLevel = 0;
-    for (const level in EXP_TABLE) {
-      if (+level > highestLevel) highestLevel = level;
-    }
-    if (myLevel == highestLevel) {
-      buyExpBtn.classList.add("hidden");
-    }
-  });
+  const handleProcessBuyExp = () => {
+    handleBuyExp(() => {
+      getShopChamp(true);
+      const myLevel = getLeftExpAndMyLevel().level;
+      let highestLevel = 0;
+      for (const level in EXP_TABLE) {
+        if (+level > highestLevel) highestLevel = level;
+      }
+      if (myLevel == highestLevel) {
+        buyExpBtn.classList.add("hidden");
+      }
+    });
+  };
+  buyExpBtn.addEventListener("click", handleProcessBuyExp);
   rerollBtn.addEventListener("click", (event) => {
     // console.log("reroll clicked");
     handleReroll(getShopChamp);
+  });
+  window.addEventListener("keypress", (e) => {
+    if (e.key.toLowerCase() === "f") {
+      handleProcessBuyExp();
+    }
+    if (e.key.toLowerCase() === "d") {
+      handleReroll(getShopChamp);
+    }
   });
 });

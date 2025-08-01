@@ -162,21 +162,23 @@ const createImage = (
   position = [0, 0, 0],
   isVisible = true,
   size = [1, 1],
-  rotationX = -Math.PI / 2
+  rotationX = 0
 ) => {
   const loader = new THREE.TextureLoader();
   loader.load(imageURL, function (texture) {
+    texture.encoding = THREE.sRGBEncoding;
+    texture.colorSpace = THREE.SRGBColorSpace;
     const material = new THREE.MeshBasicMaterial({
       map: texture,
       transparent: true,
-      depthWrite: false, // tránh icon che mất hoặc bị che
-      alphaTest: 0.5, // loại bỏ các pixel trong suốt
+      depthTest: false, // thử bật/tắt nếu bị mờ nền
+      depthWrite: false,
     });
     const geometry = new THREE.PlaneGeometry(size[0], size[1]);
     const mesh = new THREE.Mesh(geometry, material);
     mesh.visible = isVisible;
     mesh.position.set(...position);
-    mesh.rotation.x = rotationX;
+    mesh.rotation.x = rotationX; //  -Math.PI / 2
     mesh.renderOrder = 999;
     scene.add(mesh);
 

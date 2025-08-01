@@ -62,7 +62,7 @@ export default (debugControls) => {
   };
   setupLight();
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   function setupRenderer() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     window.addEventListener("resize", () => {
@@ -73,7 +73,9 @@ export default (debugControls) => {
     });
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.sortObjects = true;
+    renderer.physicallyCorrectLights = true;
+    renderer.outputEncoding = THREE.sRGBEncoding;
     document.body.appendChild(renderer.domElement);
   }
   setupRenderer();

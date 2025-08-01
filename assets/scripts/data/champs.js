@@ -288,6 +288,10 @@ const champScales = [
     name: "Kalista",
     scale: [0.006, 0.006, 0.006],
   },
+  {
+    name: "Lux",
+    scale: [0.025, 0.025, 0.025],
+  },
 ];
 
 const costGradients = [

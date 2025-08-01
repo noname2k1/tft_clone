@@ -6,6 +6,7 @@ import {
   capitalizeFirstLetter,
   addHelper,
   generateIconURLFromRawCommunityDragon,
+  createImage,
 } from "~~/utils/utils";
 import {
   CHAMPS_INFOR,
@@ -17,7 +18,12 @@ import {
 } from "~/variables.js";
 import { clone } from "https://esm.sh/three/examples/jsm/utils/SkeletonUtils.js";
 import { champScales, costGradients } from "~~/data/champs.js";
-import { injectVariables, onTooltip } from "../services/services";
+import {
+  injectVariables,
+  onTooltip,
+  statsCalculate,
+} from "../services/services";
+import Team from "./Team";
 
 export default class ChampionManager {
   scene;
@@ -25,6 +31,13 @@ export default class ChampionManager {
   static draggableObjects = [];
   maxTraitDisplay = 10;
   attack1 = {};
+  static levelIconDetails = {
+    1: { size: [0.5, 0.5], url: "./assets/images/icon-lv1.png", posX: -1.2 },
+    2: { size: [1, 1], url: "./assets/images/icon-lv2.png", posX: -1.4 },
+    3: { size: [1, 1], url: "./assets/images/icon-lv3.png", posX: -1.2 },
+    4: { size: [1, 1], url: "./assets/images/icon-lv4.png", posX: -1.2 },
+  };
+
   constructor(scene) {
     this.scene = scene;
     this.traitListElement = document.getElementById("trait-list");
@@ -144,6 +157,18 @@ export default class ChampionManager {
     statusBarGroup.position.copy(champScene.position);
     statusBarGroup.rotation.x = -0.5;
 
+    const level = 1;
+    createImage(
+      this.scene,
+      (mesh) => {
+        mesh.userData.name = "icon-level";
+        statusBarGroup.add(mesh);
+      },
+      ChampionManager.levelIconDetails[level].url,
+      [ChampionManager.levelIconDetails[level].posX, barYOffset, 0],
+      true,
+      ChampionManager.levelIconDetails[level].size
+    );
     this.scene.add(statusBarGroup);
 
     return { statusBarGroup, hpBar, mpBar };
@@ -193,16 +218,30 @@ export default class ChampionManager {
     animations,
     name = "idle",
     callBack = () => {},
-    loopTimes = THREE.LoopRepeat
+    loopTimes = THREE.LoopRepeat,
+    fireBulletWhen = "before"
   ) {
     if (!mixer || !animations) return;
-    const anim = animations.find(
+    let testAnim = 0;
+    const testCeleAnim = ["celebration", "dance_in", "dance"];
+    let anim = animations.find(
       (a) =>
         a.name.toLowerCase().includes(name) &&
         a.name.toLowerCase() !== "idlein" &&
         !a.name.toLowerCase().includes("idle_in")
     );
-    if (!anim) return;
+    if (name === testCeleAnim[0]) {
+      while (testAnim < testCeleAnim.length && !anim) {
+        console.log("can't find anim: ", testCeleAnim[testAnim]);
+        testAnim++;
+        anim = animations.find((a) =>
+          a.name.toLowerCase().includes(testCeleAnim[testAnim])
+        );
+      }
+    }
+    if (!anim) {
+      return;
+    }
     // console.log(anim);
 
     const action = mixer.clipAction(anim);
@@ -217,9 +256,14 @@ export default class ChampionManager {
     action.play();
     // console.log("play anim: " + anim.name);
     if (loopTimes === THREE.LoopRepeat) return;
+    // console.log("anim.duration: ", anim.duration);
+    const delay =
+      fireBulletWhen === "before"
+        ? (anim.duration * 1000) / 8
+        : (anim.duration * 1000) / 3;
     setTimeout(() => {
       callBack();
-    }, (anim.duration * 1000) / 8);
+    }, delay);
     const onFinished = (e) => {
       mixer.removeEventListener("finished", onFinished);
       console.log("anim " + anim.name + " finished!");
@@ -244,7 +288,7 @@ export default class ChampionManager {
     lastIndex,
     viewMore
   ) {
-    console.log(data);
+    // console.log(data);
     if (index <= this.maxTraitDisplay - 1) {
       // console.log({ data });
       const champCount = champs.length;
@@ -489,7 +533,7 @@ export default class ChampionManager {
         mpBar,
         statusBarGroup
       );
-      this.upgrade(dragHelper);
+      ChampionManager.upgrade(dragHelper);
       ChampionManager.updateBar(dragHelper.userData.hpBar, 1);
       const mpRatio = dragHelper.userData.currentMp / dragHelper.userData.maxMp;
       ChampionManager.updateBar(dragHelper.userData.mpBar, mpRatio, "mp");
@@ -507,7 +551,9 @@ export default class ChampionManager {
       dragHelper.userData.champScene.mixer = mixerChamp;
       dragHelper.position.y = 1;
       dragHelper.rotation.y = -0.5;
-      dragHelper.scale.y += 1;
+      dragHelper.scale.x += 0.5;
+      dragHelper.scale.y += 2;
+      dragHelper.scale.z += 0.5;
       callback(dragHelper);
     };
 
@@ -567,7 +613,7 @@ export default class ChampionManager {
     } else {
       this.attack1[attacker.uuid] = false;
     }
-
+    const fireBulletAfterAnimationChamps = ["Kalista"];
     if (
       attacker.userData.currentMp < attacker.userData.maxMp ||
       attacker.userData.maxMp === 0
@@ -580,7 +626,10 @@ export default class ChampionManager {
         () => {
           afterAnimationCallback();
         },
-        THREE.LoopOnce
+        THREE.LoopOnce,
+        fireBulletAfterAnimationChamps.includes(attacker.userData.name)
+          ? "after"
+          : "before"
       );
     } else if (attacker.userData.maxMp != 0) {
       if (!attacker.isUsingSkill) {
@@ -634,7 +683,8 @@ export default class ChampionManager {
         "death",
         () => {
           setTimeout(() => {
-            this.removeChampFromScene(this.scene, dragHelper);
+            ChampionManager.removeChampFromScene(this.scene, dragHelper);
+            delete this.attack1[dragHelper.uuid];
             afterTargetDied();
           }, 500);
         },
@@ -643,7 +693,7 @@ export default class ChampionManager {
     }
   }
 
-  removeChampFromScene(scene, dragHelper, callback = () => {}) {
+  static removeChampFromScene(scene, dragHelper, callback = () => {}) {
     const index = ChampionManager.draggableObjects.findIndex(
       (obj) => obj.uuid === dragHelper.uuid
     );
@@ -654,7 +704,6 @@ export default class ChampionManager {
     scene.remove(dragHelper.userData.statusBarGroup);
     scene.remove(dragHelper);
     console.log("removeChampFromScene: %s", dragHelper.userData.name);
-    delete this.attack1[dragHelper.uuid];
     callback();
   }
 
@@ -687,48 +736,72 @@ export default class ChampionManager {
     });
   }
 
-  upgrade(dragHelper, level = 1) {
-    function applyStarEffect(model, starLevel = 1) {
-      const config = {
-        1: { color: 0xffffff, intensity: 0 },
-        2: { color: 0xfffff0, intensity: 0.3 },
-        3: { color: 0xffd700, intensity: 0.3 },
-        4: { color: 0xffc000, intensity: 0.3 },
-      };
+  static updateLevelIcon(levelIconMesh, level) {
+    if (!levelIconMesh) return;
+    const levelIconDetail = ChampionManager.levelIconDetails[level];
+    levelIconMesh.geometry.dispose();
+    const loader = new THREE.TextureLoader();
+    loader.load(levelIconDetail.url, (tex) => {
+      tex.encoding = THREE.sRGBEncoding;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      levelIconMesh.material.map = tex;
+      levelIconMesh.material.needsUpdate = true;
+    });
+    levelIconMesh.geometry = new THREE.PlaneGeometry(
+      levelIconDetail.size[0],
+      levelIconDetail.size[1]
+    );
+    levelIconMesh.position.x = levelIconDetail.posX;
+  }
 
-      const { color, intensity } = config[starLevel] || config[1];
-
-      model.traverse((child) => {
-        if (!child.isMesh || !child.material) return;
-
-        const matName = child.material.name.toLowerCase();
-        // console.log({ matName, mat: child.material });
-        const isBody =
-          matName.includes("body") ||
-          matName.includes("mat") ||
-          matName.includes("hair") ||
-          level === 1;
-        const newMaterial = isBody
-          ? new THREE.MeshBasicMaterial({
-              map: child.material.map || null,
-              color: 0xffffff,
-            })
-          : new THREE.MeshStandardMaterial({
-              color,
-              metalness: 0.8,
-              roughness: 0.2,
-              emissive: color,
-              emissiveIntensity: intensity,
-            });
-
-        child.material = newMaterial;
-        child.material.needsUpdate = true;
-      });
-    }
+  static upgrade(dragHelper, level = 1) {
     const userData = dragHelper.userData;
-    applyStarEffect(userData.champScene, level);
+    // function applyStarEffect(model, starLevel = 1) {
+    //   const config = {
+    //     1: { color: 0xffffff, intensity: 0 },
+    //     2: { color: 0xfffff0, intensity: 0.3 },
+    //     3: { color: 0xffd700, intensity: 0.3 },
+    //     4: { color: 0xffc000, intensity: 0.3 },
+    //   };
+
+    //   const { color, intensity } = config[starLevel] || config[1];
+
+    //   model.traverse((child) => {
+    //     if (!child.isMesh || !child.material) return;
+
+    //     const matName = child.material.name.toLowerCase();
+    //     // console.log({ matName, mat: child.material });
+    //     const isBody =
+    //       matName.includes("body") ||
+    //       matName.includes("mat") ||
+    //       matName.includes("hair") ||
+    //       level === 1;
+    //     const newMaterial = isBody
+    //       ? new THREE.MeshBasicMaterial({
+    //           map: child.material.map || null,
+    //           color: 0xffffff,
+    //         })
+    //       : new THREE.MeshStandardMaterial({
+    //           color,
+    //           metalness: 0.8,
+    //           roughness: 0.2,
+    //           emissive: color,
+    //           emissiveIntensity: intensity,
+    //         });
+
+    //     child.material = newMaterial;
+    //     child.material.needsUpdate = true;
+    //   });
+    // }
+    // applyStarEffect(userData.champScene, level);
     userData.level = level;
-    // console.log(userData);
+    if (level > 1) {
+      const meshLevelIcon = dragHelper.userData.statusBarGroup.children.find(
+        (child) => child.userData.name === "icon-level"
+      );
+      console.log(meshLevelIcon);
+      ChampionManager.updateLevelIcon(meshLevelIcon, level);
+    }
   }
 
   displayChampInfor(display, champ = null) {
@@ -776,7 +849,7 @@ export default class ChampionManager {
           alt="gold_img"
         />
         <span class="inline-block ml-[0.5vw]" id="champ-cost">${
-          champ.userData.data.cost
+          champ.userData.data.cost * Math.pow(3, champ.userData.level - 1)
         }</span>
       </div>`
       );
@@ -848,22 +921,7 @@ export default class ChampionManager {
         }</span></div>`
       );
       // stats
-      const stats = champ.userData.data.stats;
-      const currData = champ.userData?.currData ?? {};
-      const row1 = [
-        currData.damage ?? stats.damage,
-        currData.magic ?? stats.damage,
-        currData.armor ?? stats.armor,
-        currData.magicResist ?? stats.magicResist,
-        currData.attackSpeed ?? +stats.attackSpeed.toFixed(2),
-      ];
-      const row2 = [
-        currData.critChance ?? +stats.critChance.toFixed(2) * 10,
-        currData.critMultiplier ?? +stats.critMultiplier.toFixed(2) * 10,
-        currData.omnivamp ?? 0,
-        currData.damageAmp ?? 0,
-        currData.durability ?? 0,
-      ];
+      const { row1, row2 } = statsCalculate(champ);
       const statsHtml = `<div
         id="stats-row-0"
         class="absolute flex bottom-[8vw] left-[2.9vw] min-w-[9.5vw] items-center text-white text-[0.7vw]"
@@ -897,20 +955,57 @@ export default class ChampionManager {
         />
         <div class="absolute text-[0.75vw] mt-[-0.25vw] text-white w-[60%] flex items-center justify-between">
           <span class="">Buy</span>
-          <span>10</span>
+          <span>${
+            champ.userData.data.cost * Math.pow(3, champ.userData.level - 1)
+          }</span>
         </div>
       </button>`;
       champInspect.insertAdjacentHTML("beforeend", buyChampionBtnHtml);
       const buyChampionBtn = document.getElementById("buy-champion-btn");
       buyChampionBtn.addEventListener("click", (e) => {
-        this.removeChampFromScene(this.scene, champ);
-        // add coin to bag
+        ChampionManager.removeChampFromScene(this.scene, champ);
+        Team.buyChampion(this.scene, champ);
         champInspect.classList.add("hidden");
       });
     }
   }
 
+  static getMyTeam() {
+    return ChampionManager.draggableObjects.filter(
+      (obj) => obj.bfIndex || obj.benchIndex
+    );
+  }
+
   useItem() {}
+
+  static update(scene) {
+    const countMap = new Map();
+
+    ChampionManager.draggableObjects.forEach((obj) => {
+      if (obj.bfIndex || obj.benchIndex) {
+        const key = `${obj.userData.name}_${obj.userData.level}`;
+        const entry = countMap.get(key) || { count: 0, objs: [] };
+
+        entry.count += 1;
+        entry.objs.push(obj);
+
+        countMap.set(key, entry);
+      }
+    });
+
+    // In ra các tướng trùng nhau
+    for (const [key, value] of countMap.entries()) {
+      if (value.count >= 3) {
+        const champ = value.objs[0];
+        const currentLevel = Number(key.split("_")[1]);
+        const newLevel = currentLevel < 4 ? currentLevel + 1 : currentLevel;
+        ChampionManager.upgrade(champ, newLevel);
+        ChampionManager.removeChampFromScene(scene, value.objs[1]);
+        ChampionManager.removeChampFromScene(scene, value.objs[2]);
+        countMap.delete(key);
+      }
+    }
+  }
 
   static resetAfterBattle(champ, pos, rot) {
     champ.position.copy(pos);
@@ -934,6 +1029,9 @@ export default class ChampionManager {
         obj.userData.statusBarGroup.position.copy(
           obj.userData.champScene.position
         );
+      }
+      if (obj.hover) {
+        obj.hover.position.copy(obj.position);
       }
     });
   }

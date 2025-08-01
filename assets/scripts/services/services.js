@@ -4,6 +4,7 @@ import {
   createDebugGuiFolder,
   generateIconURLFromRawCommunityDragon,
 } from "../utils/utils";
+import { markChampNames } from "../others/modal/markChamps";
 function createDeleteZone(
   scene,
   width = 35,
@@ -281,7 +282,7 @@ const getMarkChampFromStorage = () => {
   return { existedTeams, enabledTeam };
 };
 
-const saveMarkChampToStorage = (id, markChampNames = []) => {
+const saveMarkChampToStorage = (id, markChampNames = [], action = "save") => {
   if (!id) {
     console.warn("No teamId provided, skipping save.");
     return;
@@ -296,11 +297,13 @@ const saveMarkChampToStorage = (id, markChampNames = []) => {
     team.enabled = false;
   });
   // Save new team
-  existedTeams.push({
-    id,
-    enabled: true,
-    team: markChampNames,
-  });
+  if (action === "save") {
+    existedTeams.push({
+      id,
+      enabled: true,
+      team: markChampNames,
+    });
+  }
   localStorage.setItem("mark-teams", JSON.stringify(existedTeams));
 };
 
@@ -706,6 +709,16 @@ function onTooltip(
       tooltip.replaceChildren();
       cbMouseLeave(tooltip);
     });
+
+    window.addEventListener("mouseover", (e) => {
+      const isClickInsideElement = element.contains(e.target);
+      const isClickInsideTooltip = tooltip.contains(e.target);
+      if (!isClickInsideElement && !isClickInsideTooltip) {
+        tooltip.classList.add("hidden");
+        tooltip.replaceChildren();
+        cbMouseLeave(tooltip);
+      }
+    });
   } else {
     element.addEventListener("click", (ev) => {
       ev.stopPropagation(); // Ngăn click lan ra document
@@ -729,6 +742,43 @@ function onTooltip(
   }
 }
 
+const statsCalculate = (champ) => {
+  if (!champ)
+    return {
+      row1: [0, 0, 0, 0, 0],
+      row2: [0, 0, 0, 0, 0],
+    };
+  const dmgMultiplier = 1.5;
+  const hpMultiplier = 1.8;
+
+  const level = champ.userData.level;
+  const stats = champ.userData.data.stats;
+
+  // Gấp bội theo từng cấp
+  const getGrowthValue = (base, multiplier, level) => {
+    if (level <= 1) return base;
+    return base * Math.pow(multiplier, level - 1);
+  };
+
+  const row1 = [
+    getGrowthValue(stats.damage, dmgMultiplier, level),
+    stats.damage,
+    stats.armor,
+    stats.magicResist,
+    +stats.attackSpeed.toFixed(2),
+  ];
+
+  const row2 = [
+    +stats.critChance.toFixed(2) * 10,
+    +stats.critMultiplier.toFixed(2) * 10,
+    0, // omnivamp
+    0, // damageAmp
+    0, // durability
+  ];
+
+  return { row1, row2 };
+};
+
 export {
   createDeleteZone,
   createBattleField,
@@ -741,4 +791,5 @@ export {
   faceToObj,
   injectVariables,
   onTooltip,
+  statsCalculate,
 };

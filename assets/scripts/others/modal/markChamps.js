@@ -1,9 +1,13 @@
-import { ObserverElementChange } from "../../utils/utils";
+import {
+  generateIconURLFromRawCommunityDragon,
+  ObserverElementChange,
+} from "../../utils/utils";
 import {
   disabledMarkChamp,
   getMarkChampFromStorage,
   saveMarkChampToStorage,
 } from "../../services/services";
+import { CHAMPS_INFOR } from "~/variables";
 
 const primaryModal = document.getElementById("primary-modal");
 const lineupSetup = document.getElementById("lineup-setup");
@@ -44,7 +48,9 @@ Array.from({ length: 10 }).forEach((item, index) => {
   });
   // ondrop
   slotDiv.addEventListener("drop", function (e) {
-    const imgSrc = e.dataTransfer.getData("img");
+    const { src: imgSrc, champData } = JSON.parse(
+      e.dataTransfer.getData("img")
+    );
     if (markChampImgIds.length > 0 && markChampNames.length > 0) {
       console.log(markChampImgIds, markChampNames);
       const existedChampNameIndex = markChampNames.findIndex(
@@ -69,6 +75,7 @@ Array.from({ length: 10 }).forEach((item, index) => {
     }
     const newImg = document.createElement("img");
     newImg.src = imgSrc;
+    newImg.champData = champData;
     newImg.id = "mark-champ-" + index;
     newImg.className = "w-full h-full";
     slotDiv.replaceChildren(newImg);
@@ -95,15 +102,17 @@ const reLogicClickImgToAddMarkSlot = () => {
           const imgsInsideDiv = div.querySelector("img");
           if (!imgsInsideDiv) {
             const existedMarkChampName = markChampNames.find(
-              (mChampName) => mChampName === img.data.name
+              (mChampName) => mChampName === img.champData.name
             );
             if (!existedMarkChampName) {
               const newImg = document.createElement("img");
               newImg.src = img.src;
               newImg.id = "mark-champ-" + index;
               newImg.className = "w-full h-full";
+              newImg.champData = img.champData;
+              newImg.title = img.champData.name;
               div.replaceChildren(newImg);
-              markChampNames.push(img.data.name);
+              markChampNames.push(img.champData.name);
               markChampImgIds.push(newImg.id);
               saveMarkChampToStorage(teamId, markChampNames);
             }
@@ -165,7 +174,12 @@ const loadMarkTeams = () => {
           if (champName) {
             const img = document.createElement("img");
             img.className = "w-[5vw] h-[5vw]";
-            img.src = "./assets/images/champs/icons/" + champName + ".png";
+            const getChampData = CHAMPS_INFOR.find((c) => c.name === champName);
+            if (getChampData)
+              img.src = generateIconURLFromRawCommunityDragon(
+                getChampData?.squareIcon
+              );
+            img.title = getChampData?.name;
             markTeamWrapper.appendChild(img);
           } else {
             const div = document.createElement("div");
@@ -201,13 +215,15 @@ const loadMarkTeams = () => {
                 </div>
                 <button
                   title="delete"
-                  class="hover:brightness-125 duration-150 transition-[brightness] ml-[1vw]"
+                  data-id="${existedTeam.id}"
+                  class="delete-mark-team hover:brightness-125 duration-150 transition-[brightness] ml-[1vw]"
                 >
                   <img src="./assets/images/cancel.png" alt="" />
                 </button>
                 <button
                   title="copy this team"
-                  class="hover:brightness-125 duration-150 flex items-center justify-center relative transition-[brightness] ml-[1vw]"
+                  data-id="${existedTeam.id}"
+                  class="copy-mark-team hover:brightness-125 duration-150 flex items-center justify-center relative transition-[brightness] ml-[1vw]"
                 >
                   <img src="./assets/images/btn-circular.png" alt="" />
                   <img src="./assets/images/card.png" alt="" class="absolute" />
@@ -217,6 +233,10 @@ const loadMarkTeams = () => {
         const inputCheckBox = markTeamWrapper.querySelector(
           "input[type='checkbox']"
         );
+        const deleteBtn = markTeamWrapper.querySelector(
+          "button.delete-mark-team"
+        );
+        const copyBtn = markTeamWrapper.querySelector("button.copy-mark-team");
         const checkboxWrapper =
           markTeamWrapper.querySelector(".checkbox-wrapper");
         checkboxWrapper.addEventListener("click", function (e) {
@@ -242,6 +262,34 @@ const loadMarkTeams = () => {
               existedTeam.id;
           });
         }
+        if (deleteBtn) {
+          deleteBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const teamId = deleteBtn.dataset.id;
+            saveMarkChampToStorage(teamId, [], "delete");
+            document.querySelector(".mark-teams-notice").textContent = teamId;
+            markTeamWrapper.classList.add("hidden");
+            markTeams.removeChild(markTeamWrapper);
+          });
+        }
+        if (copyBtn) {
+          copyBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const teamId = copyBtn.dataset.id;
+            const markTeam = getMarkChampFromStorage().existedTeams.find(
+              (team) => team.id === teamId
+            );
+            // console.log(markTeam);
+            navigator.clipboard
+              .writeText(JSON.stringify(markTeam.team))
+              .then(() => {
+                alert("copied");
+              })
+              .catch((err) => {
+                console.error("❌ Error occur when copy:", err);
+              });
+          });
+        }
 
         // edit team
         markTeamWrapper.addEventListener("click", function () {
@@ -254,16 +302,21 @@ const loadMarkTeams = () => {
           teamId = existedTeam.id;
           markTeamSlots.childNodes.forEach((node, index) => {
             node.replaceChildren();
-            if (existedTeam.team[index]) {
+            const champName = existedTeam.team[index];
+            if (champName) {
               const newImg = document.createElement("img");
-              newImg.src =
-                "./assets/images/champs/icons/" +
-                existedTeam.team[index] +
-                ".png";
+              const getChampData = CHAMPS_INFOR.find(
+                (c) => c.name === champName
+              );
+              if (getChampData)
+                newImg.src = generateIconURLFromRawCommunityDragon(
+                  getChampData?.squareIcon
+                );
               newImg.id = "mark-champ-" + index;
               newImg.className = "w-full h-full";
+              newImg.title = champName;
               newImg.onload = () => {
-                markChampNames.push(existedTeam.team[index]);
+                markChampNames.push(champName);
                 markChampImgIds.push(newImg.id);
                 node.appendChild(newImg);
               };
@@ -294,6 +347,28 @@ markChampsBtn.addEventListener("click", function (e) {
   } else {
     loadMarkTeams();
   }
+});
+
+pasteMarkTeamBtn.addEventListener("click", (e) => {
+  navigator.clipboard
+    .readText()
+    .then((text) => {
+      const champNames = JSON.parse(text);
+      const id = crypto.randomUUID();
+      if (champNames) {
+        saveMarkChampToStorage(id, champNames);
+      }
+      loadMarkTeams();
+      document.querySelector(".mark-teams-notice").textContent = id;
+    })
+    .catch((err) => {
+      if (String(err).includes("not allowed")) {
+        alert("You not allowed to website read clipboard");
+      } else {
+        alert("Team invalid");
+      }
+      // console.error("❌ Lỗi khi đọc clipboard:", err);
+    });
 });
 
 backBtn.addEventListener("click", function () {

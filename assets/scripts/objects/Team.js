@@ -319,7 +319,13 @@ export default class Team {
 
           if (intersects.length === 1) {
             champWantBuy = intersects[0].object; // lưu object đang hover
+            if (champWantBuy) {
+              champWantBuy.hover.visible = true;
+            }
           } else {
+            if (champWantBuy) {
+              champWantBuy.hover.visible = false;
+            }
             champWantBuy = null;
           }
 
@@ -335,9 +341,11 @@ export default class Team {
         });
 
         // buy champion buy press "e"
-        window.addEventListener("keyup", function (e) {
+        window.addEventListener("keyup", (e) => {
           if (e.key === "e" && champWantBuy) {
-            this.buyChampion(champWantBuy);
+            Team.buyChampion(this.scene, champWantBuy);
+            champWantBuy.hover.visible = false;
+            champWantBuy = null;
           }
         });
 
@@ -420,7 +428,7 @@ export default class Team {
           let highlightMesh = null;
           const deleteBox = new THREE.Box3().setFromObject(deleteZone);
           if (deleteBox.containsPoint(worldPos)) {
-            this.buyChampion(selectedObject);
+            Team.buyChampion(this.scene, selectedObject);
             // add coin to my bag
             console.log("buy champion");
             nearestType = null;
@@ -664,7 +672,17 @@ export default class Team {
           !draggableObjects.some((c) => c.bfIndex === -1 && c.benchIndex === i)
       );
 
-      if (emptyIndex === -1) {
+      const existedChampSameName = [];
+      ChampionManager.getMyTeam().forEach((champEx) => {
+        if (
+          champEx.userData.name === champData.name &&
+          champEx.userData.level === 1
+        ) {
+          existedChampSameName.push(champEx);
+        }
+      });
+
+      if (emptyIndex === -1 && existedChampSameName.length < 2) {
         alert("Hàng chờ đầy, không thể mua thêm tướng");
         addingFlag = false;
         return;
@@ -708,7 +726,10 @@ export default class Team {
       // Mua tướng bình thường
       this.#championManager.addChampion(
         {
-          position: [xMes[emptyIndex], 0, zMe],
+          position:
+            existedChampSameName.length === 2
+              ? [0, 0, 0]
+              : [xMes[emptyIndex], 0, zMe],
           data: card.data,
         },
         (dragHelper) => {
@@ -716,10 +737,23 @@ export default class Team {
           dragHelper.bfIndex = -1;
           window.champsBought[index] = 1;
           card.classList.add("invisible");
-          this.sendMessageChangeLineupToEnemy(draggableObjects);
           draggableObjects.push(dragHelper);
+          this.sendMessageChangeLineupToEnemy(ChampionManager.getMyTeam());
           addingFlag = false;
+          addGold(-dragHelper.userData.data.cost);
           // addHelper(this.scene, dragHelper);
+
+          const ring = new THREE.RingGeometry(1.3, 1.4, 64);
+          const material = new THREE.MeshBasicMaterial({
+            color: COLOR_ORANGE,
+            side: THREE.DoubleSide,
+          });
+          const mesh = new THREE.Mesh(ring, material);
+          mesh.rotation.x = -Math.PI / 2;
+          mesh.position.copy(dragHelper.position);
+          mesh.visible = false;
+          dragHelper.hover = mesh;
+          this.scene.add(mesh);
         }
       );
     });
@@ -728,7 +762,7 @@ export default class Team {
   sendMessageChangeLineupToEnemy() {
     console.log(
       "sendMessageChangeLineupToEnemy: ",
-      ChampionManager.draggableObjects
+      ChampionManager.getMyTeam()
     );
   }
 
@@ -757,8 +791,8 @@ export default class Team {
     return this.#championManager;
   }
 
-  buyChampion = (selectedObject, gold = 3) => {
-    this.#championManager.removeChampFromScene(this.scene, selectedObject);
-    addGold(gold);
+  static buyChampion = (scene, champ) => {
+    ChampionManager.removeChampFromScene(scene, champ);
+    addGold(champ.userData.data.cost * Math.pow(3, champ.userData.level - 1));
   };
 }

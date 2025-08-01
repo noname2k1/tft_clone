@@ -80,7 +80,7 @@ function updateEnemyLineup(champsOrChampName) {
       (champ) => champ?.userData.name === champsOrChampName
     );
     if (champIndex !== -1) {
-      championManager.removeChampFromScene(scene, bfEnemies[champIndex]);
+      ChampionManager.removeChampFromScene(scene, bfEnemies[champIndex]);
       bfEnemies.splice(champIndex, 1);
     }
     // startBattleBtn.classList.replace("flex", "hidden");
@@ -90,7 +90,7 @@ function updateEnemyLineup(champsOrChampName) {
   champsOrChampName.forEach((champData, index) => {
     // Xóa tướng cũ (nếu có)
     if (bfEnemies[index]) {
-      championManager.removeChampFromScene(scene, bfEnemies[index]);
+      ChampionManager.removeChampFromScene(scene, bfEnemies[index]);
     }
     // Nếu có tướng mới tại vị trí đó
     if (champData) {
@@ -485,6 +485,7 @@ try {
       draggableObject.mixer?.update(delta * slowFactor);
       draggableObject.userData.champScene?.mixer.update(delta * slowFactor);
     });
+    ChampionManager.update(scene);
     bfEnemies.forEach((bfEnemy) => {
       bfEnemy?.mixer?.update(delta * slowFactor);
       bfEnemy?.userData.champScene?.mixer.update(delta * slowFactor);
