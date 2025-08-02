@@ -37,13 +37,6 @@ export default (debugControls) => {
   setupControls(debugControls);
 
   const setupLight = () => {
-    // const light = new THREE.DirectionalLight(0xffffff, 2); // tăng từ 1 → 1.5
-    // light.position.set(10, 10, 10);
-    // scene.add(light);
-
-    // const ambient = new THREE.AmbientLight(0xffffff, 1); // tăng từ 0.5 → 0.8
-    // scene.add(ambient);
-
     const light = new THREE.DirectionalLight(0xffffff, 2);
     light.position.set(10, 10, 10);
     light.castShadow = true;

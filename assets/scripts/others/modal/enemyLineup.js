@@ -1,7 +1,16 @@
-import { CHAMPS_INFOR, TRAITS_INFOR } from "~/variables";
+import {
+  CHAMPS_INFOR,
+  ITEMS_INFOR,
+  MODEL_CACHES,
+  TRAITS_INFOR,
+} from "~/variables";
 import { customFetch } from "../../utils/callApi";
 import { updateEnemyLineup } from "~/main";
-import { generateIconURLFromRawCommunityDragon } from "../../utils/utils";
+import {
+  generateIconURLFromRawCommunityDragon,
+  loadModel,
+  preloadImage,
+} from "../../utils/utils";
 
 document.addEventListener("DOMContentLoaded", async function () {
   let filterConditions = {};
@@ -11,11 +20,16 @@ document.addEventListener("DOMContentLoaded", async function () {
   const costSelect = lineupSetup.querySelector(".filter-by-cost");
   const champs = lineupSetup.querySelector(".champs");
   let hexSelected = null;
+  // firstLoadData
   if (TRAITS_INFOR.length < 1) {
     await customFetch("traits", (data) => {
       // console.log(data);
       TRAITS_INFOR.splice(0, TRAITS_INFOR.length, ...data.traits);
     });
+    TRAITS_INFOR.forEach((trait) => {
+      preloadImage(generateIconURLFromRawCommunityDragon(trait.icon));
+    });
+    console.log("traits loaded full");
   }
   if (CHAMPS_INFOR.length < 1) {
     await customFetch("champs", (data) => {
@@ -24,8 +38,66 @@ document.addEventListener("DOMContentLoaded", async function () {
         ?.filter((c) => c.squareIcon && c.icon && c.role && c.traits.length > 0)
         .sort((prev, curr) => (prev.cost < curr.cost ? -1 : 1));
       CHAMPS_INFOR.splice(0, CHAMPS_INFOR.length, ...isChamps);
+      const loadingAll = document.getElementById("loading-all");
+      const cacheModel = true;
+      let loadedModelCount = 0;
+      let loadingAllPercent = 0;
+      const loadingAssetsProgress = document.getElementById(
+        "loading-assets-progress"
+      );
+      if (cacheModel) {
+        CHAMPS_INFOR.forEach((champ) => {
+          const setFolder = "Set15";
+          const beforeFix = "(tft_set_15)";
+          const safeName = champ.name
+            .toLowerCase()
+            .replace(". ", "_")
+            .replace(" ", "_")
+            .replace("'", "");
+          const url = `./assets/models/champions/${setFolder}/${safeName}_${beforeFix}.glb`;
+          // console.log(url);
+          const squareIcon = champ.squareIcon;
+          const icon = champ.icon;
+          const tileIcon = champ.tileIcon;
+          preloadImage(generateIconURLFromRawCommunityDragon(squareIcon));
+          preloadImage(generateIconURLFromRawCommunityDragon(icon));
+          preloadImage(generateIconURLFromRawCommunityDragon(tileIcon));
+          loadModel(
+            url,
+            (gltf) => {
+              const champScene = gltf.scene;
+              champScene.rotation.x = -0.5;
+              MODEL_CACHES[url] = gltf;
+              loadedModelCount += 1;
+              loadingAllPercent =
+                (loadedModelCount / CHAMPS_INFOR.length) * 100;
+              loadingAssetsProgress.style.width = loadingAllPercent + "%";
+              if (loadedModelCount === CHAMPS_INFOR.length) {
+                console.log("champion full loaded");
+                loadingAll.style.visibility = "hidden";
+              }
+            },
+            (err) => console.error(err),
+            null
+          );
+        });
+      }
     });
   }
+  if (ITEMS_INFOR.length < 1) {
+    await customFetch("items", (data) => {
+      // console.log(data);
+      // const isChamps = data?.champs
+      //   ?.filter((c) => c.squareIcon && c.icon && c.role && c.traits.length > 0)
+      //   .sort((prev, curr) => (prev.cost < curr.cost ? -1 : 1));
+      ITEMS_INFOR.splice(0, ITEMS_INFOR.length, ...data.items);
+      ITEMS_INFOR.forEach((item) => {
+        preloadImage(generateIconURLFromRawCommunityDragon(item.icon));
+      });
+      console.log("items loaded full");
+    });
+  }
+
   const customEvent = new CustomEvent("updateAllEnemyLinup");
   const renderChamps = (fConditions = {}) => {
     // console.log(fConditions);
@@ -255,36 +327,54 @@ document.addEventListener("DOMContentLoaded", async function () {
       });
       // ondrop
       hexDiv.addEventListener("drop", function (e) {
-        const { src: imgSrc, champData } = JSON.parse(
-          e.dataTransfer.getData("img")
-        );
-        const img = document.createElement("img");
+        const imgData = e.dataTransfer.getData("img");
+        // 🔐 Nếu không có dữ liệu thì bỏ qua drop
+        if (!imgData) return;
+        const { src: imgSrc, champData } = JSON.parse(imgData);
         const fromHexId = e.dataTransfer.getData("from");
-        img.className =
-          "w-full h-full hover:brightness-150 transition-[brightness] duration-150";
-        if (fromHexId) {
-          const fromHexElement = document.getElementById(fromHexId);
-          const existedImg = fromHexElement.querySelector("img");
-          const currentHexImg = hexDiv.querySelector("img");
-          if (currentHexImg) {
-            existedImg.src = currentHexImg.src;
-            currentHexImg.src = imgSrc;
-          } else {
-            existedImg.remove();
+        const fromHexElement = document.getElementById(fromHexId);
+        const fromImg = fromHexElement?.querySelector("img");
+        const toImg = hexDiv.querySelector("img");
+
+        if (fromHexElement && toImg) {
+          // Swap entire img nodes between hexes
+          const newFromImg = toImg.cloneNode(true);
+          const newToImg = fromImg.cloneNode(true);
+
+          // Swap champData explicitly
+          newFromImg.champData = toImg.champData;
+          newToImg.champData = fromImg.champData;
+
+          // Replace
+          fromHexElement.replaceChildren(newFromImg);
+          hexDiv.replaceChildren(newToImg);
+        } else {
+          // Normal drop case (no swap, just place img)
+          const newImg = document.createElement("img");
+          newImg.src = imgSrc;
+          newImg.className =
+            "w-full h-full hover:brightness-150 transition-[brightness] duration-150";
+          newImg.champData = champData;
+
+          newImg.addEventListener("dragstart", function (event) {
+            event.dataTransfer.setData(
+              "img",
+              JSON.stringify({
+                src: newImg.src,
+                champData: newImg.champData,
+              })
+            );
+            event.dataTransfer.setData("from", hexDiv.id);
+          });
+
+          if (fromImg) {
+            fromImg.remove();
           }
-          fromHexElement.classList.replace("bg-yellow-700", "bg-gray-700");
+          hexDiv.replaceChildren(newImg);
         }
-        // img inside hex ondragstart
-        img.addEventListener("dragstart", function (event) {
-          // console.log(img.src);
-          event.dataTransfer.setData("img", img.src);
-          event.dataTransfer.setData("from", "hex-" + Number(row * cols + col));
-        });
-        img.src = imgSrc;
-        img.champData = champData;
-        console.log(img.champData);
-        hexDiv.replaceChildren(img);
-        updateAllEnemyLinup();
+
+        fromHexElement?.classList.replace("bg-yellow-700", "bg-gray-700");
+        hexDiv.dispatchEvent(new CustomEvent("updateAllEnemyLinup"));
       });
       // oncontextmenu
       hexDiv.addEventListener("contextmenu", function () {

@@ -14,6 +14,8 @@ export const MODEL_CACHES = [];
 export const ARGUMENTS_CACHES = [];
 export const TRAITS_INFOR = [];
 export const CHAMPS_INFOR = [];
+export const ITEMS_INFOR = [];
+export const ARGUMENTS_INFOR = [];
 export const EXP_TABLE = {
   1: 0, // turn 1, cannot up level
   2: 2, // turn 2

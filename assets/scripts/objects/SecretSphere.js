@@ -1,22 +1,55 @@
 import * as THREE from "https://esm.sh/three";
-import { FontLoader } from "https://esm.sh/three/examples/jsm/loaders/FontLoader.js";
-import { TextGeometry } from "https://esm.sh/three/examples/jsm/geometries/TextGeometry.js";
+import ItemOutBag from "./ItemOutBag";
+import { ITEMS_INFOR } from "~/variables";
+import { getItems, getRandomItem } from "../services/services";
+import { customFetch } from "../utils/callApi";
+import { addGold } from "../others/goldExp";
+import Team from "./Team";
+import Battle from "./Battle";
+import { delay } from "../utils/utils";
 
-export default class SecretSphere {
-  #sphereColor = 0xffffff;
-  #questionMarkColor = 0x000000;
+export default class SecretSphere extends ItemOutBag {
   #effect;
+  #type;
+  #orbTexture = {
+    0: {
+      img: "./assets/images/silver-orb-texture.png",
+      size: 1.3,
+      name: "silver orb",
+    },
+    1: {
+      img: "./assets/images/blue-orb-texture.png",
+      size: 2,
+      name: "blue orb",
+    },
+    2: {
+      img: "./assets/images/gold-orb-texture.png",
+      size: 2.5,
+      name: "gold orb",
+    },
+    3: {
+      img: "./assets/images/prismatic-orb-texture.png",
+      size: 4,
+      name: "prismatic orb",
+    },
+    4: {
+      img: "./assets/images/green-orb-texture.png",
+      size: 3,
+      name: "green orb",
+    },
+  };
   constructor(
     scene,
+    renderer,
     position = [0, 0.5, 0],
-    sphereColor = 0xffffff,
-    questionMarkColor = 0x000000,
+    type = 0,
     effect = false
   ) {
-    this.name = "lucky orb";
+    super();
+    this.#type = type;
+    this.name = this.#orbTexture[this.#type].name;
     this.scene = scene;
-    this.#questionMarkColor = questionMarkColor;
-    this.#sphereColor = sphereColor;
+    this.renderer = renderer;
     this.position = new THREE.Vector3(...position);
     this.group = new THREE.Group();
     this.group.position.copy(this.position);
@@ -26,47 +59,44 @@ export default class SecretSphere {
     this.box = new THREE.Box3(); // bounding box của quả cầu
 
     this._createOrb();
-    this._createQuestionMark();
+    // this._createQuestionMark();
   }
 
   _createOrb() {
-    const geometry = new THREE.SphereGeometry(0.8, 32, 32);
-    const material = new THREE.MeshBasicMaterial({
-      color: this.#sphereColor,
-      transparent: true,
-      opacity: 0.6,
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(this.#orbTexture[this.#type].img, (texture) => {
+      texture.encoding = THREE.sRGBEncoding;
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.generateMipmaps = false;
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.NearestFilter;
+      texture.needsUpdate = true;
+      const material = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true,
+        alphaTest: 0.1, // Discard fragments with alpha below 0.1
+        blending: THREE.NormalBlending,
+        depthWrite: true,
+        depthTest: false,
+        renderOrder: 999,
+      });
+
+      this.orbMesh = new THREE.Sprite(material);
+      this.orbMesh.scale.set(
+        this.#orbTexture[this.#type].size,
+        this.#orbTexture[this.#type].size,
+        this.#orbTexture[this.#type].size
+      ); // Kích thước sprite (có thể chỉnh)
+
+      this.group.add(this.orbMesh);
+
+      // Cập nhật bounding box thủ công nếu cần
+      const size = 0.5;
+      this.box.setFromCenterAndSize(
+        this.orbMesh.position,
+        new THREE.Vector3(size, size, size)
+      );
     });
-    this.orbMesh = new THREE.Mesh(geometry, material);
-    this.group.add(this.orbMesh);
-
-    // Cập nhật bounding box
-    geometry.computeBoundingBox();
-    this.box
-      .copy(this.orbMesh.geometry.boundingBox)
-      .applyMatrix4(this.orbMesh.matrixWorld);
-  }
-
-  _createQuestionMark() {
-    const loader = new FontLoader();
-    loader.load(
-      "https://threejs.org/examples/fonts/helvetiker_regular.typeface.json",
-      (font) => {
-        const geometry = new TextGeometry("?", {
-          font,
-          size: 1,
-          height: 0.01,
-        });
-        geometry.center();
-        const material = new THREE.MeshStandardMaterial({
-          color: this.#questionMarkColor,
-          emissive: this.#questionMarkColor,
-          emissiveIntensity: 1,
-        });
-        const textMesh = new THREE.Mesh(geometry, material);
-        textMesh.scale.z = 0;
-        this.group.add(textMesh);
-      }
-    );
   }
 
   /**
@@ -75,11 +105,16 @@ export default class SecretSphere {
   checkCollision(target) {
     if (!this.orbMesh) return false;
 
-    this.orbMesh.updateMatrixWorld(true);
-    this.box
-      .copy(this.orbMesh.geometry.boundingBox)
-      .applyMatrix4(this.orbMesh.matrixWorld);
+    // Tính bounding box thủ công cho Sprite
+    const size = new THREE.Vector3();
+    this.orbMesh.getWorldScale(size); // Lấy kích thước thực tế của sprite
+    const position = new THREE.Vector3();
+    this.orbMesh.getWorldPosition(position);
 
+    if (!this.box) this.box = new THREE.Box3();
+    this.box.setFromCenterAndSize(position, size);
+
+    // Tính bounding box của target
     let targetBox = null;
 
     if (target instanceof THREE.Mesh && target.geometry?.boundingBox) {
@@ -122,5 +157,274 @@ export default class SecretSphere {
       if (child.geometry) child.geometry.dispose();
       if (child.material) child.material.dispose();
     });
+  }
+
+  async onCollision() {
+    if (ITEMS_INFOR.length < 1) return;
+
+    const items = {
+      silverOrbs_1_2: [
+        { id: 0, name: "2_1Cost Unit", chance: 48 },
+        { id: 1, name: "1_2Cost Unit", chance: 47 },
+        { id: 2, name: getItems(["Reforger", "2 Gold"]), chance: 3 },
+        { id: 3, name: getItems(["Magnetic Remover", "2 Gold"]), chance: 1 },
+        { id: 4, name: getItems(["Lesser Champion Duplicator"]), chance: 1 },
+      ],
+      silverOrbs_3plus: [
+        { id: 0, name: "1_3Cost Unit", chance: 49 },
+        { id: 1, name: ["1 Gold", "1_2Cost Unit"], chance: 46 },
+        { id: 2, name: getItems(["Reforger", "3 Gold"]), chance: 3 },
+        { id: 3, name: getItems(["Magnetic Remover", "3 Gold"]), chance: 1 },
+        { id: 4, name: getItems(["Lesser Champion Duplicator"]), chance: 1 },
+      ],
+      blueOrbs_1_2_3: [
+        { id: 0, name: "2_3Cost Unit", chance: 33 },
+        { id: 1, name: ["3 Gold", "1_3Cost Unit"], chance: 31 },
+        { id: 2, name: "3_2Cost Unit", chance: 31 },
+        { id: 3, name: getItems(["Reforger", "6 Gold"]), chance: 2 },
+        {
+          id: 4,
+          name: getItems(["Champion Duplicator", "1_3Cost Unit"]),
+          chance: 1,
+        },
+      ],
+      blueOrbs_4plus: [
+        { id: 0, name: ["4 Gold", "1_4Cost Unit"], chance: 49 },
+        { id: 1, name: ["2 Gold", "2_3Cost Unit"], chance: 47 },
+        { id: 2, name: getItems(["Champion Duplicator", "3 Gold"]), chance: 1 },
+        { id: 3, name: getItems(["Reforger", "8 Gold"]), chance: 3 },
+      ],
+      goldOrbs_2_3: [
+        { id: 0, name: "15 Gold", chance: 20 },
+        { id: 1, name: "Completed Item Anvil", chance: 18 },
+        {
+          id: 2,
+          name: getItems(["Reforger", "Spatula / Frying Pan", "4 Gold"]),
+          chance: 15,
+        },
+        { id: 3, name: getItems(["6 Gold", "2_4 Cost Unit"]), chance: 15 },
+        { id: 4, name: getItems(["2 Gold", "4_3 Cost Unit"]), chance: 13 },
+        { id: 5, name: getItems(["Thief's Gloves", "1 Gold"]), chance: 10 },
+        { id: 6, name: getItems(["6 Gold", "Champion Duplicator"]), chance: 3 },
+        {
+          id: 7,
+          name: getItems([
+            "Champion Duplicator",
+            "Lesser Champion Duplicator",
+            "2 Gold",
+          ]),
+          chance: 3,
+        },
+        { id: 8, name: getItems(["2_3 Cost Unit", "5 Gold"]), chance: 3 },
+      ],
+
+      goldOrbs_4plus: [
+        { id: 0, name: getItems(["13 Gold", "1_5 Cost Unit"]), chance: 20 },
+        {
+          id: 1,
+          name: getItems(["Component Anvil", "Component Anvil", "2 Gold"]),
+          chance: 20,
+        },
+        { id: 2, name: getItems(["10 Gold", "2_4 Cost Unit"]), chance: 15 },
+        {
+          id: 3,
+          name: getItems(["Completed Item Anvil", "2 Gold"]),
+          chance: 15,
+        },
+        { id: 4, name: getItems(["Thief's Gloves", "3 Gold"]), chance: 10 },
+        {
+          id: 5,
+          name: getItems([
+            "Reforger",
+            "Spatula / Frying Pan",
+            "Component Anvil",
+            "1 Gold",
+          ]),
+          chance: 5,
+        },
+        { id: 6, name: getItems(["8 Gold", "Champion Duplicator"]), chance: 5 },
+        { id: 7, name: getItems(["2_5 Cost Unit", "7 Gold"]), chance: 5 },
+        { id: 8, name: "Artifact Item Anvil", chance: 5 },
+      ],
+
+      prismaticOrbs_3plus: [
+        {
+          id: 0,
+          name: getItems(["Completed Item Anvil", "5 Gold"]),
+          chance: 20,
+        },
+        {
+          id: 1,
+          name: getItems([
+            "Magnetic Remover",
+            "Support item anvil",
+            "Artifact Item Anvil",
+          ]),
+          chance: 15,
+        },
+        {
+          id: 2,
+          name: getItems(["Component Anvil", "Component Anvil", "4 Gold"]),
+          chance: 15,
+        },
+        { id: 3, name: "Artifact Item Anvil", chance: 15 },
+        {
+          id: 4,
+          name: getItems([
+            "Masterwork Upgrade",
+            "Magnetic Remover",
+            "Completed Item Anvil",
+            "8 Gold",
+          ]),
+          chance: 15,
+        },
+        { id: 5, name: getItems(["10 Gold", "2_4 Cost Unit"]), chance: 15 },
+        { id: 6, name: getItems(["Support item anvil"]), chance: 15 },
+        {
+          id: 7,
+          name: getItems(["12 Gold", "Champion Duplicator"]),
+          chance: 12,
+        },
+        {
+          id: 8,
+          name: getItems([
+            "Magnetic Remover",
+            "Artifact Item Anvil",
+            "Artifact Item Anvil",
+          ]),
+          chance: 10,
+        },
+        {
+          id: 9,
+          name: getItems(["Masterwork Upgrade", "24 Gold"]),
+          chance: 10,
+        },
+        {
+          id: 10,
+          name: getItems([
+            "Spatula",
+            "Reforger",
+            "Support item anvil",
+            "Component Anvil",
+            "8 Gold",
+          ]),
+          chance: 10,
+        },
+        {
+          id: 11,
+          name: getItems([
+            "Frying Pan",
+            "Reforger",
+            "Support item anvil",
+            "Component Anvil",
+            "8 Gold",
+          ]),
+          chance: 10,
+        },
+        {
+          id: 12,
+          name: getItems(["Support item anvil", "25 Gold"]),
+          chance: 10,
+        },
+        {
+          id: 13,
+          name: getItems([
+            "SixCostUnit",
+            "Magnetic Remover",
+            "Artifact Item Anvil",
+          ]),
+          chance: 10,
+        },
+        { id: 14, name: "Tome of Traits", chance: 8 },
+      ],
+      greenOrbs: [
+        { id: 0, name: "15 Gold", chance: 20 },
+        { id: 1, name: "Completed Item Anvil", chance: 18 },
+        {
+          id: 2,
+          name: getItems(["Reforger", "Spatula / Frying Pan", "4 Gold"]),
+          chance: 15,
+        },
+        { id: 3, name: getItems(["6 Gold", "2_4 Cost Unit"]), chance: 15 },
+        { id: 4, name: getItems(["2 Gold", "4_3 Cost Unit"]), chance: 13 },
+        { id: 5, name: getItems(["Thief's Gloves", "1 Gold"]), chance: 10 },
+        { id: 6, name: getItems(["6 Gold", "Champion Duplicator"]), chance: 3 },
+        {
+          id: 7,
+          name: getItems([
+            "Champion Duplicator",
+            "Lesser Champion Duplicator",
+            "2 Gold",
+          ]),
+          chance: 3,
+        },
+        { id: 8, name: getItems(["2_3 Cost Unit", "5 Gold"]), chance: 3 },
+      ],
+    };
+
+    const orbData = {
+      0: Battle.state < 3 ? items.silverOrbs_1_2 : items.silverOrbs_3plus,
+      1: Battle.state < 4 ? items.blueOrbs_1_2_3 : items.blueOrbs_4plus,
+      2: Battle.state < 4 ? items.goldOrbs_2_3 : items.goldOrbs_4plus,
+      3:
+        Battle.state < 3
+          ? items.prismaticOrbs_3plus
+          : items.prismaticOrbs_3plus,
+      4: items.greenOrbs,
+    };
+
+    const orbType = this.#type;
+    const orbItems = orbData[orbType];
+    if (!orbItems) {
+      console.log("orbtype: " + orbType);
+      return;
+    }
+
+    const index = getRandomItem(orbItems);
+    const reward = orbItems[index];
+
+    await this.handleRewardItem(reward);
+  }
+
+  async handleRewardItem(item) {
+    console.log(item);
+    if (!item) return;
+
+    const processUnitReward = async (str) => {
+      const [quantity, unit] = str.split("_");
+      if (!unit.toLowerCase().includes("unit")) return;
+
+      const cost = unit.split("Cost")[0];
+      await customFetch(
+        `champs/random?count=${+quantity}&cost=${cost}`,
+        async (data) => {
+          if (data.champs.length === +quantity) {
+            for (const champ of data.champs) {
+              document.getElementById("add-champion-notice").textContent =
+                champ.name;
+              await delay(1000); // Đợi 2s rồi mới lặp tiếp
+            }
+          }
+        },
+        (error) => console.log("error:", error)
+      );
+    };
+
+    if (typeof item.name === "string") {
+      await processUnitReward(item.name);
+    } else if (Array.isArray(item.name)) {
+      for (const part of item.name) {
+        if (typeof part === "string") {
+          if (part.includes("Gold")) {
+            const gold = parseInt(part);
+            if (!isNaN(gold)) addGold(gold);
+          } else {
+            await processUnitReward(part);
+          }
+        } else {
+          Team.addItem(part);
+        }
+      }
+    }
   }
 }

@@ -12,6 +12,7 @@ import {
   CHAMPS_INFOR,
   COLOR_HP,
   COLOR_MP,
+  COLOR_ORANGE,
   debugOn,
   MODEL_CACHES,
   TRAITS_INFOR,
@@ -204,6 +205,17 @@ export default class ChampionManager {
     dragHelper.userData.data = champData.data;
     dragHelper.userData.champData = champData;
     this.scene.add(dragHelper);
+    const ring = new THREE.RingGeometry(1.3, 1.4, 64);
+    const material = new THREE.MeshBasicMaterial({
+      color: COLOR_ORANGE,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(ring, material);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.copy(dragHelper.position);
+    mesh.visible = false;
+    dragHelper.hover = mesh;
+    this.scene.add(mesh);
     return dragHelper;
   }
 

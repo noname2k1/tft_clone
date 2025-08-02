@@ -292,6 +292,10 @@ const champScales = [
     name: "Lux",
     scale: [0.025, 0.025, 0.025],
   },
+  {
+    name: "Ahri",
+    scale: [0.02, 0.02, 0.02],
+  },
 ];
 
 const costGradients = [

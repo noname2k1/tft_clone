@@ -70,15 +70,16 @@ document.addEventListener("DOMContentLoaded", function () {
             </div>
           </div>`;
               tooltip.insertAdjacentHTML("beforeend", cardImgHtml);
+              document.addEventListener("keydown", (e) => {
+                if (["d", "đ"].includes(e.key.toLowerCase())) {
+                  tooltip.replaceChildren();
+                }
+              });
             },
             "top,left"
           );
           const img = new Image();
-          img.src = `${
-            import.meta.env.VITE_DDRAGON_ENDPOINT
-          }/img/tft-champion/${champ.characterName}.${
-            import.meta.env.VITE_SET_KEY
-          }.png`;
+          img.src = `${generateIconURLFromRawCommunityDragon(champ.icon)}`;
           img.className = "w-full";
 
           img.onload = () => {

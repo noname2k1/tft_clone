@@ -16,9 +16,12 @@ import {
 } from "~/variables";
 import {
   addHelper,
+  generateIconURLFromRawCommunityDragon,
   getNormalizedPointer,
   lightAuto,
   loadModel,
+  ObserverElementChange,
+  preloadImage,
   transparentMeshs,
 } from "../utils/utils";
 import { RightClickEffect } from "./effects";
@@ -26,7 +29,9 @@ import {
   createBattleField,
   createBench,
   createDeleteZone,
+  injectVariables,
   moveCharacter,
+  onTooltip,
 } from "../services/services";
 import ChampionManager from "./ChampionManager";
 import { addGold } from "../others/goldExp";
@@ -59,6 +64,13 @@ export default class Team {
     this.teamName = teamName;
     this.teamId = Battle.addTeam(teamName).uuid;
     this.loadArena();
+  }
+
+  onFirstLoad(progress) {
+    // if (progress) {
+    // } else {
+    //   loadingAll.style.visibility = "hidden";
+    // }
   }
 
   loadArena() {
@@ -113,13 +125,8 @@ export default class Team {
     const draggableObjects = ChampionManager.draggableObjects;
     let mixer;
     let arenaBox;
-    let loadingAllPercent = 0;
     const primaryY = 0;
     // elements
-    const loadingAll = document.getElementById("loading-all");
-    const loadingAssetsProgress = document.getElementById(
-      "loading-assets-progress"
-    );
     const disabledOrbitControlsIds = [
       "shop",
       "animations",
@@ -144,7 +151,6 @@ export default class Team {
     loadModel(
       this.selectedArena.url,
       (gltf) => {
-        loadingAll.style.visibility = "hidden";
         let rightClickTo3dObject = false;
         const arena = gltf.scene;
         arena.name = this.selectedArena.name;
@@ -195,6 +201,7 @@ export default class Team {
         let isDragging = false,
           selectedObject = null,
           dragOffset = new THREE.Vector3();
+        let isPointerDown = false;
         let dragBenchIndex = -1,
           dragBfIndex = -1,
           currPos = null,
@@ -245,6 +252,7 @@ export default class Team {
         disabledOrbitControls();
 
         this.renderer.domElement.addEventListener("pointerdown", (event) => {
+          isPointerDown = true;
           if (event.button === 0) {
             this.#championManager.displayChampInfor(false);
           }
@@ -269,6 +277,7 @@ export default class Team {
           const intersects = raycaster.intersectObjects(draggableObjects, true);
           if (intersects.length > 0) {
             selectedObject = intersects[0].object;
+            selectedObject.hover.visible = false;
             if (!selectedObject.bfIndex && !selectedObject.benchIndex) {
               selectedObject = null;
               return;
@@ -319,7 +328,7 @@ export default class Team {
 
           if (intersects.length === 1) {
             champWantBuy = intersects[0].object; // lưu object đang hover
-            if (champWantBuy) {
+            if (champWantBuy && !isPointerDown) {
               champWantBuy.hover.visible = true;
             }
           } else {
@@ -397,6 +406,7 @@ export default class Team {
         });
 
         this.renderer.domElement.addEventListener("pointerup", () => {
+          isPointerDown = false;
           if (!selectedObject) return;
           let deleting = false;
           displayDeleteZone(false);
@@ -607,48 +617,68 @@ export default class Team {
         console.log("error when load arena: ", e);
       },
       (progress) => {
-        if (progress) {
-          loadingAllPercent = (progress.loaded / progress.total) * 100;
-          loadingAssetsProgress.style.width = loadingAllPercent + "%";
-          if (loadingAllPercent >= 100) {
-            setTimeout(() => {
-              // let loadedModelCount = 0;
-              CHAMPS_INFOR.forEach((champ) => {
-                const setFolder = "Set15";
-                const beforeFix = "(tft_set_15)";
-                const safeName = champ.name
-                  .toLowerCase()
-                  .replace(". ", "_")
-                  .replace(" ", "_")
-                  .replace("'", "");
-                const url = `./assets/models/champions/${setFolder}/${safeName}_${beforeFix}.glb`;
-                // console.log(url);
-                loadModel(
-                  url,
-                  (gltf) => {
-                    const champScene = gltf.scene;
-                    champScene.rotation.x = -0.5;
-                    MODEL_CACHES[url] = gltf;
-                    // loadedModelCount += 1;
-                    // console.log(loadedModelCount);
-                  },
-                  (err) => console.error(err),
-                  null
-                );
-              });
-            }, 100);
-          }
-        } else {
-          loadingAll.style.visibility = "hidden";
-        }
-        // load all model before start game
-        // console.log(CHAMPS_INFOR);
+        this.onFirstLoad(progress);
       }
     );
 
     // Shop logic
     const champShopList = document.getElementById("champ-shop-list");
     let addingFlag = false;
+
+    new ObserverElementChange(
+      document.getElementById("add-champion-notice"),
+      (mutation) => {
+        if (mutation.type === "childList") {
+          const champData = CHAMPS_INFOR.find(
+            (champInfor) => champInfor.name === mutation.target.textContent
+          );
+          if (!champData) return;
+          addingFlag = true;
+          // Tìm vị trí trống trong bench
+          const emptyIndex = xMes.findIndex(
+            (_, i) =>
+              !draggableObjects.some(
+                (c) => c.bfIndex === -1 && c.benchIndex === i
+              )
+          );
+
+          const existedChampSameName = [];
+          ChampionManager.getMyTeam().forEach((champEx) => {
+            if (
+              champEx.userData.name === champData.name &&
+              champEx.userData.level === 1
+            ) {
+              existedChampSameName.push(champEx);
+            }
+          });
+
+          if (emptyIndex === -1 && existedChampSameName.length < 2) {
+            alert("Hàng chờ đầy, không thể thêm tướng");
+            addingFlag = false;
+            return;
+          }
+
+          // Mua tướng bình thường
+          this.#championManager.addChampion(
+            {
+              position:
+                existedChampSameName.length === 2
+                  ? [0, 0, 0]
+                  : [xMes[emptyIndex], 0, zMe],
+              data: champData,
+            },
+            (dragHelper) => {
+              dragHelper.benchIndex = emptyIndex;
+              dragHelper.bfIndex = -1;
+              draggableObjects.push(dragHelper);
+              this.sendMessageChangeLineupToEnemy(ChampionManager.getMyTeam());
+              addingFlag = false;
+              // addHelper(this.scene, dragHelper);
+            }
+          );
+        }
+      }
+    );
 
     champShopList.addEventListener("click", async (e) => {
       if (addingFlag) return;
@@ -688,7 +718,7 @@ export default class Team {
         return;
       }
 
-      // Nếu là bloblet của Zac
+      // Nếu là bloblet của Zac (mua 14)
       if (card.zacBloblet) {
         const zac = draggableObjects.find((obj) => obj.userData.name === "Zac");
         if (zac?.bfIndex !== -1) {
@@ -742,18 +772,6 @@ export default class Team {
           addingFlag = false;
           addGold(-dragHelper.userData.data.cost);
           // addHelper(this.scene, dragHelper);
-
-          const ring = new THREE.RingGeometry(1.3, 1.4, 64);
-          const material = new THREE.MeshBasicMaterial({
-            color: COLOR_ORANGE,
-            side: THREE.DoubleSide,
-          });
-          const mesh = new THREE.Mesh(ring, material);
-          mesh.rotation.x = -Math.PI / 2;
-          mesh.position.copy(dragHelper.position);
-          mesh.visible = false;
-          dragHelper.hover = mesh;
-          this.scene.add(mesh);
         }
       );
     });
@@ -795,4 +813,47 @@ export default class Team {
     ChampionManager.removeChampFromScene(scene, champ);
     addGold(champ.userData.data.cost * Math.pow(3, champ.userData.level - 1));
   };
+
+  static addItem(item) {
+    if (!item) return;
+    // console.log(item);
+    const equipbarWrapper = document.getElementById("equipment-bar");
+    const equiItem = document.createElement("img");
+    equiItem.className =
+      "w-[2vw] cursor-pointer h-[2vw] mb-[0.98vw] border-yellow-500 border";
+    equiItem.src = generateIconURLFromRawCommunityDragon(item.icon);
+    equiItem.alt = "equip " + item.name;
+    equiItem.data = item;
+    onTooltip(
+      equiItem,
+      (tooltip) => {
+        tooltip.style.maxWidth = "unset";
+        const newDesc = injectVariables(
+          item.desc,
+          Object.entries(item.effects).map(([key, value]) => ({
+            name: key,
+            value: [value],
+          })),
+          {},
+          1,
+          "item"
+        );
+        // console.log(newDesc);
+        const imgHtml = `<div class="flex">
+            <img
+              src="${generateIconURLFromRawCommunityDragon(item?.icon)}"
+              class="w-[5vw] h-[5vw]"
+              alt="${item.name}-skill"
+            />
+            <div class="flex flex-col pl-[0.5vw] ">
+              <h2 class="font-semibold text-[1.2vw]">${item.name}</h2>
+              <p class="font-medium text-[0.875vw] max-w-[20vw] break-words whitespace-pre-wrap">${newDesc}</p>
+            </div>
+          </div>`;
+        tooltip.insertAdjacentHTML("beforeend", imgHtml);
+      },
+      "top,right"
+    );
+    equipbarWrapper.appendChild(equiItem);
+  }
 }

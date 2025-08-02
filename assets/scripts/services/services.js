@@ -1,5 +1,10 @@
 import * as THREE from "https://esm.sh/three";
-import { COLOR_DELETE_ZONE, COLOR_MOVEABLE, debugOn } from "~/variables";
+import {
+  COLOR_DELETE_ZONE,
+  COLOR_MOVEABLE,
+  debugOn,
+  ITEMS_INFOR,
+} from "~/variables";
 import {
   createDebugGuiFolder,
   generateIconURLFromRawCommunityDragon,
@@ -325,7 +330,8 @@ const disabledMarkChamp = (teamId) => {
   }
 };
 
-function renderDesc(desc, effects, effect) {
+function renderTraitDesc(desc, effects, effect) {
+  // console.log(desc);
   // Tách theo từng <row> để xử lý biến riêng biệt cho mỗi cấp
   let activeEffectIndex = -1;
   const currentEffectIndex = effects.findIndex(
@@ -459,68 +465,71 @@ function renderDesc(desc, effects, effect) {
         return "[" + varName + "]";
       }
     ) +
-    renderedRows
-      .join("<row>")
-      .replace(
-        /@([^@*]+)(\*([\d.]+))?@/g,
-        (match, varName, _full, multiplier) => {
-          let vName;
-          const animaSquadVars = [
-            "TFTUnitProperty.trait:TFT14_AnimaSquad_Bonus_1",
-            "TFTUnitProperty.trait:TFT14_AnimaSquad_Bonus_2",
-            "TFTUnitProperty.trait:TFT14_AnimaSquad_Bonus_3",
-            "TFTUnitProperty.trait:TFT14_AnimaSquad_Bonus_4",
-          ];
-          const varIndex = animaSquadVars.findIndex((vari) => vari === varName);
-          if (varIndex != -1) {
-            vName = "DamageAmp";
+    (mainDesc !== desc
+      ? `${renderedRows
+          .join("<row>")
+          .replace(
+            /@([^@*]+)(\*([\d.]+))?@/g,
+            (match, varName, _full, multiplier) => {
+              let vName;
+              const animaSquadVars = [
+                "TFTUnitProperty.trait:TFT14_AnimaSquad_Bonus_1",
+                "TFTUnitProperty.trait:TFT14_AnimaSquad_Bonus_2",
+                "TFTUnitProperty.trait:TFT14_AnimaSquad_Bonus_3",
+                "TFTUnitProperty.trait:TFT14_AnimaSquad_Bonus_4",
+              ];
+              const varIndex = animaSquadVars.findIndex(
+                (vari) => vari === varName
+              );
+              if (varIndex != -1) {
+                vName = "DamageAmp";
+              }
+              // console.log(vName);
+              // console.log(effect);
+              if (effects[varIndex]?.variables?.hasOwnProperty(vName)) {
+                let val = effects[varIndex]?.variables[vName];
+                if (multiplier) val *= parseFloat(multiplier);
+                return "";
+              }
+              return "[" + varName + "]";
+            }
+          )}${endDesc.replace(
+          /@([^@*]+)(\*([\d.]+))?@/g,
+          (match, varName, _full, multiplier) => {
+            let vName;
+            const divinicorpsVariables = [
+              "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_AP",
+              "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_Defenses",
+              "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_AD",
+              "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_Health",
+              "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_Crit",
+              "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_AS",
+              "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_Omnivamp",
+            ];
+            const divinicorpsKey = [
+              "{19e47528}",
+              "{f82ecbac}",
+              "{912546f4}",
+              "{a8a84fe9}",
+              "{414a2beb}",
+              "{4803a4eb}",
+              "{3c9e3624}",
+            ];
+            const divinicorpIndex = divinicorpsVariables.indexOf(varName);
+            if (divinicorpIndex !== -1) {
+              vName = divinicorpsKey[divinicorpIndex];
+            }
+            // console.log(vName);
+            // console.log(effect);
+            if (effect?.variables?.hasOwnProperty(vName)) {
+              let val = effect.variables[vName];
+              if (multiplier) val *= parseFloat(multiplier);
+              return Math.round(val);
+            }
+            return "[" + varName + "]";
           }
-          // console.log(vName);
-          // console.log(effect);
-          if (effects[varIndex]?.variables?.hasOwnProperty(vName)) {
-            let val = effects[varIndex]?.variables[vName];
-            if (multiplier) val *= parseFloat(multiplier);
-            return "";
-          }
-          return "[" + varName + "]";
-        }
-      ) +
-    endDesc.replace(
-      /@([^@*]+)(\*([\d.]+))?@/g,
-      (match, varName, _full, multiplier) => {
-        let vName;
-        const divinicorpsVariables = [
-          "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_AP",
-          "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_Defenses",
-          "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_AD",
-          "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_Health",
-          "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_Crit",
-          "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_AS",
-          "TFTUnitProperty.trait:TFT14_Trait_Divinicorp_Omnivamp",
-        ];
-        const divinicorpsKey = [
-          "{19e47528}",
-          "{f82ecbac}",
-          "{912546f4}",
-          "{a8a84fe9}",
-          "{414a2beb}",
-          "{4803a4eb}",
-          "{3c9e3624}",
-        ];
-        const divinicorpIndex = divinicorpsVariables.indexOf(varName);
-        if (divinicorpIndex !== -1) {
-          vName = divinicorpsKey[divinicorpIndex];
-        }
-        // console.log(vName);
-        // console.log(effect);
-        if (effect?.variables?.hasOwnProperty(vName)) {
-          let val = effect.variables[vName];
-          if (multiplier) val *= parseFloat(multiplier);
-          return Math.round(val);
-        }
-        return "[" + varName + "]";
-      }
-    ) +
+        )}`
+      : "") +
     "<div class='flex items-center flex-wrap mt-[1vw]'>" +
     effect.allChamps.reduce((acc, champ) => {
       const hasChamp = effect.champs.includes(champ.name);
@@ -535,6 +544,14 @@ function renderDesc(desc, effects, effect) {
     }, "") +
     "</div>"
   );
+}
+
+function renderItemDesc(desc, effects) {
+  const rows = desc.split(/<tftitemrules>/g);
+  const matches = desc.match(/<tftitemrules>(.*?)<\/tftitemrules>/gs) || [];
+  // console.log(desc);
+  // console.log(matches);
+  return rows[0] + `<span class="text-red-500">${matches[0]}</span>`;
 }
 
 function injectVariables(
@@ -608,7 +625,9 @@ function injectVariables(
           if (mul) val = Math.round(val * parseFloat(mul.slice(1)));
           return val;
         })
-      : renderDesc(desc, variables, stats);
+      : type === "trait"
+      ? renderTraitDesc(desc, variables, stats)
+      : renderItemDesc(desc, variables);
 
   const iconMap = {
     scaleAP: "scaleAP.svg",
@@ -623,12 +642,13 @@ function injectVariables(
     scaleDR: "scaleDR.png",
     scaleCrit: "scaleCrit.png",
     set14AmpIcon: "A.M.P._TFT_Stat_icon.png",
+    "3StarEnabled": "3StarEnabled.png",
   };
 
   return Object.entries(iconMap).reduce((out, [key, file]) => {
     return out.replaceAll(
       `%i:${key}%`,
-      `<img src="./assets/images/items/${file}" class="w-[1vw] h-[1vw] inline"/>`
+      `<img src="./assets/images/items/${file}" class="w-[auto] h-[1vw] inline"/>`
     );
   }, descConverted);
 }
@@ -693,6 +713,15 @@ function onTooltip(
   cbMouseMove = () => {},
   cbMouseLeave = () => {}
 ) {
+  const hideTooltip = (e) => {
+    const isClickInsideElement = element.contains(e.target);
+    const isClickInsideTooltip = tooltip.contains(e.target);
+    if (!isClickInsideElement && !isClickInsideTooltip) {
+      tooltip.classList.add("hidden");
+      tooltip.replaceChildren();
+      cbMouseLeave(tooltip);
+    }
+  };
   const tooltip = document.getElementById("tooltip");
   if (!clickToOpen) {
     element.addEventListener("mouseenter", (e) => {
@@ -703,22 +732,12 @@ function onTooltip(
     element.addEventListener("mousemove", (ev) => {
       posTooltip(ev, tooltip, pos, cbMouseMove);
     });
-
     element.addEventListener("mouseleave", () => {
       tooltip.classList.add("hidden");
       tooltip.replaceChildren();
       cbMouseLeave(tooltip);
     });
-
-    window.addEventListener("mouseover", (e) => {
-      const isClickInsideElement = element.contains(e.target);
-      const isClickInsideTooltip = tooltip.contains(e.target);
-      if (!isClickInsideElement && !isClickInsideTooltip) {
-        tooltip.classList.add("hidden");
-        tooltip.replaceChildren();
-        cbMouseLeave(tooltip);
-      }
-    });
+    // document.addEventListener("mouseover", hideTooltip);
   } else {
     element.addEventListener("click", (ev) => {
       ev.stopPropagation(); // Ngăn click lan ra document
@@ -727,18 +746,8 @@ function onTooltip(
       tooltip.classList.remove("hidden");
       cbMouseEnter(tooltip);
     });
-
     // Tắt tooltip nếu click ra ngoài cả element lẫn tooltip
-    document.addEventListener("click", (event) => {
-      const isClickInsideElement = element.contains(event.target);
-      const isClickInsideTooltip = tooltip.contains(event.target);
-
-      if (!isClickInsideElement && !isClickInsideTooltip) {
-        tooltip.classList.add("hidden");
-        tooltip.replaceChildren();
-        cbMouseLeave(tooltip);
-      }
-    });
+    document.addEventListener("click", hideTooltip);
   }
 }
 
@@ -779,6 +788,38 @@ const statsCalculate = (champ) => {
   return { row1, row2 };
 };
 
+function getRandomItem(items) {
+  const total = items.reduce((sum, item) => sum + item.chance, 0);
+  const rand = Math.random() * total;
+
+  let acc = 0;
+  for (const item of items) {
+    acc += item.chance;
+    if (rand < acc) {
+      return item.id;
+    }
+  }
+}
+
+const getItems = (itemNames = [], getSingle = false) => {
+  let count = getSingle ? 1 : itemNames.length;
+  const itemsFound = [];
+  itemNames.forEach((itemName) => {
+    if (itemsFound.length < count) {
+      const itemFound = ITEMS_INFOR.find(
+        (item) => item.name && item?.name === itemName
+      );
+      if (itemFound) {
+        // console.log(itemFound);
+        itemsFound.push(itemFound);
+      } else {
+        itemsFound.push(itemName);
+      }
+    }
+  });
+  return itemsFound;
+};
+
 export {
   createDeleteZone,
   createBattleField,
@@ -792,4 +833,6 @@ export {
   injectVariables,
   onTooltip,
   statsCalculate,
+  getItems,
+  getRandomItem,
 };

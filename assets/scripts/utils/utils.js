@@ -274,6 +274,17 @@ function generateModelUrl(champName) {
   return `./assets/models/champions/${setFolder}/${safeName}_${beforeFix}.glb`;
 }
 
+const preloadImage = (url) => {
+  const img = new Image();
+  img.src = url;
+  // Không cần gắn vào DOM — trình duyệt vẫn cache
+};
+
+// delay for/of
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export {
   loadModel,
   lightAuto,
@@ -289,4 +300,6 @@ export {
   getNormalizedPointer,
   generateIconURLFromRawCommunityDragon,
   generateModelUrl,
+  preloadImage,
+  delay,
 };

@@ -18,6 +18,7 @@ import {
 import initial from "~~/setup/initial.js";
 import Team from "./assets/scripts/objects/Team";
 import Battle from "./assets/scripts/objects/Battle";
+import { addGold } from "./assets/scripts/others/goldExp";
 
 // Globals
 let mixer;
@@ -256,6 +257,7 @@ startBattleBtn.addEventListener("click", () => {
 
   if (!ChampionManager.draggableObjects.some((obj) => obj.bfIndex !== -1))
     return;
+  oldBfChamps.splice(0, oldBfChamps.length);
   ChampionManager.draggableObjects.forEach((draggableObject) => {
     if (draggableObject.bfIndex != -1) {
       oldBfChamps.push([
@@ -368,12 +370,29 @@ const LoadAllModel = () => {
       {
         name: "coin",
         url: "./assets/models/items/coin.glb",
-        scale: [0.06, 0.06, 0.06],
+        scale: [0.04, 0.07, 0.1],
         position: [Math.random() * 10, itemOutBagY, Math.random() * 10],
-        onLoaded: (model) => {},
+        onLoaded: (model) => {
+          model.modelScene.castShadow = true;
+          model.modelScene.traverse((child) => {
+            if (!child.isMesh || !child.material) return;
+            const newMaterial = new THREE.MeshStandardMaterial({
+              color: 0xffff00,
+              metalness: 0.8,
+              roughness: 0.2,
+              emissive: 0xffff00,
+              emissiveIntensity: 0.3,
+            });
+            child.material = newMaterial;
+            child.material.needsUpdate = true;
+          });
+        },
       },
-      { enabled: true }
-      // { enabled: true, color: "blue" }
+      { enabled: false },
+      { enabled: false, color: "blue" },
+      () => {
+        addGold(1);
+      }
     );
     itemsOutBag.push(coin);
   });
@@ -418,11 +437,46 @@ const LoadAllModel = () => {
     }
   }
 
-  // load secret sphere
-  const orb = new SecretSphere(scene, [3, itemOutBagY, 3], "#F4F4F4");
-  const itemOrb = new SecretSphere(scene, [9, itemOutBagY, 9], "blue", "white");
-  itemsOutBag.push(orb);
-  itemsOutBag.push(itemOrb);
+  Array.from({ length: 10 }).forEach((_) => {
+    // load secret sphere
+    const silverOrb = new SecretSphere(
+      scene,
+      renderer,
+      [Math.random() * 30 - 15, itemOutBagY, Math.random() * 30 - 15],
+      0
+    );
+    const blueOrb = new SecretSphere(
+      scene,
+      renderer,
+      [Math.random() * 30 - 15, itemOutBagY, Math.random() * 30 - 15],
+      1
+    );
+    itemsOutBag.push(silverOrb);
+    itemsOutBag.push(blueOrb);
+  });
+
+  const goldOrb = new SecretSphere(
+    scene,
+    renderer,
+    [Math.random() * 30 - 15, itemOutBagY, Math.random() * 30 - 15],
+    2
+  );
+  itemsOutBag.push(goldOrb);
+  const prismaticOrb = new SecretSphere(
+    scene,
+    renderer,
+    [Math.random() * 30 - 15, itemOutBagY, Math.random() * 30 - 15],
+    3
+  );
+  itemsOutBag.push(prismaticOrb);
+  const greenOrb = new SecretSphere(
+    scene,
+    renderer,
+    [Math.random() * 30 - 15, itemOutBagY, Math.random() * 30 - 15],
+    4
+  );
+  itemsOutBag.push(greenOrb);
+
   // load carousel
   // const carousel = new TFTCarousel(scene, 8, 12);
   // setTimeout(() => carousel.deactivateBarrier(2), 3000);
@@ -525,6 +579,9 @@ try {
         if (item.checkCollision(tactician)) {
           itemsOutBag.splice(index, 1);
           console.log("nhặt " + item.name);
+          if (item.onCollision) {
+            item.onCollision();
+          }
           item.removeFromScene();
         }
       });
