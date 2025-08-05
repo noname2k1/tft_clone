@@ -26,9 +26,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // 🧩 renderShopCards — render lại danh sách tướng trong shop
   function renderShopCards(champs) {
-    champShopList.innerHTML = "";
+    champShopList.replaceChildren();
     window.champsInRoll = champs;
-    window.champsBought = Array.from({ length: 5 }).map(() => 0);
+    const cardsPerShop = 5;
+    window.champsBought = Array.from({ length: cardsPerShop }).map(() => 0);
 
     const cardPromises = champs.map((champ, index) => {
       // console.log(champ);
@@ -162,7 +163,9 @@ document.addEventListener("DOMContentLoaded", function () {
               overlay.classList.replace("opacity-100", "opacity-0");
             }
 
-            champShopList.appendChild(card);
+            if (champShopList.childNodes.length < cardsPerShop) {
+              champShopList.appendChild(card);
+            }
           }
         });
       })
@@ -222,8 +225,16 @@ document.addEventListener("DOMContentLoaded", function () {
     );
     rerollBtn.classList.remove("invisible");
   };
+  let firstShopLoadIntervalId = null;
+  firstShopLoadIntervalId = setInterval(() => {
+    if (TRAITS_INFOR.length < 1) {
+      getShopChamp();
+    } else {
+      clearInterval(firstShopLoadIntervalId);
+      firstShopLoadIntervalId = null;
+    }
+  }, 200);
 
-  getShopChamp();
   const handleProcessBuyExp = () => {
     handleBuyExp(() => {
       getShopChamp(true);

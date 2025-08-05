@@ -192,18 +192,20 @@ export default class Model {
 
   removeFromScene() {
     if (!this.modelScene || !this.scene) return;
-
-    this.scene.remove(this.modelScene.glow);
-    this.scene.remove(this.modelScene);
-    if (this.helperObj) {
-      this.scene.remove(this.helperObj);
-    }
-
-    const index = ARGUMENTS_CACHES.findIndex((arg) => arg.name === this.name);
-    if (index > -1) ARGUMENTS_CACHES.splice(index, 1);
-
+    let effectEnd = false;
     if (typeof this.#isItem === "function") {
-      this.#isItem();
+      this.#isItem(this.modelScene);
+    }
+    effectEnd = true;
+    if (effectEnd) {
+      this.scene.remove(this.modelScene.glow);
+      this.scene.remove(this.modelScene);
+      if (this.helperObj) {
+        this.scene.remove(this.helperObj);
+      }
+      const index = ARGUMENTS_CACHES.findIndex((arg) => arg.name === this.name);
+      if (index > -1) ARGUMENTS_CACHES.splice(index, 1);
+      effectEnd = false;
     }
   }
 }

@@ -365,6 +365,7 @@ const LoadAllModel = () => {
   const itemOutBagY = 1;
   const coinCount = 10;
   Array.from({ length: coinCount }).forEach(() => {
+    let model = null;
     const coin = new Model(
       scene,
       {
@@ -390,7 +391,8 @@ const LoadAllModel = () => {
       },
       { enabled: false },
       { enabled: false, color: "blue" },
-      () => {
+      (modelScene) => {
+        modelScene.position.y += 5;
         addGold(1);
       }
     );

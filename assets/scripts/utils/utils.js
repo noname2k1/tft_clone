@@ -258,9 +258,13 @@ function getNormalizedPointer(event, domElement) {
 }
 
 function generateIconURLFromRawCommunityDragon(icon) {
-  return `${import.meta.env.VITE_RAW_COMMUNITYDRAGON}${icon
-    .replace("tex", "png")
-    .toLowerCase()}`;
+  try {
+    const safeIcon = icon.replace("tex", "png").toLowerCase();
+    return `${import.meta.env.VITE_RAW_COMMUNITYDRAGON}${safeIcon}`;
+  } catch (error) {
+    console.error("Lỗi trong generateIconURLFromRawCommunityDragon:", error);
+    return ""; // fallback an toàn
+  }
 }
 
 function generateModelUrl(champName) {

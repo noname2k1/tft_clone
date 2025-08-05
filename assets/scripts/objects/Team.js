@@ -45,6 +45,9 @@ export default class Team {
   tacticianTarget = null;
   rightClickEffect = null;
   objectsOfChamp = [];
+  draggingItem = null;
+  champWantBuy = null;
+
   constructor(
     scene,
     renderer,
@@ -201,7 +204,6 @@ export default class Team {
         let isDragging = false,
           selectedObject = null,
           dragOffset = new THREE.Vector3();
-        let isPointerDown = false;
         let dragBenchIndex = -1,
           dragBfIndex = -1,
           currPos = null,
@@ -252,7 +254,6 @@ export default class Team {
         disabledOrbitControls();
 
         this.renderer.domElement.addEventListener("pointerdown", (event) => {
-          isPointerDown = true;
           if (event.button === 0) {
             this.#championManager.displayChampInfor(false);
           }
@@ -277,7 +278,6 @@ export default class Team {
           const intersects = raycaster.intersectObjects(draggableObjects, true);
           if (intersects.length > 0) {
             selectedObject = intersects[0].object;
-            selectedObject.hover.visible = false;
             if (!selectedObject.bfIndex && !selectedObject.benchIndex) {
               selectedObject = null;
               return;
@@ -306,8 +306,6 @@ export default class Team {
           }
         });
 
-        let champWantBuy = null;
-
         this.renderer.domElement.addEventListener("mousemove", (event) => {
           if (!this.controls.enabled) {
             this.controls.enabled = true;
@@ -327,15 +325,18 @@ export default class Team {
               : "default";
 
           if (intersects.length === 1) {
-            champWantBuy = intersects[0].object; // lưu object đang hover
-            if (champWantBuy && !isPointerDown) {
-              champWantBuy.hover.visible = true;
+            if (this.champWantBuy) {
+              this.champWantBuy.hover.visible = false;
+            }
+            this.champWantBuy = intersects[0].object; // lưu object đang hover
+            if (this.champWantBuy) {
+              this.champWantBuy.hover.visible = true;
             }
           } else {
-            if (champWantBuy) {
-              champWantBuy.hover.visible = false;
+            if (this.champWantBuy) {
+              this.champWantBuy.hover.visible = false;
             }
-            champWantBuy = null;
+            this.champWantBuy = null;
           }
 
           if (selectedObject) {
@@ -406,7 +407,6 @@ export default class Team {
         });
 
         this.renderer.domElement.addEventListener("pointerup", () => {
-          isPointerDown = false;
           if (!selectedObject) return;
           let deleting = false;
           displayDeleteZone(false);
@@ -522,24 +522,13 @@ export default class Team {
           }
         });
 
-        // Equipment drag & drop
-        const equipmentBar = document.getElementById("equipment-bar");
-        let draggingEquipImg = null;
-        equipmentBar.childNodes.forEach((el) => {
-          el.addEventListener("dragstart", (e) => {
-            e.dataTransfer.setData("itemId", e.target.dataset.itemId);
-            e.dataTransfer.setData("itemName", e.target.dataset.itemName);
-            draggingEquipImg = e.target;
-          });
-        });
         this.renderer.domElement.addEventListener("dragover", (event) =>
           event.preventDefault()
         );
         this.renderer.domElement.addEventListener("drop", (event) => {
           event.preventDefault();
-          const itemId = event.dataTransfer.getData("itemId");
-          const itemName = event.dataTransfer.getData("itemName");
-          if (!itemId || !itemName) return;
+          const itemData = this.draggingItem.data;
+          if (!itemData) return;
           const raycaster = new THREE.Raycaster();
           raycaster.setFromCamera(
             getNormalizedPointer(event, this.renderer.domElement),
@@ -548,68 +537,9 @@ export default class Team {
           const intersects = raycaster.intersectObjects(draggableObjects, true);
           if (intersects.length > 0) {
             const targetObject = intersects[0].object;
-            useItem(itemId, itemName, targetObject.uuid, (data) => {
-              if (data.champUuid === targetObject.uuid) {
-                const item = data.item;
-                const [num, stat] = item.stat.split("_");
-                let consumableItem = false,
-                  found = false;
-                switch (item.type) {
-                  case "consumable":
-                    alert(
-                      `Bạn đã sử dụng ${item.name} cho tướng ${targetObject.name}`
-                    );
-                    switch (stat) {
-                      case "champion":
-                        for (let i = 0; i < xMes.length; i++) {
-                          const spotTaken = draggableObjects.some(
-                            (champ) =>
-                              champ.bfIndex === -1 && champ.benchIndex === i
-                          );
-                          if (!spotTaken) {
-                            found = true;
-                            this.#championManager.addChampion(
-                              {
-                                position: [xMes[i], 0.1, zMe],
-                                data: targetObject.userData.data,
-                              },
-                              (dragHelper) => {
-                                dragHelper.benchIndex = i;
-                                dragHelper.bfIndex = -1;
-                                addingFlag = false;
-                                draggableObjects.push(dragHelper);
-                                sendMessageChangeLineupToEnemy(
-                                  draggableObjects
-                                );
-                              }
-                            );
-                            consumableItem = true;
-                            break;
-                          }
-                        }
-                        if (!found) alert("Hàng chờ đầy, không thể thêm tướng");
-                        break;
-                      default:
-                        break;
-                    }
-                    break;
-                  case "item":
-                    alert(
-                      `Bạn đã trang bị ${item.name} cho tướng ${targetObject.name}`
-                    );
-                    break;
-                  case "component":
-                    alert(
-                      `Bạn đã trang bị ${item.name} (component) cho tướng ${targetObject.name}`
-                    );
-                    break;
-                }
-                if (consumableItem) {
-                  draggingEquipImg?.remove();
-                  draggingEquipImg = null;
-                }
-              }
-            });
+            console.log(itemData);
+            console.log(targetObject);
+            this.draggingItem = null;
           }
         });
       },
@@ -625,6 +555,7 @@ export default class Team {
     const champShopList = document.getElementById("champ-shop-list");
     let addingFlag = false;
 
+    // add champion by put orbs
     new ObserverElementChange(
       document.getElementById("add-champion-notice"),
       (mutation) => {
@@ -653,7 +584,8 @@ export default class Team {
           });
 
           if (emptyIndex === -1 && existedChampSameName.length < 2) {
-            alert("Hàng chờ đầy, không thể thêm tướng");
+            // alert("Hàng chờ đầy, không thể thêm tướng");
+            addGold(champData.cost);
             addingFlag = false;
             return;
           }
@@ -793,6 +725,14 @@ export default class Team {
   }
 
   updateAll(frameRate) {
+    // Equipment drag & drop
+    const equipmentBar = document.getElementById("equipment-bar");
+    // equipments, items using
+    equipmentBar.childNodes.forEach((el) => {
+      el.addEventListener("dragstart", (e) => {
+        this.draggingItem = el;
+      });
+    });
     if (this.objectsOfChamp.length > 0) {
       this.objectsOfChamp.forEach((obj) => {
         if (obj.mixer && obj.update) {

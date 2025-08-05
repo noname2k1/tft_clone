@@ -290,11 +290,27 @@ const champScales = [
   },
   {
     name: "Lux",
-    scale: [0.025, 0.025, 0.025],
+    scale: [0.02, 0.02, 0.02],
   },
   {
     name: "Ahri",
     scale: [0.02, 0.02, 0.02],
+  },
+  {
+    name: "Caitlyn",
+    scale: [0.02, 0.02, 0.02],
+  },
+  {
+    name: "Katarina",
+    scale: [0.015, 0.015, 0.015],
+  },
+  {
+    name: "Xin Zhao",
+    scale: [0.015, 0.015, 0.015],
+  },
+  {
+    name: "Janna",
+    scale: [0.015, 0.015, 0.015],
   },
 ];
 

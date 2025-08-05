@@ -78,7 +78,6 @@ export default class SecretSphere extends ItemOutBag {
         blending: THREE.NormalBlending,
         depthWrite: true,
         depthTest: false,
-        renderOrder: 999,
       });
 
       this.orbMesh = new THREE.Sprite(material);
@@ -199,7 +198,11 @@ export default class SecretSphere extends ItemOutBag {
         { id: 1, name: "Completed Item Anvil", chance: 18 },
         {
           id: 2,
-          name: getItems(["Reforger", "Spatula / Frying Pan", "4 Gold"]),
+          name: getItems([
+            "Reforger",
+            Math.random() <= 0.5 ? "Spatula" : "Frying Pan",
+            "4 Gold",
+          ]),
           chance: 15,
         },
         { id: 3, name: getItems(["6 Gold", "2_4 Cost Unit"]), chance: 15 },
@@ -236,7 +239,7 @@ export default class SecretSphere extends ItemOutBag {
           id: 5,
           name: getItems([
             "Reforger",
-            "Spatula / Frying Pan",
+            Math.random() <= 0.5 ? "Spatula" : "Frying Pan",
             "Component Anvil",
             "1 Gold",
           ]),
@@ -338,27 +341,47 @@ export default class SecretSphere extends ItemOutBag {
         { id: 14, name: "Tome of Traits", chance: 8 },
       ],
       greenOrbs: [
-        { id: 0, name: "15 Gold", chance: 20 },
-        { id: 1, name: "Completed Item Anvil", chance: 18 },
+        { id: 0, name: "6/12/18 silver orbs", chance: 10 },
+        { id: 1, name: "2_Unstable Components", chance: 10 },
         {
           id: 2,
-          name: getItems(["Reforger", "Spatula / Frying Pan", "4 Gold"]),
-          chance: 15,
+          name: getItems(["Growing Investment"]),
+          chance: 10,
         },
-        { id: 3, name: getItems(["6 Gold", "2_4 Cost Unit"]), chance: 15 },
-        { id: 4, name: getItems(["2 Gold", "4_3 Cost Unit"]), chance: 13 },
-        { id: 5, name: getItems(["Thief's Gloves", "1 Gold"]), chance: 10 },
-        { id: 6, name: getItems(["6 Gold", "Champion Duplicator"]), chance: 3 },
+        {
+          id: 3,
+          name: getItems(["Implant: Size", "1_Unstable Components"]),
+          chance: 10,
+        },
+        {
+          id: 4,
+          name: ["1_Silver Orb", "1_Blue Orb", "1_Gold Orb"],
+          chance: 10,
+        },
+        { id: 5, name: "Medium Egg", chance: 10 },
+        {
+          id: 6,
+          name: "10_Tactician Health",
+          chance: 10,
+        },
         {
           id: 7,
-          name: getItems([
-            "Champion Duplicator",
-            "Lesser Champion Duplicator",
-            "2 Gold",
-          ]),
-          chance: 3,
+          name: getItems(["Salvager", "1_Unstable Components"]),
+          chance: 10,
         },
-        { id: 8, name: getItems(["2_3 Cost Unit", "5 Gold"]), chance: 3 },
+        {
+          id: 8,
+          name: getItems(["Implant: Speed", "1_Unstable Components"]),
+          chance: 10,
+        },
+        {
+          id: 9,
+          name:
+            Math.random() < 0.2
+              ? ["1_3Cost Unit", "2_2Cost Unit", "1_1Cost Unit"]
+              : ["5_1Cost Unit", "4_2Cost Unit"],
+          chance: Battle.state === 1 ? 10 : 0,
+        },
       ],
     };
 

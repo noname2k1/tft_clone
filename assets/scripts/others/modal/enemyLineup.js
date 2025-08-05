@@ -21,16 +21,6 @@ document.addEventListener("DOMContentLoaded", async function () {
   const champs = lineupSetup.querySelector(".champs");
   let hexSelected = null;
   // firstLoadData
-  if (TRAITS_INFOR.length < 1) {
-    await customFetch("traits", (data) => {
-      // console.log(data);
-      TRAITS_INFOR.splice(0, TRAITS_INFOR.length, ...data.traits);
-    });
-    TRAITS_INFOR.forEach((trait) => {
-      preloadImage(generateIconURLFromRawCommunityDragon(trait.icon));
-    });
-    console.log("traits loaded full");
-  }
   if (CHAMPS_INFOR.length < 1) {
     await customFetch("champs", (data) => {
       // console.log(data);
@@ -83,6 +73,16 @@ document.addEventListener("DOMContentLoaded", async function () {
         });
       }
     });
+  }
+  if (TRAITS_INFOR.length < 1) {
+    await customFetch("traits", (data) => {
+      // console.log(data);
+      TRAITS_INFOR.splice(0, TRAITS_INFOR.length, ...data.traits);
+    });
+    TRAITS_INFOR.forEach((trait) => {
+      preloadImage(generateIconURLFromRawCommunityDragon(trait.icon));
+    });
+    console.log("traits loaded full");
   }
   if (ITEMS_INFOR.length < 1) {
     await customFetch("items", (data) => {

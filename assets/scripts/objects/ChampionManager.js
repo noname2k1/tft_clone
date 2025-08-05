@@ -768,6 +768,7 @@ export default class ChampionManager {
 
   static upgrade(dragHelper, level = 1) {
     const userData = dragHelper.userData;
+    const model = userData.champScene;
     // function applyStarEffect(model, starLevel = 1) {
     //   const config = {
     //     1: { color: 0xffffff, intensity: 0 },
@@ -778,32 +779,32 @@ export default class ChampionManager {
 
     //   const { color, intensity } = config[starLevel] || config[1];
 
-    //   model.traverse((child) => {
-    //     if (!child.isMesh || !child.material) return;
+    model.traverse((child) => {
+      if (!child.isMesh || !child.material) return;
+      // const matName = child.material.name.toLowerCase();
+      // console.log({ matName, mat: child.material });
+      // const isBody =
+      //   matName.includes("body") ||
+      //   matName.includes("mat") ||
+      //   matName.includes("hair") ||
+      //   level === 1;
+      const newMaterial =
+        // isBody?
+        new THREE.MeshBasicMaterial({
+          map: child.material.map || null,
+          color: 0xffffff,
+        });
+      // : new THREE.MeshStandardMaterial({
+      //     color,
+      //     metalness: 0.8,
+      //     roughness: 0.2,
+      //     emissive: color,
+      //     emissiveIntensity: intensity,
+      //   });
 
-    //     const matName = child.material.name.toLowerCase();
-    //     // console.log({ matName, mat: child.material });
-    //     const isBody =
-    //       matName.includes("body") ||
-    //       matName.includes("mat") ||
-    //       matName.includes("hair") ||
-    //       level === 1;
-    //     const newMaterial = isBody
-    //       ? new THREE.MeshBasicMaterial({
-    //           map: child.material.map || null,
-    //           color: 0xffffff,
-    //         })
-    //       : new THREE.MeshStandardMaterial({
-    //           color,
-    //           metalness: 0.8,
-    //           roughness: 0.2,
-    //           emissive: color,
-    //           emissiveIntensity: intensity,
-    //         });
-
-    //     child.material = newMaterial;
-    //     child.material.needsUpdate = true;
-    //   });
+      child.material = newMaterial;
+      child.material.needsUpdate = true;
+    });
     // }
     // applyStarEffect(userData.champScene, level);
     userData.level = level;
