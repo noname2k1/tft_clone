@@ -68,7 +68,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                 loadingAll.style.visibility = "hidden";
               }
             },
-            (err) => console.error(err),
+            (err) => console.error("loadModel: ", err),
             null
           );
         });
