@@ -280,11 +280,11 @@ function generateModelUrl(champName) {
 
 const preloadImage = (url) => {
   try {
-    const img = new Image();
-    img.src = `${
-      import.meta.env.VITE_SERVER_PREFIX
-    }api/proxy?url=${encodeURIComponent(url)}`;
-    // ảnh sẽ được tải từ proxy, không lỗi CORS
+    const uniqueId = crypto.randomUUID();
+    const html = `<img src="${url}"id="${uniqueId}"/>`;
+    document.body.insertAdjacentHTML("beforeend", html);
+    const img = document.getElementById(uniqueId);
+    img.remove();
   } catch (error) {
     console.error("preloadImage error: ", error);
   }
