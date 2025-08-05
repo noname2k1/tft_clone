@@ -279,11 +279,15 @@ function generateModelUrl(champName) {
 }
 
 const preloadImage = (url) => {
-  const img = new Image();
-  img.src = `${
-    import.meta.env.VITE_SERVER_PREFIX
-  }api/proxy?url=${encodeURIComponent(url)}`;
-  // ảnh sẽ được tải từ proxy, không lỗi CORS
+  try {
+    const img = new Image();
+    img.src = `${
+      import.meta.env.VITE_SERVER_PREFIX
+    }api/proxy?url=${encodeURIComponent(url)}`;
+    // ảnh sẽ được tải từ proxy, không lỗi CORS
+  } catch (error) {
+    console.error("preloadImage error: ", error);
+  }
 };
 
 // delay for/of
