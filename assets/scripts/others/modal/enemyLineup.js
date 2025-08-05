@@ -29,13 +29,13 @@ document.addEventListener("DOMContentLoaded", async function () {
         .sort((prev, curr) => (prev.cost < curr.cost ? -1 : 1));
       CHAMPS_INFOR.splice(0, CHAMPS_INFOR.length, ...isChamps);
       const loadingAll = document.getElementById("loading-all");
-      const cacheModel = true;
+      const cacheModel = import.meta.env.VITE_CACHE_MODEL;
       let loadedModelCount = 0;
       let loadingAllPercent = 0;
       const loadingAssetsProgress = document.getElementById(
         "loading-assets-progress"
       );
-      if (cacheModel) {
+      if (cacheModel === "true") {
         CHAMPS_INFOR.forEach((champ) => {
           const setFolder = "Set15";
           const beforeFix = "(tft_set_15)";
@@ -73,6 +73,8 @@ document.addEventListener("DOMContentLoaded", async function () {
             null
           );
         });
+      } else {
+        loadingAll.style.visibility = "hidden";
       }
     });
   }
