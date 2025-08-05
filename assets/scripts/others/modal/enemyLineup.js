@@ -59,6 +59,7 @@ document.addEventListener("DOMContentLoaded", async function () {
               champScene.rotation.x = -0.5;
               MODEL_CACHES[url] = gltf;
               loadedModelCount += 1;
+              console.log(loadedModelCount);
               loadingAllPercent =
                 (loadedModelCount / CHAMPS_INFOR.length) * 100;
               loadingAssetsProgress.style.width = loadingAllPercent + "%";
