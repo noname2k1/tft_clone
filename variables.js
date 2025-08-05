@@ -5,8 +5,8 @@ export const fee = {
   reroll: 2,
 };
 
-export const bgUrl = "./bg.jpg";
-// export const arenaUrl = "./assets/models/arenas/tft_arena_default.glb";
+export const bgUrl = "/bg.jpg";
+// export const arenaUrl = "/assets/models/arenas/tft_arena_default.glb";
 export const debugObjs = [];
 export const LOW_GRAPHICS_MODE = true;
 export const debugFolders = [];
@@ -31,7 +31,7 @@ export const EXP_TABLE = {
 export const ARENA_DATAS = [
   {
     name: "default",
-    url: "./assets/models/arenas/tft_arena_default.glb",
+    url: "/assets/models/arenas/tft_arena_default.glb",
     arena: [
       [0, -0.5, 1],
       [0, 0, 0],
@@ -59,7 +59,7 @@ export const ARENA_DATAS = [
   },
   {
     name: "galaxies",
-    url: "./assets/models/arenas/tft_arena_galaxies.glb",
+    url: "/assets/models/arenas/tft_arena_galaxies.glb",
     arena: [
       [0, -0.5, 0],
       [0, 0, 0],
