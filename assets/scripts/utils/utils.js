@@ -280,8 +280,10 @@ function generateModelUrl(champName) {
 
 const preloadImage = (url) => {
   const img = new Image();
-  img.src = url;
-  // Không cần gắn vào DOM — trình duyệt vẫn cache
+  img.src = `${
+    import.meta.env.VITE_SERVER_PREFIX
+  }api/proxy?url=${encodeURIComponent(url)}`;
+  // ảnh sẽ được tải từ proxy, không lỗi CORS
 };
 
 // delay for/of
