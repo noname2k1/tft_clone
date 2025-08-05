@@ -52,6 +52,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           preloadImage(generateIconURLFromRawCommunityDragon(squareIcon));
           preloadImage(generateIconURLFromRawCommunityDragon(icon));
           preloadImage(generateIconURLFromRawCommunityDragon(tileIcon));
+          console.log(url);
           loadModel(
             url,
             (gltf) => {
