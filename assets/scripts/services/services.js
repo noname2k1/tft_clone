@@ -648,7 +648,7 @@ function injectVariables(
   return Object.entries(iconMap).reduce((out, [key, file]) => {
     return out.replaceAll(
       `%i:${key}%`,
-      `<img src="./assets/images/items/${file}" class="w-[auto] h-[1vw] inline"/>`
+      `<img src="/images/items/${file}" class="w-[auto] h-[1vw] inline"/>`
     );
   }, descConverted);
 }

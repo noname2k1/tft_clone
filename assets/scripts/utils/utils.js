@@ -158,7 +158,7 @@ const createText = (
 const createImage = (
   scene,
   onLoad = () => {},
-  imageURL = "./assets/images/trash-icon.png",
+  imageURL = "/images/trash-icon.png",
   position = [0, 0, 0],
   isVisible = true,
   size = [1, 1],
@@ -275,7 +275,7 @@ function generateModelUrl(champName) {
     .replace(". ", "_")
     .replace(" ", "_")
     .replace("'", "");
-  return `./assets/models/champions/${setFolder}/${safeName}_${beforeFix}.glb`;
+  return `/models/champions/${setFolder}/${safeName}_${beforeFix}.glb`;
 }
 
 const preloadImage = (url) => {

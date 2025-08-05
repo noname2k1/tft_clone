@@ -660,7 +660,7 @@ export default class Team {
 
           new Model(this.scene, {
             name: "virus",
-            url: "./assets/models/skills/tft14_virus_bloblet.glb",
+            url: "/models/skills/tft14_virus_bloblet.glb",
             position: [
               Math.random() * 20 - 10,
               zac.position.y,

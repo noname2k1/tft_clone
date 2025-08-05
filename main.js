@@ -332,7 +332,7 @@ const LoadAllModel = () => {
     scene,
     {
       name: "Ninh Nam",
-      url: "./assets/models/tacticians/abyssia.glb",
+      url: "/models/tacticians/abyssia.glb",
       scale: [0.02, 0.02, 0.02],
       position: selectedArena.tactacianFirstPos,
       onLoaded: (tacticianObj) => {
@@ -370,7 +370,7 @@ const LoadAllModel = () => {
       scene,
       {
         name: "coin",
-        url: "./assets/models/items/coin.glb",
+        url: "/models/items/coin.glb",
         scale: [0.04, 0.07, 0.1],
         position: [Math.random() * 10, itemOutBagY, Math.random() * 10],
         onLoaded: (model) => {
@@ -407,7 +407,7 @@ const LoadAllModel = () => {
   swordPositions.forEach((pos) => {
     const sword = new Model(scene, {
       name: "argument sword",
-      url: "./assets/models/arguments/sword.glb",
+      url: "/models/arguments/sword.glb",
       position: pos,
       scale: [0.018, 0.018, 0.018],
       onLoaded: (_this) => {},
@@ -428,7 +428,7 @@ const LoadAllModel = () => {
       firePositions.forEach((firePos) => {
         const fireBall = new Model(scene, {
           name: "fire ball",
-          url: "./assets/models/others/fire_animation.glb",
+          url: "/models/others/fire_animation.glb",
           position: firePos,
           scale: [0.8, 0.4, 0.6],
           interact: false,

@@ -199,12 +199,12 @@ const loadMarkTeams = () => {
                     class="peer absolute hidden"
                   />
                   <img
-                    src="./assets/images/checkbox-disabled.png"
+                    src="/images/checkbox-disabled.png"
                     class="absolute top-1/2 -left-[1vw] w-[2.5vw] h-[2.5vw] -translate-y-1/2 peer-checked:left-[unset] peer-checked:-right-[1vw] duration-150 opacity-100 peer-checked:opacity-0"
                     srcset=""
                   />
                   <img
-                    src="./assets/images/checkbox-enabled.png"
+                    src="/images/checkbox-enabled.png"
                     class="absolute top-1/2 -left-[1vw] w-[2.5vw] h-[2.5vw] -translate-y-1/2 peer-checked:left-[unset] peer-checked:-right-[1vw] duration-150 opacity-0 peer-checked:opacity-100"
                     srcset=""
                   />
@@ -218,15 +218,15 @@ const loadMarkTeams = () => {
                   data-id="${existedTeam.id}"
                   class="delete-mark-team hover:brightness-125 duration-150 transition-[brightness] ml-[1vw]"
                 >
-                  <img src="./assets/images/cancel.png" alt="" />
+                  <img src="/images/cancel.png" alt="" />
                 </button>
                 <button
                   title="copy this team"
                   data-id="${existedTeam.id}"
                   class="copy-mark-team hover:brightness-125 duration-150 flex items-center justify-center relative transition-[brightness] ml-[1vw]"
                 >
-                  <img src="./assets/images/btn-circular.png" alt="" />
-                  <img src="./assets/images/card.png" alt="" class="absolute" />
+                  <img src="/images/btn-circular.png" alt="" />
+                  <img src="/images/card.png" alt="" class="absolute" />
                 </button>
           `;
         markTeamWrapper.insertAdjacentHTML("beforeend", toolsHtml);

@@ -44,7 +44,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             .replace(". ", "_")
             .replace(" ", "_")
             .replace("'", "");
-          const url = `./assets/models/champions/${setFolder}/${safeName}_${beforeFix}.glb`;
+          const url = `/models/champions/${setFolder}/${safeName}_${beforeFix}.glb`;
           // console.log(url);
           const squareIcon = champ.squareIcon;
           const icon = champ.icon;

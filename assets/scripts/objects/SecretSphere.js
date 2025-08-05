@@ -13,27 +13,27 @@ export default class SecretSphere extends ItemOutBag {
   #type;
   #orbTexture = {
     0: {
-      img: "./assets/images/silver-orb-texture.png",
+      img: "/images/silver-orb-texture.png",
       size: 1.3,
       name: "silver orb",
     },
     1: {
-      img: "./assets/images/blue-orb-texture.png",
+      img: "/images/blue-orb-texture.png",
       size: 2,
       name: "blue orb",
     },
     2: {
-      img: "./assets/images/gold-orb-texture.png",
+      img: "/images/gold-orb-texture.png",
       size: 2.5,
       name: "gold orb",
     },
     3: {
-      img: "./assets/images/prismatic-orb-texture.png",
+      img: "/images/prismatic-orb-texture.png",
       size: 4,
       name: "prismatic orb",
     },
     4: {
-      img: "./assets/images/green-orb-texture.png",
+      img: "/images/green-orb-texture.png",
       size: 3,
       name: "green orb",
     },

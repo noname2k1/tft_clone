@@ -33,10 +33,10 @@ export default class ChampionManager {
   maxTraitDisplay = 10;
   attack1 = {};
   static levelIconDetails = {
-    1: { size: [0.5, 0.5], url: "./assets/images/icon-lv1.png", posX: -1.2 },
-    2: { size: [1, 1], url: "./assets/images/icon-lv2.png", posX: -1.4 },
-    3: { size: [1, 1], url: "./assets/images/icon-lv3.png", posX: -1.2 },
-    4: { size: [1, 1], url: "./assets/images/icon-lv4.png", posX: -1.2 },
+    1: { size: [0.5, 0.5], url: "/images/icon-lv1.png", posX: -1.2 },
+    2: { size: [1, 1], url: "/images/icon-lv2.png", posX: -1.4 },
+    3: { size: [1, 1], url: "/images/icon-lv3.png", posX: -1.2 },
+    4: { size: [1, 1], url: "/images/icon-lv4.png", posX: -1.2 },
   };
 
   constructor(scene) {
@@ -346,7 +346,7 @@ export default class ChampionManager {
           </div>
         </div>
       </div>
-      <img src="./assets/images/style-${
+      <img src="/images/style-${
         effect ? effect.style : 0
       }.png" class="w-full h-full absolute"/>
       ${
@@ -395,7 +395,7 @@ export default class ChampionManager {
         viewMoreBtn.className = "relative w-[3vw] h-[3vw] cursor-pointer";
         viewMoreBtn.insertAdjacentHTML(
           "beforeend",
-          `<img src="./assets/images/view-more.png" class="h-full w-full"/>
+          `<img src="/images/view-more.png" class="h-full w-full"/>
           <span class="absolute top-[20%] left-[50%] text-[1vw]">${
             viewMore
               ? totalTraits - this.maxTraitDisplay
@@ -504,7 +504,7 @@ export default class ChampionManager {
       .replace(". ", "_")
       .replace(" ", "_")
       .replace("'", "");
-    const url = `./assets/models/champions/${setFolder}/${safeName}_${beforeFix}.glb`;
+    const url = `/models/champions/${setFolder}/${safeName}_${beforeFix}.glb`;
     const scale = this.getChampionScale(
       champData.data.name.replaceAll("_", " ")
     );
@@ -835,7 +835,7 @@ export default class ChampionManager {
       champInspect.insertAdjacentHTML(
         "beforeend",
         `  <img
-        src="./assets/images/champ_infor.png"
+        src="/images/champ_infor.png"
         alt="champ_infor_img"
         class="h-full object-fill"
       />`
@@ -857,7 +857,7 @@ export default class ChampionManager {
           champ.userData.name
         )}</span>
         <img
-          src="./assets/images/TFT_Gold.png"
+          src="/images/TFT_Gold.png"
           class="w-[0.8vw] h-[0.8vw]"
           alt="gold_img"
         />
@@ -907,7 +907,7 @@ export default class ChampionManager {
       champInspect.insertAdjacentHTML(
         "beforeend",
         `<img
-        src="./assets/images/${
+        src="/images/${
           champ.userData.data.stats.range > 1 ? "back" : "front"
         }.png"
         class="absolute top-[14vw] left-[6vw] h-[2vw] w-[2.8vw]"
@@ -922,7 +922,7 @@ export default class ChampionManager {
       // roles
       champInspect.insertAdjacentHTML(
         "beforeend",
-        `<div class="top-[22.6vw] w-[10.1vw] h-[1.7vw] left-[2.5vw] absolute flex items-center justify-center text-white"><img class="w-[1vw] h-[1vw] mr-auto ml-[0.45vw]" src="./assets/images/roles/${champ.userData.data.role.replace(
+        `<div class="top-[22.6vw] w-[10.1vw] h-[1.7vw] left-[2.5vw] absolute flex items-center justify-center text-white"><img class="w-[1vw] h-[1vw] mr-auto ml-[0.45vw]" src="/images/roles/${champ.userData.data.role.replace(
           "HighMana",
           ""
         )}.png"/><span class="text-[0.8vw] ml-[1vw] mr-auto text-nowrap">${
@@ -962,7 +962,7 @@ export default class ChampionManager {
         id="buy-champion-btn"
       >
         <img
-          src="./assets/images/champ_inspect_btn.png"
+          src="/images/champ_inspect_btn.png"
           class="w-full h-full absolute top-0 left-0"
           alt="champ_insp_img"
         />

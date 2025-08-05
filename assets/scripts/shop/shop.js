@@ -105,7 +105,7 @@ document.addEventListener("DOMContentLoaded", function () {
               })
               .join("");
             card.innerHTML = `
-          <img src="./assets/images/${
+          <img src="/images/${
             champ.cost
           }_gold-frame.png" class="absolute z-10 top-0 w-full h-full object-fill left-0 right-0" />
           <img src="${img.src}" class="w-full h-full" />
@@ -117,7 +117,7 @@ document.addEventListener("DOMContentLoaded", function () {
           }</span>
           ${
             getMarkChampFromStorage()?.enabledTeam?.team.includes(champ.name)
-              ? `<img src="./assets/images/mark.png" class="absolute top-0 right-0 w-[2vw] brightness-125"/>`
+              ? `<img src="/images/mark.png" class="absolute top-0 right-0 w-[2vw] brightness-125"/>`
               : ``
           }
           <div class="overlay-shop-champ cursor-pointer bg-black/50 absolute z-[1000] top-0 right-0 left-0 bottom-0 opacity-100 duration-200"></div>
@@ -151,8 +151,7 @@ document.addEventListener("DOMContentLoaded", function () {
             ) {
               if (Math.random() <= 0.1) {
                 card.zacBloblet = true;
-                overlay.style.backgroundImage =
-                  "url('./assets/images/bloblet.png')";
+                overlay.style.backgroundImage = "url('/images/bloblet.png')";
                 overlay.style.backgroundPosition = "center";
                 overlay.style.backgroundRepeat = "no-repeat";
                 overlay.style.backgroundSize = "cover";
