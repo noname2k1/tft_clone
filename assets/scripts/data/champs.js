@@ -282,7 +282,7 @@ const champScales = [
   },
   {
     name: "Syndra",
-    scale: [0.012, 0.012, 0.012],
+    scale: [0.011, 0.011, 0.011],
   },
   {
     name: "Kalista",
@@ -310,6 +310,10 @@ const champScales = [
   },
   {
     name: "Janna",
+    scale: [0.015, 0.015, 0.015],
+  },
+  {
+    name: "Ramus",
     scale: [0.015, 0.015, 0.015],
   },
 ];
@@ -359,4 +363,11 @@ const costGradients = [
   },
 ];
 
-export { champScales, costGradients };
+const itemScales = {
+  "artifact-item-anvil": [2.5, 2.5, 2.5],
+  "completed-item-anvil": [2.5, 2.5, 2.5],
+  "support-item-anvil": [2.5, 2.5, 2.5],
+  "component-anvil": [2, 2, 2],
+};
+
+export { champScales, costGradients, itemScales };

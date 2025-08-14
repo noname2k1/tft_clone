@@ -262,7 +262,11 @@ function generateIconURLFromRawCommunityDragon(icon) {
     const safeIcon = icon.replace("tex", "png").toLowerCase();
     return `${import.meta.env.VITE_RAW_COMMUNITYDRAGON}${safeIcon}`;
   } catch (error) {
-    console.error("Lỗi trong generateIconURLFromRawCommunityDragon:", error);
+    // console.error(
+    //   "Lỗi img %s trong generateIconURLFromRawCommunityDragon:",
+    //   icon,
+    //   error
+    // );
     return ""; // fallback an toàn
   }
 }
@@ -295,6 +299,27 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const createSpriteObject = (url, callback) => {
+  const textureLoader = new THREE.TextureLoader();
+  textureLoader.load(url, (texture) => {
+    texture.encoding = THREE.sRGBEncoding;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.generateMipmaps = false;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.NearestFilter;
+    texture.needsUpdate = true;
+    const material = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      alphaTest: 0.1, // Discard fragments with alpha below 0.1
+      blending: THREE.NormalBlending,
+      depthWrite: true,
+      depthTest: false,
+    });
+    callback(new THREE.Sprite(material));
+  });
+};
+
 export {
   loadModel,
   lightAuto,
@@ -312,4 +337,5 @@ export {
   generateModelUrl,
   preloadImage,
   delay,
+  createSpriteObject,
 };

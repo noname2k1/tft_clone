@@ -1,5 +1,8 @@
 import {
   CHAMPS_INFOR,
+  EXCLUDE_CHAMPS,
+  EXCLUDE_ITEMS,
+  ITEMS_EMBLEM,
   ITEMS_INFOR,
   MODEL_CACHES,
   TRAITS_INFOR,
@@ -22,8 +25,14 @@ document.addEventListener("DOMContentLoaded", async function () {
   let hexSelected = null;
   // firstLoadData
   if (CHAMPS_INFOR.length < 1) {
+    window.champsInRoll = [];
+    window.champsBought = Array.from({ length: 5 }).map(() => 0);
     await customFetch("champs", (data) => {
       // console.log(data);
+      const excludeChamps = data?.champs?.filter(
+        (c) => !c.squareIcon || !c.icon || !c.role || c.traits.length === 0
+      );
+      EXCLUDE_CHAMPS.splice(0, excludeChamps.length, excludeChamps);
       const isChamps = data?.champs
         ?.filter((c) => c.squareIcon && c.icon && c.role && c.traits.length > 0)
         .sort((prev, curr) => (prev.cost < curr.cost ? -1 : 1));
@@ -52,7 +61,33 @@ document.addEventListener("DOMContentLoaded", async function () {
           preloadImage(generateIconURLFromRawCommunityDragon(squareIcon));
           preloadImage(generateIconURLFromRawCommunityDragon(icon));
           preloadImage(generateIconURLFromRawCommunityDragon(tileIcon));
-          console.log(url);
+          const cacheImgs = [
+            ...Array.from({ length: 8 }).map(
+              (_, index) => index + 1 + "gold_frame"
+            ),
+            "artifact-anvil",
+            "component-anvil",
+            "chess",
+            "fruit",
+            "argument-frame",
+            "argument-frame-hover",
+            "champ_infor",
+            "champ_infor-trait-fruit-frame",
+            "checkbox-disabled",
+            "checkbox-enabled",
+            "header",
+            ...Array.from({ length: 4 }).map(
+              (_, index) => "icon-lv" + (index + 1)
+            ),
+            "cancel",
+            "card",
+          ];
+          cacheImgs.forEach((img) => {
+            preloadImage("/images/" + img + ".png");
+            // console.log("cache img: " + img);
+          });
+          preloadImage("/bg.png");
+          // console.log(url);
           loadModel(
             url,
             (gltf) => {
@@ -60,7 +95,7 @@ document.addEventListener("DOMContentLoaded", async function () {
               champScene.rotation.x = -0.5;
               MODEL_CACHES[url] = gltf;
               loadedModelCount += 1;
-              console.log(loadedModelCount);
+              // console.log(loadedModelCount);
               loadingAllPercent =
                 (loadedModelCount / CHAMPS_INFOR.length) * 100;
               loadingAssetsProgress.style.width = loadingAllPercent + "%";
@@ -78,29 +113,73 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
     });
   }
-  if (TRAITS_INFOR.length < 1) {
-    await customFetch("traits", (data) => {
-      // console.log(data);
-      TRAITS_INFOR.splice(0, TRAITS_INFOR.length, ...data.traits);
-    });
-    TRAITS_INFOR.forEach((trait) => {
-      preloadImage(generateIconURLFromRawCommunityDragon(trait.icon));
-    });
-    console.log("traits loaded full");
-  }
-  if (ITEMS_INFOR.length < 1) {
-    await customFetch("items", (data) => {
-      // console.log(data);
-      // const isChamps = data?.champs
-      //   ?.filter((c) => c.squareIcon && c.icon && c.role && c.traits.length > 0)
-      //   .sort((prev, curr) => (prev.cost < curr.cost ? -1 : 1));
-      ITEMS_INFOR.splice(0, ITEMS_INFOR.length, ...data.items);
-      ITEMS_INFOR.forEach((item) => {
-        preloadImage(generateIconURLFromRawCommunityDragon(item.icon));
-      });
-      console.log("items loaded full");
-    });
-  }
+  let intervalId = null;
+  intervalId = setInterval(async () => {
+    if (CHAMPS_INFOR.length > 0) {
+      clearInterval(intervalId);
+      if (TRAITS_INFOR.length < 1) {
+        await customFetch("traits", (data) => {
+          // console.log(data);
+          TRAITS_INFOR.splice(0, TRAITS_INFOR.length, ...data.traits);
+        });
+        TRAITS_INFOR.forEach((trait) => {
+          preloadImage(generateIconURLFromRawCommunityDragon(trait.icon));
+        });
+        console.log("traits loaded full");
+      }
+      if (ITEMS_INFOR.length < 1) {
+        await customFetch("items", (data) => {
+          // console.log(data);
+          const excludeItems = data?.items;
+          EXCLUDE_ITEMS.splice(0, excludeItems.length, excludeItems);
+          const filteredItems = data?.items?.filter(
+            (item) =>
+              item?.tags.length > 0 &&
+              !item.name.includes("tft") &&
+              Object.keys(item.effects).length > 0
+          );
+          const emblems = filteredItems.filter(
+            (item) =>
+              item.tags.includes("{ebcd1bac}") && item.name.includes("Emblem")
+          );
+          ITEMS_EMBLEM.splice(0, emblems.length, ...emblems);
+          // .sort((prev, curr) => (prev.cost < curr.cost ? -1 : 1));
+          ITEMS_INFOR.splice(0, filteredItems.length, ...filteredItems);
+          filteredItems.forEach((item) => {
+            preloadImage(generateIconURLFromRawCommunityDragon(item.icon));
+          });
+          console.log("items loaded full");
+          const ul = document.getElementById("items-list");
+          ITEMS_INFOR.forEach((item) => {
+            const li = document.createElement("li");
+            li.className =
+              "hover:text-white cursor-pointer text-center p-1 hover:bg-black/50 flex items-center justify-between";
+            const img = document.createElement("img");
+            img.className = "w-[10vw] h-[10vw]";
+            img.src = generateIconURLFromRawCommunityDragon(item.icon);
+            img.alt = item.name;
+            li.appendChild(img);
+            const span = document.createElement("span");
+            span.textContent = item.name;
+            span.className = "ml-[2vw] mr-auto";
+            li.appendChild(span);
+            li.addEventListener("click", (e) => {
+              console.log(item);
+            });
+            ul.appendChild(li);
+          });
+          document.body.appendChild(ul);
+          window.addEventListener("keyup", (e) => {
+            if (e.key.toLowerCase() === "i") {
+              // console.log("press i to open items list");
+              // console.log(ul);
+              ul.classList.toggle("hidden");
+            }
+          });
+        });
+      }
+    }
+  }, 200);
 
   const customEvent = new CustomEvent("updateAllEnemyLinup");
   const renderChamps = (fConditions = {}) => {

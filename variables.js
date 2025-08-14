@@ -13,9 +13,23 @@ export const debugFolders = [];
 export const MODEL_CACHES = [];
 export const ARGUMENTS_CACHES = [];
 export const TRAITS_INFOR = [];
+export const EXCLUDE_TRAITS = [];
 export const CHAMPS_INFOR = [];
+export const EXCLUDE_CHAMPS = [];
 export const ITEMS_INFOR = [];
+export const ITEMS_EMBLEM = [];
+export const EXCLUDE_ITEMS = [];
 export const ARGUMENTS_INFOR = [];
+export const disabledOrbitControlsIds = [
+  "shop",
+  "animations",
+  "left-bar",
+  "champ-inspect",
+  "config",
+  "primary-modal",
+  "enemy-define",
+  "items-list",
+];
 export const EXP_TABLE = {
   1: 0, // turn 1, cannot up level
   2: 2, // turn 2

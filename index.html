@@ -163,6 +163,10 @@
       id="animations"
       class="bg-white min-w-[15vw] overflow-x-hidden max-h-[20vw] overflow-y-auto fixed top-0 right-0 p-1 hidden z-[10000]"
     ></ul>
+    <ul
+      id="items-list"
+      class="bg-white min-w-[15vw] overflow-x-hidden max-h-screen overflow-y-auto fixed top-0 right-0 p-1 hidden z-[10000]"
+    ></ul>
     <div id="debug" class="hidden"></div>
     <!-- bg loading -->
     <div
@@ -173,6 +177,11 @@
         src="./bg-loading.png"
         alt="loading"
         class="w-full h-full object-contain absolute"
+      />
+      <img
+        src="./bg-loading-circle.png"
+        alt=""
+        class="w-[80vh] h-full object-contain absolute animate-[spin_50s_linear_infinite]"
       />
       <div class="absolute flex flex-col items-center">
         <img
@@ -379,7 +388,6 @@
     <script type="module" src="./variables.js"></script>
     <script type="module" src="./assets/scripts/others/others.js"></script>
     <script type="module" src="./main.js"></script>
-    <script type="module" src="./assets/scripts/shop/shop.js"></script>
     <script
       type="module"
       src="./assets/scripts/others/modal/enemyLineup.js"
@@ -392,6 +400,7 @@
       type="module"
       src="./assets/scripts/others/modal/primary.js"
     ></script>
+    <script type="module" src="./assets/scripts/shop/shop.js"></script>
     <!-- <script type="module" src="./assets/scripts/champion/champion.js"></script> -->
   </body>
 </html>

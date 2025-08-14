@@ -13,6 +13,7 @@ import {
   tacticianSpeed,
   MODEL_CACHES,
   CHAMPS_INFOR,
+  disabledOrbitControlsIds,
 } from "~/variables";
 import {
   addHelper,
@@ -38,15 +39,21 @@ import { addGold } from "../others/goldExp";
 import Model from "./Model";
 import Battle from "./Battle";
 import { customFetch } from "../utils/callApi";
+import { renderShopCards } from "../shop/shop";
 
 export default class Team {
   #arena;
-  #championManager;
+  static championManager;
   tacticianTarget = null;
   rightClickEffect = null;
   objectsOfChamp = [];
   draggingItem = null;
   champWantBuy = null;
+  static xMes;
+  static zMe;
+  static addingFlag = false;
+  static benchCount = 9;
+  static benchSlot = Array.from({ length: Team.benchCount }).map((_) => null);
 
   constructor(
     scene,
@@ -62,11 +69,12 @@ export default class Team {
     this.controls = controls;
     this.camera = camera;
     this.selectedArena = selectedArena;
-    this.#championManager = new ChampionManager(scene);
+    Team.championManager = new ChampionManager(scene);
     this.debugControls = debugControls;
     this.teamName = teamName;
     this.teamId = Battle.addTeam(teamName).uuid;
     this.loadArena();
+    this.loadShop();
   }
 
   onFirstLoad(progress) {
@@ -94,7 +102,7 @@ export default class Team {
     const createEnemyBench = createBench(
       this.scene,
       1,
-      9,
+      Team.benchCount,
       2,
       this.selectedArena.benchGap,
       this.selectedArena.enemyBench[0],
@@ -104,7 +112,7 @@ export default class Team {
     const createMyBench = createBench(
       this.scene,
       1,
-      9,
+      Team.benchCount,
       2,
       this.selectedArena.benchGap,
       this.selectedArena.bench[0]
@@ -115,8 +123,8 @@ export default class Team {
     const zBenchEnemy = createEnemyBench.zBenchEnemy;
     const benchEnemiesCells = createEnemyBench.benchCells;
     const mySquareGroup = createMyBench.squareGroup;
-    const xMes = createMyBench.xMes;
-    const zMe = createMyBench.zMe;
+    Team.xMes = createMyBench.xMes;
+    Team.zMe = createMyBench.zMe;
     const benchCells = createMyBench.benchCells;
 
     function displayGrid(hideBattleField = false, hideBench = false) {
@@ -129,16 +137,6 @@ export default class Team {
     let mixer;
     let arenaBox;
     const primaryY = 0;
-    // elements
-    const disabledOrbitControlsIds = [
-      "shop",
-      "animations",
-      "left-bar",
-      "champ-inspect",
-      "config",
-      "primary-modal",
-      "enemy-define",
-    ];
 
     // Delete Zone
     const deleteZone = createDeleteZone(this.scene, 35, 5, COLOR_DELETE_ZONE, [
@@ -255,7 +253,7 @@ export default class Team {
 
         this.renderer.domElement.addEventListener("pointerdown", (event) => {
           if (event.button === 0) {
-            this.#championManager.displayChampInfor(false);
+            Team.championManager.displayChampInfor(false);
           }
           if (event.button === 2 && this.debugControls) {
             raycaster.setFromCamera(
@@ -285,18 +283,19 @@ export default class Team {
             // display champion infor
             if (event.button === 2 && selectedObject) {
               rightClickTo3dObject = true;
-              this.#championManager.displayChampInfor(true, selectedObject);
+              Team.championManager.displayChampInfor(true, selectedObject);
               setTimeout(() => {
                 rightClickTo3dObject = false;
               }, 150);
             } else {
+              const isItem = selectedObject.userData.isItem;
               currPos = { ...selectedObject.position };
               currBenchIndex = selectedObject.benchIndex;
               currBfIndex = selectedObject.bfIndex;
               const intersection = new THREE.Vector3();
               raycaster.ray.intersectPlane(plane, intersection);
               dragOffset.copy(intersection).sub(selectedObject.position);
-              displayGrid(false, false);
+              displayGrid(isItem, false);
               isDragging = true;
             }
             if (isDragging) {
@@ -352,10 +351,10 @@ export default class Team {
 
         // buy champion buy press "e"
         window.addEventListener("keyup", (e) => {
-          if (e.key === "e" && champWantBuy) {
-            Team.buyChampion(this.scene, champWantBuy);
-            champWantBuy.hover.visible = false;
-            champWantBuy = null;
+          if (e.key === "e" && this.champWantBuy) {
+            Team.buyChampion(this.scene, this.champWantBuy);
+            this.champWantBuy.hover.visible = false;
+            this.champWantBuy = null;
           }
         });
 
@@ -412,10 +411,43 @@ export default class Team {
           displayDeleteZone(false);
           shop.classList.replace("bottom-[-20vh]", "bottom-1");
           this.controls.enabled = true;
+
           const worldPos = selectedObject.position.clone();
+          const isItem = selectedObject.userData.isItem;
+
+          // 🔹 Nếu là item và không thả trong bench => trả về vị trí cũ
+          const inBench = benchCells.some(({ box }) => {
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+            const worldCenter = mySquareGroup?.localToWorld(center.clone());
+            return worldCenter.distanceTo(worldPos) < 0.5; // hoặc check containsPoint
+          });
+
           let nearestCell = null,
             nearestType = null,
             minDistance = Infinity;
+
+          const deleteBox = new THREE.Box3().setFromObject(deleteZone);
+          if (deleteBox.containsPoint(worldPos)) {
+            Team.buyChampion(this.scene, selectedObject);
+            console.log("buy champion/item");
+            nearestType = null;
+            deleting = true;
+          }
+
+          if (isItem && !inBench && !deleting) {
+            selectedObject.position.copy(currPos);
+            selectedObject.userData.champScene.position.copy(currPos);
+            selectedObject.hover.position.copy(currPos);
+            displayGrid(true, true);
+            dragBenchIndex = -1;
+            currPos = null;
+            selectedObject = null;
+            isDragging = false;
+            Team.championManager.renderTraits();
+            return; // 🔹 Không tìm nearestCell nữa
+          }
+
           bfCells.forEach(({ mesh, center }) => {
             const dist = center.distanceTo(worldPos);
             if (dist < minDistance) {
@@ -424,6 +456,7 @@ export default class Team {
               nearestType = "bf";
             }
           });
+
           benchCells.forEach(({ box }, index) => {
             const center = new THREE.Vector3();
             box.getCenter(center);
@@ -435,15 +468,9 @@ export default class Team {
               nearestType = "bench";
             }
           });
+
           let highlightMesh = null;
-          const deleteBox = new THREE.Box3().setFromObject(deleteZone);
-          if (deleteBox.containsPoint(worldPos)) {
-            Team.buyChampion(this.scene, selectedObject);
-            // add coin to my bag
-            console.log("buy champion");
-            nearestType = null;
-            deleting = true;
-          }
+
           if (!deleting && !rightClickTo3dObject && selectedObject) {
             let isBench = nearestType === "bench";
             let targetIndex = isBench ? dragBenchIndex : dragBfIndex;
@@ -488,14 +515,14 @@ export default class Team {
             );
             ChampionManager.updateStatusBars();
           }
+
           displayGrid(true, true);
           deleting = false;
           dragBenchIndex = -1;
           currPos = null;
           selectedObject = null;
           isDragging = false;
-          // reload my traits
-          this.#championManager.renderTraits();
+          Team.championManager.renderTraits();
         });
 
         this.renderer.domElement.addEventListener("contextmenu", (event) => {
@@ -550,68 +577,12 @@ export default class Team {
         this.onFirstLoad(progress);
       }
     );
+  }
 
+  loadShop() {
     // Shop logic
     const champShopList = document.getElementById("champ-shop-list");
     let addingFlag = false;
-
-    // add champion by put orbs
-    new ObserverElementChange(
-      document.getElementById("add-champion-notice"),
-      (mutation) => {
-        if (mutation.type === "childList") {
-          const champData = CHAMPS_INFOR.find(
-            (champInfor) => champInfor.name === mutation.target.textContent
-          );
-          if (!champData) return;
-          addingFlag = true;
-          // Tìm vị trí trống trong bench
-          const emptyIndex = xMes.findIndex(
-            (_, i) =>
-              !draggableObjects.some(
-                (c) => c.bfIndex === -1 && c.benchIndex === i
-              )
-          );
-
-          const existedChampSameName = [];
-          ChampionManager.getMyTeam().forEach((champEx) => {
-            if (
-              champEx.userData.name === champData.name &&
-              champEx.userData.level === 1
-            ) {
-              existedChampSameName.push(champEx);
-            }
-          });
-
-          if (emptyIndex === -1 && existedChampSameName.length < 2) {
-            // alert("Hàng chờ đầy, không thể thêm tướng");
-            addGold(champData.cost);
-            addingFlag = false;
-            return;
-          }
-
-          // Mua tướng bình thường
-          this.#championManager.addChampion(
-            {
-              position:
-                existedChampSameName.length === 2
-                  ? [0, 0, 0]
-                  : [xMes[emptyIndex], 0, zMe],
-              data: champData,
-            },
-            (dragHelper) => {
-              dragHelper.benchIndex = emptyIndex;
-              dragHelper.bfIndex = -1;
-              draggableObjects.push(dragHelper);
-              this.sendMessageChangeLineupToEnemy(ChampionManager.getMyTeam());
-              addingFlag = false;
-              // addHelper(this.scene, dragHelper);
-            }
-          );
-        }
-      }
-    );
-
     champShopList.addEventListener("click", async (e) => {
       if (addingFlag) return;
       const card = e.target.closest(".champ-card-shop");
@@ -629,9 +600,11 @@ export default class Team {
       addingFlag = true;
 
       // Tìm vị trí trống trong bench
-      const emptyIndex = xMes.findIndex(
+      const emptyIndex = Team.xMes.findIndex(
         (_, i) =>
-          !draggableObjects.some((c) => c.bfIndex === -1 && c.benchIndex === i)
+          !ChampionManager.draggableObjects.some(
+            (c) => c.bfIndex === -1 && c.benchIndex === i && Team.benchSlot[i]
+          )
       );
 
       const existedChampSameName = [];
@@ -652,7 +625,9 @@ export default class Team {
 
       // Nếu là bloblet của Zac (mua 14)
       if (card.zacBloblet) {
-        const zac = draggableObjects.find((obj) => obj.userData.name === "Zac");
+        const zac = ChampionManager.draggableObjects.find(
+          (obj) => obj.userData.name === "Zac"
+        );
         if (zac?.bfIndex !== -1) {
           const overlay = card.querySelector(".overlay-shop-champ");
           overlay?.classList.replace("opacity-100", "opacity-0");
@@ -671,7 +646,7 @@ export default class Team {
               this.objectsOfChamp.push(virusModel);
               moveCharacter(virusModel, zac, 10, () => {
                 virusModel.removeFromScene();
-                this.#championManager.highlight(mixer, zac);
+                Team.championManager.highlight(mixer, zac);
                 this.objectsOfChamp.splice(
                   this.objectsOfChamp.findIndex((obj) => obj === virusModel),
                   1
@@ -685,31 +660,103 @@ export default class Team {
         return;
       }
 
+      Team.benchSlot[emptyIndex] = 1;
       // Mua tướng bình thường
-      this.#championManager.addChampion(
+      Team.championManager.addChampion(
         {
           position:
             existedChampSameName.length === 2
               ? [0, 0, 0]
-              : [xMes[emptyIndex], 0, zMe],
+              : [Team.xMes[emptyIndex], 0, Team.zMe],
           data: card.data,
         },
         (dragHelper) => {
           dragHelper.benchIndex = emptyIndex;
           dragHelper.bfIndex = -1;
           window.champsBought[index] = 1;
+          Team.benchSlot[emptyIndex] = 1;
           card.classList.add("invisible");
-          draggableObjects.push(dragHelper);
-          this.sendMessageChangeLineupToEnemy(ChampionManager.getMyTeam());
+          const tt = document.getElementById("tooltip");
+          tt.classList.add("hidden");
+          tt.replaceChildren();
+          ChampionManager.draggableObjects.push(dragHelper);
+          Team.sendMessageChangeLineupToEnemy(ChampionManager.getMyTeam());
           addingFlag = false;
           addGold(-dragHelper.userData.data.cost);
+          renderShopCards(window.champsInRoll, false);
           // addHelper(this.scene, dragHelper);
         }
       );
     });
   }
 
-  sendMessageChangeLineupToEnemy() {
+  static addChampion(champName, type = "champ") {
+    console.log("Team.addChampion: ", champName);
+    if (Team.addingFlag) return;
+    // add champion by put orbs
+    Team.addingFlag = true;
+    let champData = CHAMPS_INFOR.find(
+      (champInfor) => champInfor.name === champName
+    );
+    if (!champData && !["item", "champ"].includes(type)) return;
+
+    // Tìm vị trí trống trong bench
+    const emptyIndex = Team.xMes.findIndex(
+      (_, i) =>
+        !ChampionManager.draggableObjects.some(
+          (c) => c.bfIndex === -1 && c.benchIndex === i && Team.benchSlot[i]
+        )
+    );
+
+    const existedChampSameName = [];
+    if (type === "champ") {
+      ChampionManager.getMyTeam().forEach((champEx) => {
+        if (
+          champEx.userData.name === champData.name &&
+          champEx.userData.level === 1
+        ) {
+          existedChampSameName.push(champEx);
+        }
+      });
+    }
+    if (emptyIndex === -1 && existedChampSameName.length < 2) {
+      if (type === "item") {
+        alert("bench full, free it to add item");
+      } else addGold(champData.cost);
+      Team.addingFlag = false;
+      return;
+    }
+
+    if (type === "item") {
+      champData = {
+        name: champName,
+        type,
+      };
+    }
+
+    Team.benchSlot[emptyIndex] = 1;
+    // Mua tướng bình thường
+    Team.championManager.addChampion(
+      {
+        position:
+          existedChampSameName.length === 2
+            ? [0, 0, 0]
+            : [Team.xMes[emptyIndex], 0, Team.zMe],
+        data: champData,
+      },
+      (dragHelper) => {
+        dragHelper.benchIndex = emptyIndex;
+        dragHelper.bfIndex = -1;
+        Team.benchSlot[emptyIndex] = 1;
+        ChampionManager.draggableObjects.push(dragHelper);
+        Team.sendMessageChangeLineupToEnemy(ChampionManager.getMyTeam());
+        Team.addingFlag = false;
+        // addHelper(this.scene, dragHelper);
+      }
+    );
+  }
+
+  static sendMessageChangeLineupToEnemy() {
     console.log(
       "sendMessageChangeLineupToEnemy: ",
       ChampionManager.getMyTeam()
@@ -740,23 +787,37 @@ export default class Team {
         }
       });
     }
+
+    for (let i = 0; i < Team.benchSlot.length; i++) {
+      const existedChamp = ChampionManager.getMyTeam().find(
+        (c) => c.benchIndex === i
+      );
+      if (!existedChamp) {
+        Team.benchSlot[i] = null;
+      }
+    }
+
     if (this.rightClickEffect) this.rightClickEffect.update();
   }
 
   loadSettings() {}
 
   getChampionManager() {
-    return this.#championManager;
+    return Team.championManager;
   }
 
   static buyChampion = (scene, champ) => {
     ChampionManager.removeChampFromScene(scene, champ);
+    if (champ.userData.isItem) {
+      console.log("use " + champ.userData.name);
+      return;
+    }
     addGold(champ.userData.data.cost * Math.pow(3, champ.userData.level - 1));
   };
 
   static addItem(item) {
     if (!item) return;
-    // console.log(item);
+    console.log(item);
     const equipbarWrapper = document.getElementById("equipment-bar");
     const equiItem = document.createElement("img");
     equiItem.className =

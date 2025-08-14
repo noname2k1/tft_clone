@@ -4,6 +4,7 @@ import {
   tacticianSpeed,
   LOW_GRAPHICS_MODE,
   CHAMPS_INFOR,
+  ITEMS_INFOR,
 } from "~/variables.js";
 import ChampionManager from "~~/objects/ChampionManager.js";
 import Model from "~~/objects/Model.js";
@@ -19,6 +20,7 @@ import initial from "~~/setup/initial.js";
 import Team from "./assets/scripts/objects/Team";
 import Battle from "./assets/scripts/objects/Battle";
 import { addGold } from "./assets/scripts/others/goldExp";
+import { generateIconURLFromRawCommunityDragon } from "./assets/scripts/utils/utils";
 
 // Globals
 let mixer;
@@ -369,7 +371,7 @@ const LoadAllModel = () => {
     const coin = new Model(
       scene,
       {
-        name: "coin",
+        name: "Gold",
         url: "/models/items/coin.glb",
         scale: [0.04, 0.07, 0.1],
         position: [Math.random() * 10, itemOutBagY, Math.random() * 10],
@@ -439,23 +441,23 @@ const LoadAllModel = () => {
     }
   }
 
-  Array.from({ length: 10 }).forEach((_) => {
-    // load secret sphere
-    const silverOrb = new SecretSphere(
-      scene,
-      renderer,
-      [Math.random() * 30 - 15, itemOutBagY, Math.random() * 30 - 15],
-      0
-    );
-    const blueOrb = new SecretSphere(
-      scene,
-      renderer,
-      [Math.random() * 30 - 15, itemOutBagY, Math.random() * 30 - 15],
-      1
-    );
-    itemsOutBag.push(silverOrb);
-    itemsOutBag.push(blueOrb);
-  });
+  // Array.from({ length: 10 }).forEach((_) => {
+  //   // load secret sphere
+  //   const silverOrb = new SecretSphere(
+  //     scene,
+  //     renderer,
+  //     [Math.random() * 30 - 15, itemOutBagY, Math.random() * 30 - 15],
+  //     0
+  //   );
+  //   const blueOrb = new SecretSphere(
+  //     scene,
+  //     renderer,
+  //     [Math.random() * 30 - 15, itemOutBagY, Math.random() * 30 - 15],
+  //     1
+  //   );
+  //   itemsOutBag.push(silverOrb);
+  //   itemsOutBag.push(blueOrb);
+  // });
 
   const goldOrb = new SecretSphere(
     scene,
@@ -464,13 +466,15 @@ const LoadAllModel = () => {
     2
   );
   itemsOutBag.push(goldOrb);
-  const prismaticOrb = new SecretSphere(
-    scene,
-    renderer,
-    [Math.random() * 30 - 15, itemOutBagY, Math.random() * 30 - 15],
-    3
-  );
-  itemsOutBag.push(prismaticOrb);
+  Array.from({ length: 10 }).forEach((_) => {
+    const prismaticOrb = new SecretSphere(
+      scene,
+      renderer,
+      [Math.random() * 30 - 15, itemOutBagY, Math.random() * 30 - 15],
+      3
+    );
+    itemsOutBag.push(prismaticOrb);
+  });
   const greenOrb = new SecretSphere(
     scene,
     renderer,
@@ -532,14 +536,14 @@ let animationId = null;
 const tacticianState = { isRunning: false, isAttack: false };
 // Animate
 try {
-  const slowFactor = 0.5;
+  const slowFactor = 0.3;
   function animate() {
     animationId = requestAnimationFrame(animate);
     const delta = clock.getDelta();
     if (mixer) mixer.update(delta * slowFactor);
     ChampionManager.draggableObjects.forEach((draggableObject) => {
-      draggableObject.mixer?.update(delta * slowFactor);
-      draggableObject.userData.champScene?.mixer.update(delta * slowFactor);
+      draggableObject?.mixer?.update(delta * slowFactor);
+      draggableObject?.userData?.champScene?.mixer?.update(delta * slowFactor);
     });
     ChampionManager.update(scene);
     bfEnemies.forEach((bfEnemy) => {
@@ -579,12 +583,17 @@ try {
       );
       itemsOutBag.forEach((item, index) => {
         if (item.checkCollision(tactician)) {
-          itemsOutBag.splice(index, 1);
-          console.log("nhặt " + item.name);
           if (item.onCollision) {
-            item.onCollision();
+            if (!item.collisioning) {
+              console.log("nhặt " + item.name);
+              item.onCollision();
+            }
           }
-          item.removeFromScene();
+          if (item.name.includes("Gold")) {
+            console.log("nhặt " + item.name);
+            item.removeFromScene();
+            itemsOutBag.splice(index, 1);
+          }
         }
       });
 
@@ -612,5 +621,4 @@ try {
     console.warn("Animation loop stopped due to error.");
   }
 }
-
 export { updateEnemyLineup };

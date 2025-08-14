@@ -7,6 +7,7 @@ import {
   addHelper,
   generateIconURLFromRawCommunityDragon,
   createImage,
+  createSpriteObject,
 } from "~~/utils/utils";
 import {
   CHAMPS_INFOR,
@@ -18,7 +19,7 @@ import {
   TRAITS_INFOR,
 } from "~/variables.js";
 import { clone } from "https://esm.sh/three/examples/jsm/utils/SkeletonUtils.js";
-import { champScales, costGradients } from "~~/data/champs.js";
+import { champScales, costGradients, itemScales } from "~~/data/champs.js";
 import {
   injectVariables,
   onTooltip,
@@ -180,9 +181,9 @@ export default class ChampionManager {
     size,
     champData,
     rotation,
-    hpBar,
-    mpBar,
-    statusBarGroup
+    hpBar = null,
+    mpBar = null,
+    statusBarGroup = null
   ) {
     const dragHelper = new THREE.Mesh(
       new THREE.BoxGeometry(1, 1, 1),
@@ -198,9 +199,11 @@ export default class ChampionManager {
     dragHelper.userData.maxMp = champData.data.stats.mana;
     dragHelper.userData.currentMp = champData.data.stats.initialMana;
     dragHelper.userData.champScene = champScene;
-    dragHelper.userData.hpBar = hpBar;
-    dragHelper.userData.mpBar = mpBar;
-    dragHelper.userData.statusBarGroup = statusBarGroup;
+    if (hpBar && mpBar && statusBarGroup) {
+      dragHelper.userData.hpBar = hpBar;
+      dragHelper.userData.mpBar = mpBar;
+      dragHelper.userData.statusBarGroup = statusBarGroup;
+    }
     dragHelper.userData.name = champData.data.name;
     dragHelper.userData.data = champData.data;
     dragHelper.userData.champData = champData;
@@ -238,9 +241,10 @@ export default class ChampionManager {
     const testCeleAnim = ["celebration", "dance_in", "dance"];
     let anim = animations.find(
       (a) =>
-        a.name.toLowerCase().includes(name) &&
-        a.name.toLowerCase() !== "idlein" &&
-        !a.name.toLowerCase().includes("idle_in")
+        (name === "idle" && a.name.toLowerCase() === "idle1") ||
+        (a.name.toLowerCase().includes(name) &&
+          a.name.toLowerCase() !== "idlein" &&
+          !a.name.toLowerCase().includes("idle_in"))
     );
     if (name === testCeleAnim[0]) {
       while (testAnim < testCeleAnim.length && !anim) {
@@ -497,17 +501,50 @@ export default class ChampionManager {
 
   addChampion(champData, callback = () => {}) {
     console.log("addChampion: ", champData);
-    const setFolder = "Set15";
-    const beforeFix = "(tft_set_15)";
-    const safeName = champData.data.name
-      .toLowerCase()
-      .replace(". ", "_")
-      .replace(" ", "_")
-      .replace("'", "");
-    const url = `/models/champions/${setFolder}/${safeName}_${beforeFix}.glb`;
-    const scale = this.getChampionScale(
-      champData.data.name.replaceAll("_", " ")
-    );
+    let url, scale;
+    if (champData.data.type != "item") {
+      const setFolder = "Set15";
+      const beforeFix = "(tft_set_15)";
+      const safeName = champData.data.name
+        .toLowerCase()
+        .replace(". ", "_")
+        .replace(" ", "_")
+        .replace("'", "");
+      url = `/models/champions/${setFolder}/${safeName}_${beforeFix}.glb`;
+      scale = this.getChampionScale(champData.data.name.replaceAll("_", " "));
+    } else {
+      const spriteUrl = `/images/${champData.data.name
+        .toLowerCase()
+        .replaceAll(" ", "-")}.png`;
+      // console.log(spriteUrl);
+      createSpriteObject(spriteUrl, (spriteMesh) => {
+        // console.log(spriteMesh);
+        spriteMesh.position.set(...champData.position);
+        spriteMesh.rotation.x = -0.5;
+        const itemScale =
+          itemScales[champData.data.name.toLowerCase().replaceAll(" ", "-")];
+        spriteMesh.scale.set(...(itemScale ? itemScale : [3, 3, 3]));
+        spriteMesh.userData.champScene = spriteMesh;
+        const ring = new THREE.RingGeometry(1.3, 1.4, 64);
+        const material = new THREE.MeshBasicMaterial({
+          color: COLOR_ORANGE,
+          side: THREE.DoubleSide,
+        });
+        const mesh = new THREE.Mesh(ring, material);
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.position.copy(spriteMesh.position);
+        mesh.visible = false;
+        spriteMesh.hover = mesh;
+        this.scene.add(mesh);
+        spriteMesh.userData.isItem = true;
+        spriteMesh.userData.name = champData.data.name;
+        spriteMesh.userData.data = champData.data;
+        this.scene.add(spriteMesh);
+        callback(spriteMesh);
+      });
+
+      return;
+    }
     const handleLoad = (gltf) => {
       // console.log({ scene: gltf.scene });
       const champScene = gltf.scene;
@@ -569,34 +606,36 @@ export default class ChampionManager {
       callback(dragHelper);
     };
 
-    if (MODEL_CACHES[url]) {
-      const cached = MODEL_CACHES[url];
-      const cloned = clone(cached.scene);
-      const clonedGltf = {
-        scene: cloned,
-        animations: cached.animations,
-        size: cached.size,
-      };
-      handleLoad(clonedGltf);
-    } else {
-      console.log("model dont loaded: ", champData.data.name);
-      loadModel(
-        url,
-        (gltf) => {
-          const champScene = gltf.scene;
-          champScene.position.set(...champData.position);
-          champScene.scale.set(...scale);
-          champScene.rotation.x = -0.5;
-          const box = new THREE.Box3().setFromObject(gltf.scene, true);
-          const size = new THREE.Vector3();
-          box.getSize(size);
-          gltf.size = size;
-          MODEL_CACHES[url] = gltf;
-          handleLoad(gltf);
-        },
-        (err) => console.error(err),
-        null
-      );
+    if (!champData.data.name.includes("Anvil")) {
+      if (MODEL_CACHES[url]) {
+        const cached = MODEL_CACHES[url];
+        const cloned = clone(cached.scene);
+        const clonedGltf = {
+          scene: cloned,
+          animations: cached.animations,
+          size: cached.size,
+        };
+        handleLoad(clonedGltf);
+      } else {
+        console.log("model dont loaded: ", champData.data.name);
+        loadModel(
+          url,
+          (gltf) => {
+            const champScene = gltf.scene;
+            champScene.position.set(...champData.position);
+            champScene.scale.set(...scale);
+            champScene.rotation.x = -0.5;
+            const box = new THREE.Box3().setFromObject(gltf.scene, true);
+            const size = new THREE.Vector3();
+            box.getSize(size);
+            gltf.size = size;
+            MODEL_CACHES[url] = gltf;
+            handleLoad(gltf);
+          },
+          (err) => console.error(err),
+          null
+        );
+      }
     }
   }
 
@@ -767,8 +806,8 @@ export default class ChampionManager {
   }
 
   static upgrade(dragHelper, level = 1) {
-    const userData = dragHelper.userData;
-    const model = userData.champScene;
+    const userData = dragHelper?.userData;
+    const model = userData?.champScene;
     // function applyStarEffect(model, starLevel = 1) {
     //   const config = {
     //     1: { color: 0xffffff, intensity: 0 },
@@ -779,7 +818,7 @@ export default class ChampionManager {
 
     //   const { color, intensity } = config[starLevel] || config[1];
 
-    model.traverse((child) => {
+    model?.traverse((child) => {
       if (!child.isMesh || !child.material) return;
       // const matName = child.material.name.toLowerCase();
       // console.log({ matName, mat: child.material });
@@ -987,6 +1026,11 @@ export default class ChampionManager {
     return ChampionManager.draggableObjects.filter(
       (obj) => obj.bfIndex || obj.benchIndex
     );
+  }
+
+  static getCountMyBench() {
+    return ChampionManager.draggableObjects.filter((obj) => obj.benchIndex)
+      .length;
   }
 
   useItem() {}
