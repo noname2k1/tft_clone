@@ -316,6 +316,10 @@ const champScales = [
     name: "Ramus",
     scale: [0.015, 0.015, 0.015],
   },
+  {
+    name: "tft15 galio",
+    scale: [0.015, 0.015, 0.015],
+  },
 ];
 
 const costGradients = [

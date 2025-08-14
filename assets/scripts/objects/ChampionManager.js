@@ -33,6 +33,7 @@ export default class ChampionManager {
   static draggableObjects = [];
   maxTraitDisplay = 10;
   attack1 = {};
+  static galioData = null;
   static levelIconDetails = {
     1: { size: [0.5, 0.5], url: "/images/icon-lv1.png", posX: -1.2 },
     2: { size: [1, 1], url: "/images/icon-lv2.png", posX: -1.4 },
@@ -234,7 +235,8 @@ export default class ChampionManager {
     name = "idle",
     callBack = () => {},
     loopTimes = THREE.LoopRepeat,
-    fireBulletWhen = "before"
+    fireBulletWhen = "before",
+    onFinish = () => {}
   ) {
     if (!mixer || !animations) return;
     let testAnim = 0;
@@ -258,8 +260,7 @@ export default class ChampionManager {
     if (!anim) {
       return;
     }
-    // console.log(anim);
-
+    console.log("anim: ", anim);
     const action = mixer.clipAction(anim);
     mixer.stopAllAction(); // Dừng trước
     action.reset();
@@ -283,6 +284,7 @@ export default class ChampionManager {
     const onFinished = (e) => {
       mixer.removeEventListener("finished", onFinished);
       console.log("anim " + anim.name + " finished!");
+      onFinish();
       const idle = animations.find(
         (a) =>
           a.name.toLowerCase().includes("idle") &&
@@ -366,9 +368,74 @@ export default class ChampionManager {
       }
     `;
       this.traitListElement?.appendChild(div);
+      if (
+        name === "Mighty Mech" &&
+        import.meta.env.VITE_SET_KEY === "TFT_Set15"
+      ) {
+        const changeLevelGalio = (existedGalio) => {
+          existedGalio.mixer.stopAllAction();
+          this.playChampionAnimation(
+            existedGalio.mixer,
+            existedGalio.animations,
+            "spawn",
+            () => {
+              console.log(effect.variables.NumItems);
+              ChampionManager.upgrade(existedGalio, effect.variables.NumItems);
+            },
+            THREE.LoopOnce,
+            "before",
+            () => {
+              existedGalio.mixer.stopAllAction();
+              this.playChampionAnimation(
+                existedGalio.mixer,
+                existedGalio.animations,
+                "idle",
+                () => {},
+                THREE.LoopRepeat
+              );
+            }
+          );
+        };
+        if (effect) {
+          // console.log(effect.variables.NumItems);
+          if (effect.variables.NumItems < ChampionManager.galioData?.NumItems) {
+            // downgrade
+            const existedGalio = ChampionManager.getMyTeam().find(
+              (c) => c.userData.name === "tft15_galio"
+            );
+            if (existedGalio) {
+              changeLevelGalio(existedGalio);
+              ChampionManager.galioData = effect.variables;
+            }
+          } else if (
+            effect.variables.NumItems === ChampionManager.galioData?.NumItems
+          ) {
+          } else {
+            console.log("myteam: ", ChampionManager.getMyTeam());
+            ChampionManager.galioData = effect.variables;
+            const existedGalio = ChampionManager.getMyTeam().find(
+              (c) => c.userData.name === "tft15_galio"
+            );
+            if (existedGalio) {
+              changeLevelGalio(existedGalio);
+            } else {
+              Team.addChampion("tft15_galio");
+            }
+          }
+        } else {
+          const existedGalio = ChampionManager.getMyTeam().find(
+            (c) => c.userData.name === "tft15_galio"
+          );
+          if (existedGalio) {
+            ChampionManager.galioData = null;
+            ChampionManager.removeChampFromScene(this.scene, existedGalio);
+          }
+        }
+      }
       onTooltip(
         div,
         (tt) => {
+          console.log(data);
           tt.style["max-width"] = "30vw";
           // console.log({ name, champs, data, effect, nextEffect });
           const eff = effect ?? {};
@@ -421,11 +488,13 @@ export default class ChampionManager {
     const traitsMap = {};
 
     champsInBf.forEach((champ) => {
-      champ.userData.data.traits.forEach((trait) => {
-        if (!traitsMap[trait]) traitsMap[trait] = [champ.userData.name];
-        else if (!traitsMap[trait].includes(champ.userData.name))
-          traitsMap[trait].push(champ.userData.name);
-      });
+      if (champ.userData.data.traits) {
+        champ?.userData?.data?.traits.forEach((trait) => {
+          if (!traitsMap[trait]) traitsMap[trait] = [champ.userData.name];
+          else if (!traitsMap[trait].includes(champ.userData.name))
+            traitsMap[trait].push(champ.userData.name);
+        });
+      }
     });
 
     const traitsArray = Object.entries(traitsMap).map(([name, champs]) => ({
@@ -503,6 +572,7 @@ export default class ChampionManager {
     console.log("addChampion: ", champData);
     let url, scale;
     const isItem = champData.data?.type === "item";
+    const isSkill = champData.data.type === "skill";
     if (!isItem) {
       const setFolder = "Set15";
       const beforeFix = "(tft_set_15)";
@@ -511,7 +581,9 @@ export default class ChampionManager {
         .replace(". ", "_")
         .replace(" ", "_")
         .replace("'", "");
-      url = `/models/champions/${setFolder}/${safeName}_${beforeFix}.glb`;
+      url = isSkill
+        ? `/models/skills/${setFolder}/${champData.data.name}.glb`
+        : `/models/champions/${setFolder}/${safeName}_${beforeFix}.glb`;
       scale = this.getChampionScale(champData.data.name.replaceAll("_", " "));
     } else {
       const spriteUrl = `/images/${champData.data.name
@@ -591,9 +663,23 @@ export default class ChampionManager {
       this.playChampionAnimation(
         mixerChamp,
         gltf.animations,
-        "idle",
+        champData.data.name === "tft15_galio" ? "spawn" : "idle",
         () => {},
-        THREE.LoopRepeat
+        champData.data.name === "tft15_galio"
+          ? THREE.LoopOnce
+          : THREE.LoopRepeat,
+        "before",
+        () => {
+          if (champData.data.name === "tft15_galio") {
+            this.playChampionAnimation(
+              mixerChamp,
+              gltf.animations,
+              "idle",
+              () => {},
+              THREE.LoopRepeat
+            );
+          }
+        }
       );
       dragHelper.animations = gltf.animations;
       dragHelper.mixer = mixerChamp;
@@ -607,7 +693,7 @@ export default class ChampionManager {
       callback(dragHelper);
     };
 
-    if (!champData.data.name.includes("Anvil")) {
+    if (!isItem) {
       if (MODEL_CACHES[url]) {
         const cached = MODEL_CACHES[url];
         const cloned = clone(cached.scene);
@@ -848,7 +934,7 @@ export default class ChampionManager {
     // }
     // applyStarEffect(userData.champScene, level);
     userData.level = level;
-    if (level > 1) {
+    if (level > 0) {
       const meshLevelIcon = dragHelper.userData.statusBarGroup.children.find(
         (child) => child.userData.name === "icon-level"
       );

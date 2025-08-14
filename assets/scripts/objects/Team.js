@@ -687,6 +687,7 @@ export default class Team {
 
   static addChampion(champName, type = "champ") {
     console.log("Team.addChampion: ", champName);
+    const isGalio = champName === "tft15_galio";
     if (Team.addingFlag) return;
     // add champion by put orbs
     Team.addingFlag = true;
@@ -704,7 +705,7 @@ export default class Team {
     );
 
     const existedChampSameName = [];
-    if (type === "champ") {
+    if (type === "champ" && !isGalio) {
       ChampionManager.getMyTeam().forEach((champEx) => {
         if (
           champEx.userData.name === champData.name &&
@@ -714,7 +715,7 @@ export default class Team {
         }
       });
     }
-    if (emptyIndex === -1 && existedChampSameName.length < 2) {
+    if (emptyIndex === -1 && existedChampSameName.length < 2 && !isGalio) {
       if (type === "item") {
         addToast("bench full, free it to add item");
       } else addGold(champData.cost);
@@ -729,14 +730,29 @@ export default class Team {
       };
     }
 
+    if (isGalio) {
+      champData = {
+        name: champName,
+        ...ChampionManager.galioData,
+        stats: {
+          hp: ChampionManager.galioData["{35bd6e0d}"],
+          mana: ChampionManager.galioData["{4c8d22b6}"],
+          initialMana: ChampionManager.galioData["{3f8b87fb}"],
+        },
+        type: "skill",
+        scale: [1, 1, 1],
+      };
+    }
+
     Team.benchSlot[emptyIndex] = 1;
     // Mua tướng bình thường
     Team.championManager.addChampion(
       {
-        position:
-          existedChampSameName.length === 2
-            ? [0, 0, 0]
-            : [Team.xMes[emptyIndex], 0, Team.zMe],
+        position: isGalio
+          ? [0, 0, 0]
+          : existedChampSameName.length === 2
+          ? [0, 0, 0]
+          : [Team.xMes[emptyIndex], 0, Team.zMe],
         data: champData,
       },
       (dragHelper) => {
