@@ -1,7 +1,7 @@
 import * as THREE from "https://esm.sh/three";
 import ItemOutBag from "./ItemOutBag";
 import { ITEMS_INFOR } from "~/variables";
-import { getItems, getRandomItem } from "../services/services";
+import { addToast, getItems, getRandomItem } from "../services/services";
 import { customFetch } from "../utils/callApi";
 import { addGold } from "../others/goldExp";
 import Team from "./Team";
@@ -436,7 +436,7 @@ export default class SecretSphere extends ItemOutBag {
         const [quantity, unit] = str.split("_");
         if (!unit?.toLowerCase().includes("unit")) return;
         if (ChampionManager.getCountMyBench() >= 9) {
-          alert("bench full! free it and try again");
+          addToast("bench full! free it and try again");
           return;
         }
         const cost = unit.split("Cost")[0];
@@ -447,35 +447,44 @@ export default class SecretSphere extends ItemOutBag {
               let cloneQuantity = +quantity;
               for (const champ of data.champs) {
                 if (ChampionManager.getCountMyBench() >= 9) {
-                  alert("bench full! free it and try again");
+                  addToast("bench full! free it and try again");
                   break;
                 }
-                Team.addChampion(champ.name);
-                await delay(200);
-                cloneQuantity -= 1;
-                if (typeof this.#reward?.name === "string") {
-                  this.#reward.name = cloneQuantity + "_" + unit;
-                } else {
-                  let unitItem = this.#reward.name.find((item) =>
-                    item.includes("Unit")
-                  );
-                  if (unitItem) unitItem = cloneQuantity + "_" + unit;
-                }
-                if (cloneQuantity === 0) {
-                  if (typeof this.#reward?.name === "string") {
-                    this.#reward = null;
-                  } else {
-                    const unitItemIndex = this.#reward.name.findIndex((item) =>
-                      item.includes("Unit")
-                    );
-                    if (unitItemIndex > -1) {
-                      this.#reward.name.splice(unitItemIndex, 1);
-                      if (this.#reward.name.length <= 0) {
-                        this.#reward = null;
+                let intervalId = setInterval(() => {
+                  if (!Team.addingFlag) {
+                    const result = Team.addChampion(champ.name);
+                    if (result) {
+                      cloneQuantity -= 1;
+                      if (typeof this.#reward?.name === "string") {
+                        this.#reward.name = cloneQuantity + "_" + unit;
+                      } else {
+                        let unitItem = this.#reward.name.find((item) =>
+                          item.includes("Unit")
+                        );
+                        if (unitItem) unitItem = cloneQuantity + "_" + unit;
                       }
+                      if (cloneQuantity === 0) {
+                        if (typeof this.#reward?.name === "string") {
+                          this.#reward = null;
+                        } else {
+                          const unitItemIndex = this.#reward.name.findIndex(
+                            (item) => item.includes("Unit")
+                          );
+                          if (unitItemIndex > -1) {
+                            this.#reward.name.splice(unitItemIndex, 1);
+                            if (this.#reward.name.length <= 0) {
+                              this.#reward = null;
+                            }
+                          }
+                        }
+                      }
+                    } else {
+                      this.collisioning = false;
                     }
+                    clearInterval(intervalId);
                   }
-                }
+                }, 100);
+                await delay(200);
               }
               cb();
             }
@@ -524,11 +533,15 @@ export default class SecretSphere extends ItemOutBag {
         } else if (part.includes("Anvil") || part.startsWith("Tome")) {
           let intervalId = setInterval(() => {
             if (!Team.addingFlag) {
-              Team.addChampion(part, "item");
+              const result = Team.addChampion(part, "item");
+              if (result) {
+                addResult(part);
+              } else {
+                this.collisioning = false;
+              }
               clearInterval(intervalId);
             }
           }, 100);
-          addResult(part);
         } else {
           const itemData = ITEMS_INFOR.find((item) => item.name === part);
           if (itemData) {

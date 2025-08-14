@@ -18,6 +18,12 @@ export const CHAMPS_INFOR = [];
 export const EXCLUDE_CHAMPS = [];
 export const ITEMS_INFOR = [];
 export const ITEMS_EMBLEM = [];
+export const ITEMS_COMPONENT = [];
+export const ITEMS_RADIANT = [];
+export const ITEMS_ARTIFACT = [];
+export const ITEMS_GOLD_COLLECTOR_ARTIFACT = [];
+export const ITEMS_EQUIPMENT = [];
+export const ITEMS_SUPPORT = [];
 export const EXCLUDE_ITEMS = [];
 export const ARGUMENTS_INFOR = [];
 export const disabledOrbitControlsIds = [
@@ -29,6 +35,7 @@ export const disabledOrbitControlsIds = [
   "primary-modal",
   "enemy-define",
   "items-list",
+  "toast",
 ];
 export const EXP_TABLE = {
   1: 0, // turn 1, cannot up level

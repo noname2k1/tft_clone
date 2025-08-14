@@ -1,3 +1,5 @@
+import { addToast } from "../../services/services";
+
 const primaryModal = document.getElementById("primary-modal");
 const enemyLineupBtn = document.getElementById("enemy-lineup-btn");
 const closeModalBtn = primaryModal.querySelector(".close-modal-btn");
@@ -24,12 +26,12 @@ closeModalBtn.addEventListener("click", function () {
 helpModalBtn.addEventListener("click", function () {
   switch (primaryModal.dataset.purple) {
     case "enemy-lineup-help":
-      alert(
+      addToast(
         "drag & drop the champion from the right champion list to the hex on the left, right click on the hex to delete champion dragged"
       );
       break;
     default:
-      alert(
+      addToast(
         "you have been click the help modal button, instruction is coming soon!"
       );
   }

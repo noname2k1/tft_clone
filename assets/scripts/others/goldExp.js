@@ -59,7 +59,7 @@ function getLeftExpAndMyLevel() {
 
 function handleBuyExp(callback = () => {}) {
   if (!getLeftExpAndMyLevel().buyExpEnabled) {
-    // alert("You have reached the highest level!");
+    // addToast("You have reached the highest level!");
     return;
   }
   if (myGold >= fee.buyExp) {

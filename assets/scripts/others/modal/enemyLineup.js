@@ -2,8 +2,14 @@ import {
   CHAMPS_INFOR,
   EXCLUDE_CHAMPS,
   EXCLUDE_ITEMS,
+  ITEMS_ARTIFACT,
+  ITEMS_COMPONENT,
   ITEMS_EMBLEM,
+  ITEMS_EQUIPMENT,
+  ITEMS_GOLD_COLLECTOR_ARTIFACT,
   ITEMS_INFOR,
+  ITEMS_RADIANT,
+  ITEMS_SUPPORT,
   MODEL_CACHES,
   TRAITS_INFOR,
 } from "~/variables";
@@ -131,23 +137,78 @@ document.addEventListener("DOMContentLoaded", async function () {
         await customFetch("items", (data) => {
           // console.log(data);
           const excludeItems = data?.items;
-          EXCLUDE_ITEMS.splice(0, excludeItems.length, excludeItems);
+          EXCLUDE_ITEMS.splice(0, 0, excludeItems);
           const filteredItems = data?.items?.filter(
-            (item) =>
+            (item, index, self) =>
               item?.tags.length > 0 &&
               !item.name.includes("tft") &&
-              Object.keys(item.effects).length > 0
+              index === self.findIndex((o) => o.name === item.name)
           );
-          const emblems = filteredItems.filter(
-            (item) =>
-              item.tags.includes("{ebcd1bac}") && item.name.includes("Emblem")
+          ITEMS_EMBLEM.splice(
+            0,
+            0,
+            ...filteredItems.filter(
+              (item) =>
+                item.tags.includes("{ebcd1bac}") && item.name.includes("Emblem")
+            )
           );
-          ITEMS_EMBLEM.splice(0, emblems.length, ...emblems);
           // .sort((prev, curr) => (prev.cost < curr.cost ? -1 : 1));
-          ITEMS_INFOR.splice(0, filteredItems.length, ...filteredItems);
+          ITEMS_INFOR.splice(0, 0, ...filteredItems);
           filteredItems.forEach((item) => {
             preloadImage(generateIconURLFromRawCommunityDragon(item.icon));
           });
+          ITEMS_COMPONENT.splice(
+            0,
+            0,
+            ...filteredItems.filter((item) => item.tags.includes("component"))
+          );
+          ITEMS_RADIANT.splice(
+            0,
+            0,
+            ...filteredItems.filter(
+              (item) =>
+                item.name.includes("Radiant") &&
+                !item.tags.includes("Consumable")
+            )
+          );
+          ITEMS_SUPPORT.splice(
+            0,
+            0,
+            ...filteredItems.filter(
+              (item) =>
+                item.tags.includes("{27557a09}") &&
+                !item.icon.includes("HR.TFT_Set13.tex")
+            )
+          );
+
+          ITEMS_ARTIFACT.splice(
+            0,
+            0,
+            ...filteredItems.filter(
+              (item) =>
+                item.tags.includes("{44ace175}") &&
+                item.tags.includes("{ec243f6b}") &&
+                !item.desc.includes("gold")
+            )
+          );
+
+          ITEMS_GOLD_COLLECTOR_ARTIFACT.splice(
+            0,
+            0,
+            ...filteredItems.filter(
+              (item) =>
+                item.tags.includes("{44ace175}") &&
+                item.tags.includes("{ec243f6b}") &&
+                item.desc.includes("gold")
+            )
+          );
+
+          ITEMS_EQUIPMENT.splice(
+            0,
+            0,
+            ...filteredItems.filter((item) => item.tags.includes("{7ea41d13}"))
+          );
+          // normal items "{7ea41d13}"
           console.log("items loaded full");
           const ul = document.getElementById("items-list");
           ITEMS_INFOR.forEach((item) => {

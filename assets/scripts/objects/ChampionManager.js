@@ -502,7 +502,8 @@ export default class ChampionManager {
   addChampion(champData, callback = () => {}) {
     console.log("addChampion: ", champData);
     let url, scale;
-    if (champData.data.type != "item") {
+    const isItem = champData.data?.type === "item";
+    if (!isItem) {
       const setFolder = "Set15";
       const beforeFix = "(tft_set_15)";
       const safeName = champData.data.name
@@ -857,6 +858,7 @@ export default class ChampionManager {
   }
 
   displayChampInfor(display, champ = null) {
+    if (champ?.userData.isItem) return;
     if (champ) console.log("displayChampInfor: ", champ);
     const champInspect = document.getElementById("champ-inspect");
     if (champInspect) {
@@ -1039,13 +1041,11 @@ export default class ChampionManager {
     const countMap = new Map();
 
     ChampionManager.draggableObjects.forEach((obj) => {
-      if (obj.bfIndex || obj.benchIndex) {
+      if ((obj.bfIndex || obj.benchIndex) && !obj.userData.isItem) {
         const key = `${obj.userData.name}_${obj.userData.level}`;
         const entry = countMap.get(key) || { count: 0, objs: [] };
-
         entry.count += 1;
         entry.objs.push(obj);
-
         countMap.set(key, entry);
       }
     });

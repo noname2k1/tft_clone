@@ -3,6 +3,7 @@ import {
   ObserverElementChange,
 } from "../../utils/utils";
 import {
+  addToast,
   disabledMarkChamp,
   getMarkChampFromStorage,
   saveMarkChampToStorage,
@@ -283,7 +284,7 @@ const loadMarkTeams = () => {
             navigator.clipboard
               .writeText(JSON.stringify(markTeam.team))
               .then(() => {
-                alert("copied");
+                addToast("copied");
               })
               .catch((err) => {
                 console.error("❌ Error occur when copy:", err);
@@ -363,9 +364,9 @@ pasteMarkTeamBtn.addEventListener("click", (e) => {
     })
     .catch((err) => {
       if (String(err).includes("not allowed")) {
-        alert("You not allowed to website read clipboard");
+        addToast("You not allowed to website read clipboard");
       } else {
-        alert("Team invalid");
+        addToast("Team invalid");
       }
       // console.error("❌ Lỗi khi đọc clipboard:", err);
     });

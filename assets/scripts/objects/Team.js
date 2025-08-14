@@ -27,6 +27,7 @@ import {
 } from "../utils/utils";
 import { RightClickEffect } from "./effects";
 import {
+  addToast,
   createBattleField,
   createBench,
   createDeleteZone,
@@ -405,7 +406,7 @@ export default class Team {
           ChampionManager.updateStatusBars();
         });
 
-        this.renderer.domElement.addEventListener("pointerup", () => {
+        this.renderer.domElement.addEventListener("pointerup", (e) => {
           if (!selectedObject) return;
           let deleting = false;
           displayDeleteZone(false);
@@ -414,14 +415,6 @@ export default class Team {
 
           const worldPos = selectedObject.position.clone();
           const isItem = selectedObject.userData.isItem;
-
-          // 🔹 Nếu là item và không thả trong bench => trả về vị trí cũ
-          const inBench = benchCells.some(({ box }) => {
-            const center = new THREE.Vector3();
-            box.getCenter(center);
-            const worldCenter = mySquareGroup?.localToWorld(center.clone());
-            return worldCenter.distanceTo(worldPos) < 0.5; // hoặc check containsPoint
-          });
 
           let nearestCell = null,
             nearestType = null,
@@ -433,19 +426,6 @@ export default class Team {
             console.log("buy champion/item");
             nearestType = null;
             deleting = true;
-          }
-
-          if (isItem && !inBench && !deleting) {
-            selectedObject.position.copy(currPos);
-            selectedObject.userData.champScene.position.copy(currPos);
-            selectedObject.hover.position.copy(currPos);
-            displayGrid(true, true);
-            dragBenchIndex = -1;
-            currPos = null;
-            selectedObject = null;
-            isDragging = false;
-            Team.championManager.renderTraits();
-            return; // 🔹 Không tìm nearestCell nữa
           }
 
           bfCells.forEach(({ mesh, center }) => {
@@ -468,6 +448,21 @@ export default class Team {
               nearestType = "bench";
             }
           });
+
+          if (isItem && nearestType === "bf" && !deleting) {
+            if (currPos) {
+              selectedObject.position.copy(currPos);
+              selectedObject.userData.champScene.position.copy(currPos);
+              selectedObject.hover.position.copy(currPos);
+            }
+            displayGrid(true, true);
+            dragBenchIndex = -1;
+            currPos = null;
+            selectedObject = null;
+            isDragging = false;
+            Team.championManager.renderTraits();
+            return; // 🔹 Không tìm nearestCell nữa
+          }
 
           let highlightMesh = null;
 
@@ -591,8 +586,8 @@ export default class Team {
       const index = card.indexInRoll;
       const champData = window.champsInRoll?.[index];
       if (!champData || window.champsBought[index] === 1) {
-        alert(
-          "Bạn đã mua tướng này rồi! nghịch devtools admin sẽ ban acc của bạn =))))"
+        addToast(
+          "Hey! You’ve already bought this champion. If you keep using the devtools, your account will be banned."
         );
         return;
       }
@@ -618,7 +613,7 @@ export default class Team {
       });
 
       if (emptyIndex === -1 && existedChampSameName.length < 2) {
-        alert("Hàng chờ đầy, không thể mua thêm tướng");
+        addToast("Bench full! Can't bought anymore");
         addingFlag = false;
         return;
       }
@@ -721,10 +716,10 @@ export default class Team {
     }
     if (emptyIndex === -1 && existedChampSameName.length < 2) {
       if (type === "item") {
-        alert("bench full, free it to add item");
+        addToast("bench full, free it to add item");
       } else addGold(champData.cost);
       Team.addingFlag = false;
-      return;
+      return false;
     }
 
     if (type === "item") {
@@ -754,6 +749,7 @@ export default class Team {
         // addHelper(this.scene, dragHelper);
       }
     );
+    return true;
   }
 
   static sendMessageChangeLineupToEnemy() {

@@ -820,6 +820,24 @@ const getItems = (itemNames = [], getSingle = false) => {
   return itemsFound;
 };
 
+const addToast = (content, duration = 4000, title = "Notification") => {
+  if (!content) return;
+  const toast = document.getElementById("toast");
+  const titleElment = toast.querySelector("h2 > span");
+  const p = toast.querySelector("p");
+  const closeBtn = toast.querySelector("h2 > img");
+  titleElment.textContent = title;
+  p.textContent = content;
+  toast.classList.replace("-right-full", "right-[2vw]");
+  const hideToast = () => {
+    toast.classList.replace("right-[2vw]", "-right-full");
+  };
+  closeBtn.addEventListener("click", hideToast);
+  setTimeout(() => {
+    hideToast();
+  }, duration);
+};
+
 export {
   createDeleteZone,
   createBattleField,
@@ -835,4 +853,5 @@ export {
   statsCalculate,
   getItems,
   getRandomItem,
+  addToast,
 };
