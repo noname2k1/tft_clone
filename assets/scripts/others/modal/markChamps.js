@@ -8,7 +8,7 @@ import {
   getMarkChampFromStorage,
   saveMarkChampToStorage,
 } from "../../services/services";
-import { CHAMPS_INFOR } from "~/variables";
+import { CHAMPS_INFOR, EXCLUDE_CHAMPS } from "~/variables";
 
 const primaryModal = document.getElementById("primary-modal");
 const lineupSetup = document.getElementById("lineup-setup");
@@ -345,6 +345,9 @@ markChampsBtn.addEventListener("click", function (e) {
   if (markChampsArea.dataset.feature === "add") {
     markTeams.classList.add("hidden");
     champsDisplay.classList.remove("hidden");
+    EXCLUDE_CHAMPS.forEach((c) => {
+      console.log(c);
+    });
   } else {
     loadMarkTeams();
   }

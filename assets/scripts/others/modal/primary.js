@@ -7,8 +7,6 @@ const helpModalBtn = primaryModal.querySelector(".help-modal-btn");
 const enemyLineupArea = primaryModal.querySelector(".enemy-lineup-area");
 const markChampsArea = primaryModal.querySelector(".mark-champs-area");
 const champsDisplay = primaryModal.querySelector(".champs-display");
-const markTeamSlots = markChampsArea.querySelector(".mark-team-slots");
-const markTeams = markChampsArea.querySelector(".mark-teams");
 
 enemyLineupBtn.addEventListener("click", function (e) {
   primaryModal.classList.remove("invisible");

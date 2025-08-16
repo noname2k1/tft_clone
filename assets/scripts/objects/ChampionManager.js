@@ -195,7 +195,8 @@ export default class ChampionManager {
     dragHelper.scale.set(size.x, size.y, 1);
     // save data
     dragHelper.userData.level = 1;
-    dragHelper.userData.maxHp = champData.data.stats.hp;
+    dragHelper.userData.maxHp =
+      champData.data.stats.hp === 1 ? 1044 : champData.data.stats.hp;
     dragHelper.userData.currentHp = dragHelper.userData.maxHp;
     dragHelper.userData.maxMp = champData.data.stats.mana;
     dragHelper.userData.currentMp = champData.data.stats.initialMana;
@@ -207,6 +208,8 @@ export default class ChampionManager {
     }
     dragHelper.userData.name = champData.data.name;
     dragHelper.userData.data = champData.data;
+    dragHelper.userData.data.stats.hp =
+      champData.data.stats.hp === 1 ? 1044 : champData.data.stats.hp;
     dragHelper.userData.champData = champData;
     this.scene.add(dragHelper);
     const ring = new THREE.RingGeometry(1.3, 1.4, 64);
@@ -401,7 +404,7 @@ export default class ChampionManager {
           if (effect.variables.NumItems < ChampionManager.galioData?.NumItems) {
             // downgrade
             const existedGalio = ChampionManager.getMyTeam().find(
-              (c) => c.userData.name === "tft15_galio"
+              (c) => c.userData.name === "The Mighty Mech"
             );
             if (existedGalio) {
               changeLevelGalio(existedGalio);
@@ -414,17 +417,17 @@ export default class ChampionManager {
             console.log("myteam: ", ChampionManager.getMyTeam());
             ChampionManager.galioData = effect.variables;
             const existedGalio = ChampionManager.getMyTeam().find(
-              (c) => c.userData.name === "tft15_galio"
+              (c) => c.userData.name === "The Mighty Mech"
             );
             if (existedGalio) {
               changeLevelGalio(existedGalio);
             } else {
-              Team.addChampion("tft15_galio");
+              Team.addChampion("The Mighty Mech");
             }
           }
         } else {
           const existedGalio = ChampionManager.getMyTeam().find(
-            (c) => c.userData.name === "tft15_galio"
+            (c) => c.userData.name === "The Mighty Mech"
           );
           if (existedGalio) {
             ChampionManager.galioData = null;
@@ -572,7 +575,6 @@ export default class ChampionManager {
     console.log("addChampion: ", champData);
     let url, scale;
     const isItem = champData.data?.type === "item";
-    const isSkill = champData.data.type === "skill";
     if (!isItem) {
       const setFolder = "Set15";
       const beforeFix = "(tft_set_15)";
@@ -581,9 +583,7 @@ export default class ChampionManager {
         .replace(". ", "_")
         .replace(" ", "_")
         .replace("'", "");
-      url = isSkill
-        ? `/models/skills/${setFolder}/${champData.data.name}.glb`
-        : `/models/champions/${setFolder}/${safeName}_${beforeFix}.glb`;
+      url = `/models/champions/${setFolder}/${safeName}_${beforeFix}.glb`;
       scale = this.getChampionScale(champData.data.name.replaceAll("_", " "));
     } else {
       const spriteUrl = `/images/${champData.data.name
@@ -663,14 +663,14 @@ export default class ChampionManager {
       this.playChampionAnimation(
         mixerChamp,
         gltf.animations,
-        champData.data.name === "tft15_galio" ? "spawn" : "idle",
+        champData.data.name === "The Mighty Mech" ? "spawn" : "idle",
         () => {},
-        champData.data.name === "tft15_galio"
+        champData.data.name === "The Mighty Mech"
           ? THREE.LoopOnce
           : THREE.LoopRepeat,
         "before",
         () => {
-          if (champData.data.name === "tft15_galio") {
+          if (champData.data.name === "The Mighty Mech") {
             this.playChampionAnimation(
               mixerChamp,
               gltf.animations,
@@ -705,23 +705,18 @@ export default class ChampionManager {
         handleLoad(clonedGltf);
       } else {
         console.log("model dont loaded: ", champData.data.name);
-        loadModel(
-          url,
-          (gltf) => {
-            const champScene = gltf.scene;
-            champScene.position.set(...champData.position);
-            champScene.scale.set(...scale);
-            champScene.rotation.x = -0.5;
-            const box = new THREE.Box3().setFromObject(gltf.scene, true);
-            const size = new THREE.Vector3();
-            box.getSize(size);
-            gltf.size = size;
-            MODEL_CACHES[url] = gltf;
-            handleLoad(gltf);
-          },
-          (err) => console.error(err),
-          null
-        );
+        loadModel(url, (gltf) => {
+          const champScene = gltf.scene;
+          champScene.position.set(...champData.position);
+          champScene.scale.set(...scale);
+          champScene.rotation.x = -0.5;
+          const box = new THREE.Box3().setFromObject(gltf.scene, true);
+          const size = new THREE.Vector3();
+          box.getSize(size);
+          gltf.size = size;
+          MODEL_CACHES[url] = gltf;
+          handleLoad(gltf);
+        });
       }
     }
   }
@@ -968,9 +963,10 @@ export default class ChampionManager {
       />`
       );
       // cost
-      const costGradient = costGradients.find(
+      let costGradient = costGradients.find(
         (cg) => cg.cost === champ.userData.data.cost
       );
+      if (!costGradient) costGradient = costGradients[0];
       champInspect.insertAdjacentHTML(
         "beforeend",
         ` <div

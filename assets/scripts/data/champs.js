@@ -317,8 +317,8 @@ const champScales = [
     scale: [0.015, 0.015, 0.015],
   },
   {
-    name: "tft15 galio",
-    scale: [0.015, 0.015, 0.015],
+    name: "The Mighty Mech",
+    scale: [0.025, 0.025, 0.025],
   },
 ];
 

@@ -610,7 +610,7 @@ function injectVariables(
       } else {
         const key = lowerName.split("modified")[1];
         v = variables.find((v) => v.name.toLowerCase().includes(key));
-        return v?.value[starLevel] ?? `[${name}]`;
+        return v?.value?.[starLevel] ?? `[${name}]`;
       }
     }
 

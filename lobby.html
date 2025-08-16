@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LOBBY</title>
+    <link
+      rel="shortcut icon"
+      href="./assets/icons/favicon.ico"
+      type="image/x-icon"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  </head>
+  <body>
+    <main
+      class="fixed top-0 bottom-0 h-screen w-[calc(100%-10vw)] flex-col flex"
+    >
+      <header>header</header>
+      <section class="h-full flex items-center justify-center bg-black">
+        <div
+          class="p-[1vw] bg-gray-700 border-transparent border duration-200 hover:border-[#c8bc93]"
+        >
+          <div
+            class="w-[18vw] h-[8vw] bg-gray-700 border-[#c8bc93] border opacity-40 flex items-center justify-center"
+          >
+            <div
+              class="rounded-full p-[1.5vw] border-[0.2vw] border-[#c8bc93] bg-gray-700 opacity-40 text-[3vw] font-bold hover:bg-[#493902] duration-200 hover:border-[#fffae9]"
+            >
+              <div
+                class="w-[0.5vw] h-[0.5vw] mt-[-0.4vh] flex items-center leading-[1vw] text-[1.75vw] justify-center text-[#c8bc93]"
+              >
+                +
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          class="border border-[#c8bc93] w-[24vw] h-[22vw] mx-[2vw] relative flex flex-col justify-center"
+        >
+          <div class="items-center flex flex-col">
+            <img
+              src="/images/avatar-frame.png"
+              alt="avt-frame"
+              class="absolute top-[-8vh]"
+            />
+          </div>
+          <div class="mt-auto flex flex-col justify-center">
+            <span class="inline-block text-center text-white font-semibold"
+              >LuckyBoy</span
+            >
+            <span
+              class="inline-block text-center text-white font-medium text-[1.25vw]"
+              >Crystal III 20 exp</span
+            >
+          </div>
+          <div
+            class="flex items-center relative justify-center group mt-[1vw] mb-[1vw]"
+          >
+            <img
+              src="/images/bloblet.png"
+              alt=""
+              class="border-[0.4vw] border-[#fdd244] group-hover:border-[#c8bc93] group-hover:brightness-150 duration-200 w-[8vw] h-[6vw] mr-[0.75vw]"
+            /><img
+              src="/images/bloblet.png"
+              alt=""
+              class="border-[0.5vw] group-hover:brightness-150 border-[#fdd244] group-hover:border-[#c8bc93] duration-200 w-[8vw] h-[6vw]"
+            />
+            <img
+              src="/images/expand.png"
+              alt="expand"
+              class="absolute group-hover:brightness-150 duration-200"
+            />
+          </div>
+        </div>
+        <div
+          class="p-[1vw] bg-gray-700 border-transparent border duration-200 hover:border-[#c8bc93]"
+        >
+          <div
+            class="w-[18vw] h-[8vw] bg-gray-700 border-[#c8bc93] border opacity-40 flex items-center justify-center"
+          >
+            <div
+              class="rounded-full p-[1.5vw] border-[0.2vw] border-[#c8bc93] bg-gray-700 opacity-40 text-[3vw] font-bold hover:bg-[#493902] duration-200 hover:border-[#fffae9]"
+            >
+              <div
+                class="w-[0.5vw] h-[0.5vw] mt-[-0.4vh] flex items-center leading-[1vw] text-[1.75vw] justify-center text-[#c8bc93]"
+              >
+                +
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div class="h-[10vh] w-full flex justify-center items-center">
+        <span class="h-[10vh] mr-[-2vw]">
+          <img src="/images/btn-decorate.png" alt="" />
+        </span>
+        <button
+          class="relative flex items-center justify-center group"
+          id="find-battle-btn"
+        >
+          <img
+            src="/images/btn-spec01.png"
+            class="h-[10vh] w-[25vw] group-hover:brightness-150 duration-200 group-active:hidden"
+            alt="find-battle-img"
+          />
+          <img
+            src="/images/btn-spec.png"
+            class="h-[10vh] w-[25vw] hidden group-active:flex"
+            alt="active"
+          />
+          <span class="absolute text-white text-[2vw] font-semibold"
+            >Find Battle</span
+          >
+        </button>
+        <span class="h-[10vh] ml-[-2vw]">
+          <img src="/images/btn-decorate.png" alt="" class="scale-x-[-1]" />
+        </span>
+      </div>
+    </main>
+    <aside
+      class="fixed top-0 bottom-0 w-[10vw] bg-black h-screen right-0"
+    ></aside>
+  </body>
+</html>

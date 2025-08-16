@@ -44,11 +44,15 @@ const loadModel = (
   url,
   onLoad,
   onError = (error) => {
-    console.log(error);
+    console.error("load model error: %o, at url: %s", error, url);
   },
   onProgress = null
 ) => {
-  loader.load(url, onLoad, onProgress, onError);
+  try {
+    loader.load(url, onLoad, onProgress, onError);
+  } catch (error) {
+    console.error("load model error: %o, at url: %s", error, url);
+  }
 };
 
 const createDebugGuiFolder = (obj, cb = null) => {
@@ -284,15 +288,21 @@ function generateModelUrl(champName) {
 
 const preloadImage = (url) => {
   try {
-    const uniqueId = crypto.randomUUID();
-    const html = `<img src="${url}"id="${uniqueId}"/>`;
-    document.body.insertAdjacentHTML("beforeend", html);
-    const img = document.getElementById(uniqueId);
-    img.remove();
+    // console.log("preloadImage: ", url);
+    const img = new Image();
+    img.src = url;
   } catch (error) {
     console.error("preloadImage error: ", error);
   }
 };
+
+function preloadImages(urls) {
+  // console.log("preloadImages: ", urls);
+  urls.forEach((url) => {
+    const img = new Image();
+    img.src = url;
+  });
+}
 
 // delay for/of
 function delay(ms) {
@@ -336,6 +346,7 @@ export {
   generateIconURLFromRawCommunityDragon,
   generateModelUrl,
   preloadImage,
+  preloadImages,
   delay,
   createSpriteObject,
 };

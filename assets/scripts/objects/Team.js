@@ -55,6 +55,8 @@ export default class Team {
   static addingFlag = false;
   static benchCount = 9;
   static benchSlot = Array.from({ length: Team.benchCount }).map((_) => null);
+  static bfCells;
+  static galioIndex = 0;
 
   constructor(
     scene,
@@ -86,7 +88,7 @@ export default class Team {
   }
 
   loadArena() {
-    const bfCells = createBattleField(
+    Team.bfCells = createBattleField(
       this.scene,
       4,
       7,
@@ -129,7 +131,7 @@ export default class Team {
     const benchCells = createMyBench.benchCells;
 
     function displayGrid(hideBattleField = false, hideBench = false) {
-      bfCells.forEach(({ mesh }) => (mesh.visible = !hideBattleField));
+      Team.bfCells.forEach(({ mesh }) => (mesh.visible = !hideBattleField));
       benchCells.forEach(({ mesh }) => (mesh.visible = !hideBench));
     }
 
@@ -374,14 +376,14 @@ export default class Team {
 
           const worldPos = selectedObject.position.clone();
           let highlighted = false;
-          bfCells.forEach(({ mesh }) =>
+          Team.bfCells.forEach(({ mesh }) =>
             mesh.material.color.set(COLOR_MOVEABLE)
           );
           benchCells.forEach(({ mesh }) =>
             mesh.material.color.set(COLOR_MOVEABLE)
           );
-          for (let i = 0; i < bfCells.length; i++) {
-            const { mesh, center } = bfCells[i];
+          for (let i = 0; i < Team.bfCells.length; i++) {
+            const { mesh, center } = Team.bfCells[i];
             const dist = center.distanceTo(worldPos);
             if (dist < this.selectedArena.battlefield.radius * 0.95) {
               mesh.material.color.set(COLOR_SELECTABLE);
@@ -428,7 +430,7 @@ export default class Team {
             deleting = true;
           }
 
-          bfCells.forEach(({ mesh, center }) => {
+          Team.bfCells.forEach(({ mesh, center }) => {
             const dist = center.distanceTo(worldPos);
             if (dist < minDistance) {
               minDistance = dist;
@@ -472,12 +474,30 @@ export default class Team {
             let currTargetIndex = isBench ? currBenchIndex : currBfIndex;
             let indexKey = isBench ? "benchIndex" : "bfIndex";
             let otherIndexKey = isBench ? "bfIndex" : "benchIndex";
-            let cells = isBench ? benchCells : bfCells;
+            let cells = isBench ? benchCells : Team.bfCells;
 
             const existObj = draggableObjects.find(
               (champ) => champ[indexKey] === targetIndex
             );
-            if (existObj) {
+            const targetIsSkillObj = existObj?.userData.data.type === "skill";
+            if (
+              isBench === false &&
+              targetIsSkillObj &&
+              selectedObject.bfIndex === -1
+            ) {
+              if (currPos) {
+                selectedObject.position.copy(currPos);
+                selectedObject.userData.champScene.position.copy(currPos);
+                selectedObject.hover.position.copy(currPos);
+              }
+              displayGrid(true, true);
+              dragBenchIndex = -1;
+              currPos = null;
+              selectedObject = null;
+              isDragging = false;
+              Team.championManager.renderTraits();
+              return;
+            } else if (existObj) {
               existObj.position.copy(currPos);
               existObj.userData.champScene.position.copy(currPos);
               existObj[indexKey] = currTargetIndex;
@@ -687,12 +707,14 @@ export default class Team {
 
   static addChampion(champName, type = "champ") {
     console.log("Team.addChampion: ", champName);
-    const isGalio = champName === "tft15_galio";
+    const isGalio = champName === "The Mighty Mech";
     if (Team.addingFlag) return;
     // add champion by put orbs
     Team.addingFlag = true;
     let champData = CHAMPS_INFOR.find(
-      (champInfor) => champInfor.name === champName
+      (champInfor) =>
+        champInfor.name === champName ||
+        (isGalio && champInfor.name === "The Mighty Mech")
     );
     if (!champData && !["item", "champ"].includes(type)) return;
 
@@ -732,33 +754,70 @@ export default class Team {
 
     if (isGalio) {
       champData = {
-        name: champName,
+        ...champData,
         ...ChampionManager.galioData,
-        stats: {
-          hp: ChampionManager.galioData["{35bd6e0d}"],
-          mana: ChampionManager.galioData["{4c8d22b6}"],
-          initialMana: ChampionManager.galioData["{3f8b87fb}"],
-        },
         type: "skill",
         scale: [1, 1, 1],
       };
     }
 
+    const getGalioPos = () => {
+      const prioritizeIndexs = [3, 10, 17, 24];
+      const bfIndexUsed = ChampionManager.getMyTeam().map((c) => c.bfIndex);
+
+      // 1️⃣ Ưu tiên vị trí trong prioritizeIndexs
+      for (const index of prioritizeIndexs) {
+        if (!bfIndexUsed.includes(index)) {
+          this.galioIndex = index;
+          return Team.bfCells[index]?.center;
+        }
+      }
+
+      const cols = 7;
+      const rows = Math.ceil(Team.bfCells.length / cols);
+
+      // 2️⃣ Tìm các ô trống khác theo thứ tự từ trên xuống
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const index = row * cols + col;
+          if (!bfIndexUsed.includes(index) && index > prioritizeIndexs[row]) {
+            this.galioIndex = index;
+            return Team.bfCells[index]?.center;
+          }
+        }
+      }
+
+      // 3️⃣ Nếu vẫn không có thì random trong số ô trống
+      const availableIndexes = Array.from(
+        { length: cols * rows },
+        (_, i) => i
+      ).filter((i) => !bfIndexUsed.includes(i));
+
+      if (availableIndexes.length === 0) return null;
+
+      const randomIndex =
+        availableIndexes[Math.floor(Math.random() * availableIndexes.length)];
+      this.galioIndex = randomIndex;
+      return Team.bfCells[randomIndex]?.center;
+    };
+
     Team.benchSlot[emptyIndex] = 1;
     // Mua tướng bình thường
+
+    // console.log(Team.bfCells);
     Team.championManager.addChampion(
       {
         position: isGalio
-          ? [0, 0, 0]
+          ? getGalioPos()
           : existedChampSameName.length === 2
           ? [0, 0, 0]
           : [Team.xMes[emptyIndex], 0, Team.zMe],
         data: champData,
       },
       (dragHelper) => {
-        dragHelper.benchIndex = emptyIndex;
-        dragHelper.bfIndex = -1;
-        Team.benchSlot[emptyIndex] = 1;
+        dragHelper.benchIndex = isGalio ? -1 : emptyIndex;
+        dragHelper.bfIndex = isGalio ? this.galioIndex : -1;
+        Team.benchSlot[emptyIndex] = isGalio ? null : 1;
         ChampionManager.draggableObjects.push(dragHelper);
         Team.sendMessageChangeLineupToEnemy(ChampionManager.getMyTeam());
         Team.addingFlag = false;

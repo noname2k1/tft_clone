@@ -9,6 +9,7 @@ import {
   ITEMS_GOLD_COLLECTOR_ARTIFACT,
   ITEMS_INFOR,
   ITEMS_RADIANT,
+  ITEMS_ROBORANGER,
   ITEMS_SUPPORT,
   MODEL_CACHES,
   TRAITS_INFOR,
@@ -19,6 +20,7 @@ import {
   generateIconURLFromRawCommunityDragon,
   loadModel,
   preloadImage,
+  preloadImages,
 } from "../../utils/utils";
 
 document.addEventListener("DOMContentLoaded", async function () {
@@ -38,9 +40,9 @@ document.addEventListener("DOMContentLoaded", async function () {
       const excludeChamps = data?.champs?.filter(
         (c) => !c.squareIcon || !c.icon || !c.role || c.traits.length === 0
       );
-      EXCLUDE_CHAMPS.splice(0, excludeChamps.length, excludeChamps);
+      EXCLUDE_CHAMPS.splice(0, 0, excludeChamps);
       const isChamps = data?.champs
-        ?.filter((c) => c.squareIcon && c.icon && c.role && c.traits.length > 0)
+        ?.filter((c) => c.squareIcon && c.icon && c.role)
         .sort((prev, curr) => (prev.cost < curr.cost ? -1 : 1));
       CHAMPS_INFOR.splice(0, CHAMPS_INFOR.length, ...isChamps);
       const loadingAll = document.getElementById("loading-all");
@@ -64,12 +66,14 @@ document.addEventListener("DOMContentLoaded", async function () {
           const squareIcon = champ.squareIcon;
           const icon = champ.icon;
           const tileIcon = champ.tileIcon;
-          preloadImage(generateIconURLFromRawCommunityDragon(squareIcon));
-          preloadImage(generateIconURLFromRawCommunityDragon(icon));
-          preloadImage(generateIconURLFromRawCommunityDragon(tileIcon));
+          preloadImages(
+            [squareIcon, icon, tileIcon].map((url) =>
+              generateIconURLFromRawCommunityDragon(url)
+            )
+          );
           const cacheImgs = [
             ...Array.from({ length: 8 }).map(
-              (_, index) => index + 1 + "gold_frame"
+              (_, index) => index + 1 + "_gold_frame"
             ),
             "artifact-anvil",
             "component-anvil",
@@ -88,10 +92,9 @@ document.addEventListener("DOMContentLoaded", async function () {
             "cancel",
             "card",
           ];
-          cacheImgs.forEach((img) => {
-            preloadImage("/images/" + img + ".png");
-            // console.log("cache img: " + img);
-          });
+          preloadImages(
+            cacheImgs.map((imgName) => "/images/" + imgName + ".png")
+          );
           preloadImage("/bg.png");
           // console.log(url);
           loadModel(
@@ -110,7 +113,7 @@ document.addEventListener("DOMContentLoaded", async function () {
                 loadingAll.style.visibility = "hidden";
               }
             },
-            (err) => console.error("loadModel: ", err),
+            (err) => console.error("loadModel: %o at url: %s", err, url),
             null
           );
         });
@@ -208,6 +211,16 @@ document.addEventListener("DOMContentLoaded", async function () {
             0,
             ...filteredItems.filter((item) => item.tags.includes("{7ea41d13}"))
           );
+
+          if (import.meta.env.VITE_SET_KEY === "TFT_Set15") {
+            ITEMS_ROBORANGER.splice(
+              0,
+              0,
+              ...filteredItems.filter((item) =>
+                item.apiName.includes("RoboRanger")
+              )
+            );
+          }
           // normal items "{7ea41d13}"
           console.log("items loaded full");
           const ul = document.getElementById("items-list");
@@ -324,6 +337,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           });
           const champDiv = document.createElement("div");
           champDiv.className = "flex flex-col items-center mr-[1vw]";
+          champDiv.dataset.champName = champ.name;
           const champName = document.createElement("span");
           champName.className =
             "text-[1.2vw] " +

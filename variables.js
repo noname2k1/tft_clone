@@ -24,6 +24,7 @@ export const ITEMS_ARTIFACT = [];
 export const ITEMS_GOLD_COLLECTOR_ARTIFACT = [];
 export const ITEMS_EQUIPMENT = [];
 export const ITEMS_SUPPORT = [];
+export const ITEMS_ROBORANGER = [];
 export const EXCLUDE_ITEMS = [];
 export const ARGUMENTS_INFOR = [];
 export const disabledOrbitControlsIds = [
@@ -37,6 +38,7 @@ export const disabledOrbitControlsIds = [
   "items-list",
   "toast",
 ];
+export const enterBattle = false;
 export const EXP_TABLE = {
   1: 0, // turn 1, cannot up level
   2: 2, // turn 2
