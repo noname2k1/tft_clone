@@ -18,7 +18,7 @@
       <header>header</header>
       <section class="h-full flex items-center justify-center bg-black">
         <div
-          class="p-[1vw] bg-gray-700 border-transparent border duration-200 hover:border-[#c8bc93]"
+          class="p-[0.5vw] bg-gray-700 border-transparent border duration-200 hover:border-[#c8bc93]"
         >
           <div
             class="w-[18vw] h-[8vw] bg-gray-700 border-[#c8bc93] border opacity-40 flex items-center justify-center"
@@ -27,7 +27,7 @@
               class="rounded-full p-[1.5vw] border-[0.2vw] border-[#c8bc93] bg-gray-700 opacity-40 text-[3vw] font-bold hover:bg-[#493902] duration-200 hover:border-[#fffae9]"
             >
               <div
-                class="w-[0.5vw] h-[0.5vw] mt-[-0.4vh] flex items-center leading-[1vw] text-[1.75vw] justify-center text-[#c8bc93]"
+                class="w-[0.5vw] select-none h-[0.5vw] mt-[-0.4vh] flex items-center leading-[1vw] text-[1.75vw] justify-center text-[#c8bc93]"
               >
                 +
               </div>
@@ -49,7 +49,7 @@
               >LuckyBoy</span
             >
             <span
-              class="inline-block text-center text-white font-medium text-[1.25vw]"
+              class="inline-block text-center text-white font-medium text-[1vw]"
               >Crystal III 20 exp</span
             >
           </div>
@@ -73,7 +73,7 @@
           </div>
         </div>
         <div
-          class="p-[1vw] bg-gray-700 border-transparent border duration-200 hover:border-[#c8bc93]"
+          class="p-[0.5vw] bg-gray-700 border-transparent border duration-200 hover:border-[#c8bc93]"
         >
           <div
             class="w-[18vw] h-[8vw] bg-gray-700 border-[#c8bc93] border opacity-40 flex items-center justify-center"
@@ -82,7 +82,7 @@
               class="rounded-full p-[1.5vw] border-[0.2vw] border-[#c8bc93] bg-gray-700 opacity-40 text-[3vw] font-bold hover:bg-[#493902] duration-200 hover:border-[#fffae9]"
             >
               <div
-                class="w-[0.5vw] h-[0.5vw] mt-[-0.4vh] flex items-center leading-[1vw] text-[1.75vw] justify-center text-[#c8bc93]"
+                class="w-[0.5vw] select-none h-[0.5vw] mt-[-0.4vh] flex items-center leading-[1vw] text-[1.75vw] justify-center text-[#c8bc93]"
               >
                 +
               </div>
@@ -90,6 +90,8 @@
           </div>
         </div>
       </section>
+
+      <!-- footer -->
       <div class="h-[10vh] w-full flex justify-center items-center">
         <span class="h-[10vh] mr-[-2vw]">
           <img src="/images/btn-decorate.png" alt="" />
@@ -117,8 +119,94 @@
         </span>
       </div>
     </main>
+
     <aside
       class="fixed top-0 bottom-0 w-[10vw] bg-black h-screen right-0"
     ></aside>
+
+    <!-- overlay -->
+    <div
+      class="overlay invisible opacity-0 fixed inset-0 flex items-center justify-center bg-black/70 duration-150"
+    >
+      <div
+        class="rounded-full border border-[#ebbe29] w-[30vw] h-[30vw] relative flex items-center justify-center"
+      >
+        <div
+          class="wrapper rounded-full border border-[#ebbe29] w-[22vw] h-[22vw] relative flex items-center justify-center"
+        >
+          <!-- vòng ngoài -->
+          <div
+            class="relative rotate-[225deg] h-full w-full flex items-center justify-center"
+          >
+            <svg viewBox="0 0 120 120" class="rotate-[-90deg] h-full w-full">
+              <!-- track -->
+              <circle
+                class="fill-none stroke-[#444] opacity-30"
+                stroke-width="10"
+                r="54"
+                cx="60"
+                cy="60"
+              />
+              <!-- progress -->
+              <circle
+                class="bar fill-none stroke-[url(#grad)] stroke-[10] drop-shadow-[0_0_6px_#00f0ff] stroke-linecap-round"
+                r="54"
+                cx="60"
+                cy="60"
+              />
+            </svg>
+            <div
+              class="absolute text-[#00f0ff] font-semibold text-[1.75vw] rotate-[135deg] [text-shadow:_0_0_6px_#00f0ff]"
+              id="progress-text"
+            >
+              0%
+            </div>
+          </div>
+
+          <!-- gradient -->
+          <svg width="0" height="0">
+            <defs>
+              <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#00f0ff" class="stop-0" />
+                <stop offset="100%" stop-color="#00ff99" class="stop-1" />
+              </linearGradient>
+            </defs>
+          </svg>
+
+          <!-- accept battle btn -->
+          <button
+            class="absolute group bottom-[-0.5vw] w-[14vw] h-[4vw] flex items-center justify-center left-1/2 -translate-x-1/2"
+            id="accept-btn"
+          >
+            <img
+              src="/images/btn-spec.png"
+              alt="refuse-btn"
+              class="h-full w-full duration-200 group-hover:brightness-150"
+            />
+            <span
+              class="absolute text-[1.2vw] font-semibold text-white uppercase"
+              >BATTLE NOW</span
+            >
+          </button>
+        </div>
+
+        <!-- refuse btn -->
+        <button
+          class="absolute group bottom-[-0.5vw] w-[8vw] h-[2vw] flex items-center justify-center left-1/2 -translate-x-1/2"
+          id="refuse-btn"
+        >
+          <img
+            src="/images/btn-frame.png"
+            alt="refuse-btn"
+            class="h-full w-full duration-200 group-hover:brightness-150"
+          />
+          <span class="absolute text-[1.2vw] font-semibold text-white uppercase"
+            >refuse</span
+          >
+        </button>
+      </div>
+    </div>
+
+    <script type="module" src="../assets/scripts/lobby/lobby.js"></script>
   </body>
 </html>

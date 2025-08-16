@@ -13,4 +13,12 @@ export default defineConfig({
       usePolling: true,
     },
   },
+  build: {
+    rollupOptions: {
+      input: {
+        main: "index.html",
+        lobby: "lobby.html", // thêm entry mới
+      },
+    },
+  },
 });

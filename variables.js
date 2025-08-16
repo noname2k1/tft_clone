@@ -38,7 +38,10 @@ export const disabledOrbitControlsIds = [
   "items-list",
   "toast",
 ];
-export const enterBattle = false;
+export let enterBattle = false;
+export const setEnterBattle = (logic = true) => {
+  enterBattle = logic;
+};
 export const EXP_TABLE = {
   1: 0, // turn 1, cannot up level
   2: 2, // turn 2
