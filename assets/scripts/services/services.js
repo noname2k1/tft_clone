@@ -752,40 +752,45 @@ function onTooltip(
 }
 
 const statsCalculate = (champ) => {
-  if (!champ)
-    return {
-      row1: [0, 0, 0, 0, 0],
-      row2: [0, 0, 0, 0, 0],
+  try {
+    if (!champ)
+      return {
+        row1: [0, 0, 0, 0, 0],
+        row2: [0, 0, 0, 0, 0],
+      };
+    const dmgMultiplier = 1.5;
+    const hpMultiplier = 1.8;
+
+    const level = champ.userData.level;
+    const stats = champ.userData.data.stats;
+
+    // Gấp bội theo từng cấp
+    const getGrowthValue = (base, multiplier, level) => {
+      if (level <= 1) return base;
+      return base * Math.pow(multiplier, level - 1);
     };
-  const dmgMultiplier = 1.5;
-  const hpMultiplier = 1.8;
 
-  const level = champ.userData.level;
-  const stats = champ.userData.data.stats;
+    const row1 = [
+      getGrowthValue(stats.damage, dmgMultiplier, level),
+      stats.damage,
+      stats.armor,
+      stats.magicResist,
+      +stats.attackSpeed.toFixed(2),
+    ];
 
-  // Gấp bội theo từng cấp
-  const getGrowthValue = (base, multiplier, level) => {
-    if (level <= 1) return base;
-    return base * Math.pow(multiplier, level - 1);
-  };
+    const row2 = [
+      +stats.critChance.toFixed(2) * 10,
+      +stats.critMultiplier.toFixed(2) * 10,
+      0, // omnivamp
+      0, // damageAmp
+      0, // durability
+    ];
 
-  const row1 = [
-    getGrowthValue(stats.damage, dmgMultiplier, level),
-    stats.damage,
-    stats.armor,
-    stats.magicResist,
-    +stats.attackSpeed.toFixed(2),
-  ];
-
-  const row2 = [
-    +stats.critChance.toFixed(2) * 10,
-    +stats.critMultiplier.toFixed(2) * 10,
-    0, // omnivamp
-    0, // damageAmp
-    0, // durability
-  ];
-
-  return { row1, row2 };
+    return { row1, row2 };
+  } catch (error) {
+    console.log("statsCalculate error: ", error);
+    return false;
+  }
 };
 
 function getRandomItem(items) {

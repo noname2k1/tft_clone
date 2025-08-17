@@ -368,10 +368,10 @@ const costGradients = [
 ];
 
 const itemScales = {
-  "artifact-item-anvil": [2.5, 2.5, 2.5],
-  "completed-item-anvil": [2.5, 2.5, 2.5],
-  "support-item-anvil": [2.5, 2.5, 2.5],
-  "component-anvil": [2, 2, 2],
+  "artifact-item-anvil": [2.5, 3.5, 2.5],
+  "completed-item-anvil": [2.5, 3.5, 2.5],
+  "support-item-anvil": [2.5, 3.5, 2.5],
+  "component-anvil": [2, 3, 2],
 };
 
 export { champScales, costGradients, itemScales };

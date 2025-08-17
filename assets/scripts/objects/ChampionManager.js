@@ -939,42 +939,47 @@ export default class ChampionManager {
   }
 
   displayChampInfor(display, champ = null) {
-    if (champ?.userData.isItem) return;
     if (champ) console.log("displayChampInfor: ", champ);
     const champInspect = document.getElementById("champ-inspect");
-    if (champInspect) {
-      champInspect.classList.toggle("hidden", !display);
-      champInspect.replaceChildren();
-      if (!display) return;
-      // bg champs
-      const champImage = document.createElement("img");
-      champImage.className =
-        "absolute top-[2.1vw] right-[0vw] h-[7.5vw] w-[89%]";
-      champImage.src = generateIconURLFromRawCommunityDragon(
-        champ.userData.data.icon
-      );
-      champInspect.appendChild(champImage);
-      champInspect.insertAdjacentHTML(
-        "beforeend",
-        `  <img
+    try {
+      if (champInspect) {
+        champInspect.classList.toggle("hidden", !display);
+        champInspect.replaceChildren();
+        if (!display) return;
+        // bg champs
+        if (champ.userData.data.icon) {
+          const champImage = document.createElement("img");
+          champImage.className =
+            "absolute top-[2.1vw] right-[0vw] h-[7.5vw] w-[89%]";
+          champImage.src = generateIconURLFromRawCommunityDragon(
+            champ.userData.data.icon
+          );
+          champInspect.appendChild(champImage);
+        }
+        champInspect.insertAdjacentHTML(
+          "beforeend",
+          `  <img
         src="/images/champ_infor.png"
         alt="champ_infor_img"
         class="h-full object-fill"
       />`
-      );
-      // cost
-      let costGradient = costGradients.find(
-        (cg) => cg.cost === champ.userData.data.cost
-      );
-      if (!costGradient) costGradient = costGradients[0];
-      champInspect.insertAdjacentHTML(
-        "beforeend",
-        ` <div
+        );
+        // cost
+        let costGradient = costGradients.find(
+          (cg) => cg.cost === champ.userData.data.cost
+        );
+        if (!costGradient) costGradient = costGradients[0];
+        const baseCost = Number(champ.userData?.data?.cost ?? 0);
+        const level = Number(champ.userData?.level ?? 1);
+        const cost = baseCost * Math.pow(3, level - 1);
+        champInspect.insertAdjacentHTML(
+          "beforeend",
+          ` <div
         class="absolute h-[1.65vw] w-[12vw] top-[9.15vw] right-0 bg-gradient-to-r from-[${
           costGradient.from
         }] via-[${costGradient.via}] to-[${
-          costGradient.to
-        }] flex items-center justify-end px-[1vw] text-white text-[0.75vw]"
+            costGradient.to
+          }] flex items-center justify-end px-[1vw] text-white text-[0.75vw]"
       >
         <span class="mr-auto" id="champ-name">${capitalizeFirstLetter(
           champ.userData.name
@@ -984,103 +989,155 @@ export default class ChampionManager {
           class="w-[0.8vw] h-[0.8vw]"
           alt="gold_img"
         />
-        <span class="inline-block ml-[0.5vw]" id="champ-cost">${
-          champ.userData.data.cost * Math.pow(3, champ.userData.level - 1)
-        }</span>
+        <span class="inline-block ml-[0.5vw]" id="champ-cost">${cost}</span>
       </div>`
-      );
-      // hp/mp
-      champInspect.insertAdjacentHTML(
-        "beforeend",
-        `<div
-        id="hp-mp"
-        class="absolute right-0 top-[10.8vw] w-[11.8vw] flex flex-col text-white font-light text-[0.85vw]"
-      >
-        <div class="w-full h-[1.65vh] xl:h-[2.4vh] flex items-center justify-center relative">
-          <div class="bg-[#00782A] w-full absolute left-0 h-full"  style="width: ${
-            (champ.userData.currentHp / champ.userData.maxHp) * 100
-          }%"></div>
-          <span class="absolute">${champ.userData.currentHp}/${
-          champ.userData.maxHp
-        }</span>
-        </div>
-        <div class="w-full h-[1.65vh] xl:h-[2.4vh] flex justify-center items-center relative -ml-[0.005vw]">
-          <div class="bg-[#00B8FF] w-full absolute left-0 h-full"  style="width: ${
-            (champ.userData.currentMp / champ.userData.maxMp) * 100
-          }%"></div>
-          <span class="absolute">${champ.userData.currentMp}/${
+        );
+        // hp/mp
+        if (
+          champ.userData.currentHp &&
+          champ.userData.maxHp &&
+          champ.userData.currentMp &&
           champ.userData.maxMp
-        }</span>
-        </div> 
-      </div>`
-      );
-      // skill img
-      champInspect.insertAdjacentHTML(
-        "beforeend",
-        `<img
-        src="${generateIconURLFromRawCommunityDragon(
-          champ.userData.data.ability.icon
-        )}"
-        class="absolute top-[13.9vw] left-[2.45vw] w-[3vw] h-[3vw]"
-        alt=""
-        id="champ-inspect-skill"
-      />`
-      );
-      // pos
-      champInspect.insertAdjacentHTML(
-        "beforeend",
-        `<img
-        src="/images/${
+        ) {
+          champInspect.insertAdjacentHTML(
+            "beforeend",
+            `<div
+          id="hp-mp"
+          class="absolute right-0 top-[10.8vw] w-[11.8vw] flex flex-col text-white font-light text-[0.85vw]"
+        >
+          <div class="w-full h-[1.65vh] xl:h-[2.4vh] flex items-center justify-center relative">
+            <div class="bg-[#00782A] w-full absolute left-0 h-full"  style="width: ${
+              (champ.userData.currentHp / champ.userData.maxHp) * 100
+            }%"></div>
+            <span class="absolute">${champ.userData.currentHp}/${
+              champ.userData.maxHp
+            }</span>
+          </div>
+          <div class="w-full h-[1.65vh] xl:h-[2.4vh] flex justify-center items-center relative -ml-[0.005vw]">
+            <div class="bg-[#00B8FF] w-full absolute left-0 h-full"  style="width: ${
+              (champ.userData.currentMp / champ.userData.maxMp) * 100
+            }%"></div>
+            <span class="absolute">${champ.userData.currentMp}/${
+              champ.userData.maxMp
+            }</span>
+          </div> 
+        </div>`
+          );
+        }
+
+        // skill img
+        if (champ.userData.data.ability?.icon) {
+          champInspect.insertAdjacentHTML(
+            "beforeend",
+            `<img
+          src="${generateIconURLFromRawCommunityDragon(
+            champ.userData.data.ability.icon
+          )}"
+          class="absolute top-[13.9vw] left-[2.45vw] w-[3vw] h-[3vw]"
+          alt=""
+          id="champ-inspect-skill"
+        />`
+          );
+          onTooltip(
+            document.getElementById("champ-inspect-skill"),
+            (tooltip) => {
+              tooltip.style.maxWidth = "unset";
+              // console.log(card.data);
+              const ability = champ.userData.data.ability;
+              // console.log(ability);
+              const newDesc = injectVariables(
+                ability.desc,
+                ability.variables,
+                champ.userData.data.stats,
+                1
+              );
+              // console.log(newDesc);
+              const cardImgHtml = `<div class="flex">
+            <img
+              src="${generateIconURLFromRawCommunityDragon(ability?.icon)}"
+              class="w-[5vw] h-[5vw]"
+              alt="${champ.userData.data.name}-skill"
+            />
+            <div class="flex flex-col pl-[0.5vw] ">
+              <h2 class="font-semibold text-[1.2vw]">${ability.name}</h2>
+              <p class="font-medium text-[0.875vw] max-w-[20vw] break-words whitespace-pre-wrap">${newDesc}</p>
+            </div>
+          </div>`;
+              tooltip.insertAdjacentHTML("beforeend", cardImgHtml);
+              document.addEventListener("keydown", (e) => {
+                if (["d", "đ"].includes(e.key.toLowerCase())) {
+                  tooltip.replaceChildren();
+                }
+              });
+            },
+            "top,left"
+          );
+        }
+        // pos
+        if (champ.userData.data?.stats?.range) {
+          champInspect.insertAdjacentHTML(
+            "beforeend",
+            `<img
+          src="/images/${
+            champ.userData.data.stats.range > 1 ? "back" : "front"
+          }.png"
+          class="absolute top-[14vw] left-[6vw] h-[2vw] w-[2.8vw]"
+          alt=""
+          id="champ-position"
+        /> <span class="absolute top-[15.5vw] left-[6.3vw] text-white text-[1vw] capitalize">${
           champ.userData.data.stats.range > 1 ? "back" : "front"
-        }.png"
-        class="absolute top-[14vw] left-[6vw] h-[2vw] w-[2.8vw]"
-        alt=""
-        id="champ-position"
-      /> <span class="absolute top-[15.5vw] left-[6.3vw] text-white text-[1vw] capitalize">${
-        champ.userData.data.stats.range > 1 ? "back" : "front"
-      }</span> <span class="absolute top-[15.5vw] left-[10vw] text-white text-[0.8vw] capitalize">${
-          champ.userData.data.stats.range
-        } Hex</span>`
-      );
-      // roles
-      champInspect.insertAdjacentHTML(
-        "beforeend",
-        `<div class="top-[22.6vw] w-[10.1vw] h-[1.7vw] left-[2.5vw] absolute flex items-center justify-center text-white"><img class="w-[1vw] h-[1vw] mr-auto ml-[0.45vw]" src="/images/roles/${champ.userData.data.role.replace(
-          "HighMana",
-          ""
-        )}.png"/><span class="text-[0.8vw] ml-[1vw] mr-auto text-nowrap">${
-          champ.userData.data.role
-            .slice(0, 2)
-            .replace("AP", "Magic ")
-            .replace("AD", "Physical ") +
-          champ.userData.data.role.slice(2).replace("HighMana", "")
-        }</span></div>`
-      );
-      // stats
-      const { row1, row2 } = statsCalculate(champ);
-      const statsHtml = `<div
-        id="stats-row-0"
-        class="absolute flex bottom-[8vw] left-[2.9vw] min-w-[9.5vw] items-center text-white text-[0.7vw]"
-      >
-      ${row1.reduce(
-        (prevValue, currValue, currIndex, arr) =>
-          prevValue + `<span class="mr-[1.3vw]">${currValue}</span>`,
-        ""
-      )}
-      </div><div
-        id="stats-row-1"
-        class="absolute flex bottom-[5vw] left-[2.8vw] min-w-[9.5vw] items-center text-white text-[0.7vw]"
-      >${row2.reduce(
-        (prevValue, currValue, currIndex, arr) =>
-          prevValue +
-          `<span class="${
-            currValue.toString().length >= 2 ? "mr-[0.78vw]" : "mr-[1.8vw]"
-          }">${currValue + `${currValue != 0 ? "%" : ""}`}</span>`,
-        ""
-      )}</div>`;
-      champInspect.insertAdjacentHTML("beforeend", statsHtml);
-      // button buy champion
-      const buyChampionBtnHtml = `<button
+        }</span> <span class="absolute top-[15.5vw] left-[10vw] text-white text-[0.8vw] capitalize">${
+              champ.userData.data.stats.range
+            } Hex</span>`
+          );
+        }
+        // roles
+        if (champ.userData.data.role) {
+          champInspect.insertAdjacentHTML(
+            "beforeend",
+            `<div class="top-[22.6vw] w-[10.1vw] h-[1.7vw] left-[2.5vw] absolute flex items-center justify-center text-white"><img class="w-[1vw] h-[1vw] mr-auto ml-[0.45vw]" src="/images/roles/${champ.userData.data.role.replace(
+              "HighMana",
+              ""
+            )}.png"/><span class="text-[0.8vw] ml-[1vw] mr-auto text-nowrap">${
+              champ.userData.data.role
+                .slice(0, 2)
+                .replace("AP", "Magic ")
+                .replace("AD", "Physical ") +
+              champ.userData.data.role.slice(2).replace("HighMana", "")
+            }</span></div>`
+          );
+        }
+
+        // stats
+        const result = statsCalculate(champ);
+        if (result) {
+          const { row1, row2 } = result;
+          if (row1 && row2) {
+            const statsHtml = `<div
+           id="stats-row-0"
+           class="absolute flex bottom-[8vw] left-[2.9vw] min-w-[9.5vw] items-center text-white text-[0.7vw]"
+         >
+         ${row1.reduce(
+           (prevValue, currValue, currIndex, arr) =>
+             prevValue + `<span class="mr-[1.3vw]">${currValue}</span>`,
+           ""
+         )}
+         </div><div
+           id="stats-row-1"
+           class="absolute flex bottom-[5vw] left-[2.8vw] min-w-[9.5vw] items-center text-white text-[0.7vw]"
+         >${row2.reduce(
+           (prevValue, currValue, currIndex, arr) =>
+             prevValue +
+             `<span class="${
+               currValue.toString().length >= 2 ? "mr-[0.78vw]" : "mr-[1.8vw]"
+             }">${currValue + `${currValue != 0 ? "%" : ""}`}</span>`,
+           ""
+         )}</div>`;
+            champInspect.insertAdjacentHTML("beforeend", statsHtml);
+          }
+        }
+        // button buy champion
+        const buyChampionBtnHtml = `<button
         class="absolute bottom-[2.15vw] flex items-center justify-center left-[3.3vw] cursor-pointer hover:brightness-150 duration-150 w-[8.5vw] h-[2vw]"
         id="buy-champion-btn"
       >
@@ -1091,18 +1148,19 @@ export default class ChampionManager {
         />
         <div class="absolute text-[0.75vw] mt-[-0.25vw] text-white w-[60%] flex items-center justify-between">
           <span class="">Buy</span>
-          <span>${
-            champ.userData.data.cost * Math.pow(3, champ.userData.level - 1)
-          }</span>
+          <span>${cost}</span>
         </div>
       </button>`;
-      champInspect.insertAdjacentHTML("beforeend", buyChampionBtnHtml);
-      const buyChampionBtn = document.getElementById("buy-champion-btn");
-      buyChampionBtn.addEventListener("click", (e) => {
-        ChampionManager.removeChampFromScene(this.scene, champ);
-        Team.buyChampion(this.scene, champ);
-        champInspect.classList.add("hidden");
-      });
+        champInspect.insertAdjacentHTML("beforeend", buyChampionBtnHtml);
+        const buyChampionBtn = document.getElementById("buy-champion-btn");
+        buyChampionBtn.addEventListener("click", (e) => {
+          ChampionManager.removeChampFromScene(this.scene, champ);
+          Team.buyChampion(this.scene, champ);
+          champInspect.classList.add("hidden");
+        });
+      }
+    } catch (error) {
+      console.error("displayChampInfor erorr: ", error);
     }
   }
 

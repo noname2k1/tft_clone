@@ -1,7 +1,7 @@
 import { EXP_TABLE, fee } from "~/variables.js";
 
 let myExp = 0;
-let myGold = 999;
+let myGold = 0;
 let state = 2;
 let lockShop = false;
 

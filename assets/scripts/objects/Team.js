@@ -14,9 +14,12 @@ import {
   MODEL_CACHES,
   CHAMPS_INFOR,
   disabledOrbitControlsIds,
+  EXCLUDE_CHAMPS,
 } from "~/variables";
 import {
   addHelper,
+  createDebugGuiFolder,
+  createSpriteObject,
   generateIconURLFromRawCommunityDragon,
   getNormalizedPointer,
   lightAuto,
@@ -36,7 +39,7 @@ import {
   onTooltip,
 } from "../services/services";
 import ChampionManager from "./ChampionManager";
-import { addGold } from "../others/goldExp";
+import { addGold, getMyGold } from "../others/goldExp";
 import Model from "./Model";
 import Battle from "./Battle";
 import { customFetch } from "../utils/callApi";
@@ -57,6 +60,7 @@ export default class Team {
   static benchSlot = Array.from({ length: Team.benchCount }).map((_) => null);
   static bfCells;
   static galioIndex = 0;
+  static maxGoldChess = 5;
 
   constructor(
     scene,
@@ -716,6 +720,11 @@ export default class Team {
         champInfor.name === champName ||
         (isGalio && champInfor.name === "The Mighty Mech")
     );
+    if (!champData) {
+      champData = EXCLUDE_CHAMPS.find(
+        (champInfor) => champInfor.name === champName
+      );
+    }
     if (!champData && !["item", "champ"].includes(type)) return;
 
     // Tìm vị trí trống trong bench
@@ -745,10 +754,16 @@ export default class Team {
       return false;
     }
 
+    if (!champData?.name) {
+      champData = {
+        ...champData,
+        name: champName,
+      };
+    }
     if (type === "item") {
       champData = {
-        name: champName,
-        type,
+        ...champData,
+        type: "item",
       };
     }
 
@@ -842,6 +857,21 @@ export default class Team {
     this.tacticianTarget = target;
   }
 
+  static getGoldChessGroup(scene) {
+    let group = scene.getObjectByName("gold-chess-container");
+    if (!group) {
+      group = new THREE.Group();
+      group.name = "gold-chess-container";
+      scene.add(group);
+    }
+    return group;
+  }
+
+  static countGoldChess(scene) {
+    const group = Team.getGoldChessGroup(scene);
+    return group.children.length;
+  }
+
   updateAll(frameRate) {
     // Equipment drag & drop
     const equipmentBar = document.getElementById("equipment-bar");
@@ -868,6 +898,8 @@ export default class Team {
       }
     }
 
+    Team.addGoldChess(this.scene);
+
     if (this.rightClickEffect) this.rightClickEffect.update();
   }
 
@@ -879,11 +911,14 @@ export default class Team {
 
   static buyChampion = (scene, champ) => {
     ChampionManager.removeChampFromScene(scene, champ);
+    const baseCost = Number(champ.userData?.data?.cost ?? 0);
+    const level = Number(champ.userData?.level ?? 1);
+    const cost = baseCost * Math.pow(3, level - 1);
     if (champ.userData.isItem) {
       console.log("use " + champ.userData.name);
-      return;
     }
-    addGold(champ.userData.data.cost * Math.pow(3, champ.userData.level - 1));
+    if (cost <= 0) return;
+    addGold(cost);
   };
 
   static addItem(item) {
@@ -927,5 +962,33 @@ export default class Team {
       "top,right"
     );
     equipbarWrapper.appendChild(equiItem);
+  }
+
+  static addGoldChess(scene) {
+    const x = -16.2;
+    const zEs = [-8, -5, -2, 1, 4].reverse(); // tối đa 5 vị trí
+    const group = Team.getGoldChessGroup(scene);
+
+    const targetCount = Math.min(5, Math.floor(getMyGold() / 10));
+
+    // Xóa bớt nếu đang dư
+    while (group.children.length > targetCount) {
+      const obj = group.children.pop();
+      obj.removeFromParent();
+      if (obj.material) obj.material.dispose?.();
+      if (obj.geometry) obj.geometry.dispose?.();
+    }
+
+    // Thêm thiếu (chú ý async callback)
+    const need = Math.min(zEs.length, targetCount - group.children.length);
+    for (let i = 0; i < need; i++) {
+      createSpriteObject("/images/chess.png", (sprite) => {
+        const idx = group.children.length; // vị trí trống tiếp theo
+        sprite.position.set(x, 0, zEs[idx] ?? 0);
+        sprite.scale.set(3, 3, 3);
+        sprite.name = "gold chess";
+        group.add(sprite);
+      });
+    }
   }
 }

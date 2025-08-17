@@ -40,7 +40,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       const excludeChamps = data?.champs?.filter(
         (c) => !c.squareIcon || !c.icon || !c.role || c.traits.length === 0
       );
-      EXCLUDE_CHAMPS.splice(0, 0, excludeChamps);
+      EXCLUDE_CHAMPS.splice(0, 0, ...excludeChamps);
       const isChamps = data?.champs
         ?.filter((c) => c.squareIcon && c.icon && c.role)
         .sort((prev, curr) => (prev.cost < curr.cost ? -1 : 1));
@@ -122,138 +122,130 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
     });
   }
-  let intervalId = null;
-  intervalId = setInterval(async () => {
-    if (CHAMPS_INFOR.length > 0) {
-      clearInterval(intervalId);
-      if (TRAITS_INFOR.length < 1) {
-        await customFetch("traits", (data) => {
-          // console.log(data);
-          TRAITS_INFOR.splice(0, TRAITS_INFOR.length, ...data.traits);
-        });
-        TRAITS_INFOR.forEach((trait) => {
-          preloadImage(generateIconURLFromRawCommunityDragon(trait.icon));
-        });
-        console.log("traits loaded full");
+
+  if (TRAITS_INFOR.length < 1) {
+    await customFetch("traits", (data) => {
+      // console.log(data);
+      TRAITS_INFOR.splice(0, TRAITS_INFOR.length, ...data.traits);
+    });
+    TRAITS_INFOR.forEach((trait) => {
+      preloadImage(generateIconURLFromRawCommunityDragon(trait.icon));
+    });
+    console.log("traits loaded full");
+  }
+  if (ITEMS_INFOR.length < 1) {
+    await customFetch("items", (data) => {
+      // console.log(data);
+      const excludeItems = data?.items;
+      EXCLUDE_ITEMS.splice(0, 0, excludeItems);
+      const filteredItems = data?.items?.filter(
+        (item, index, self) =>
+          item?.tags.length > 0 &&
+          !item.name.includes("tft") &&
+          index === self.findIndex((o) => o.name === item.name)
+      );
+      ITEMS_EMBLEM.splice(
+        0,
+        0,
+        ...filteredItems.filter(
+          (item) =>
+            item.tags.includes("{ebcd1bac}") && item.name.includes("Emblem")
+        )
+      );
+      // .sort((prev, curr) => (prev.cost < curr.cost ? -1 : 1));
+      ITEMS_INFOR.splice(0, 0, ...filteredItems);
+      filteredItems.forEach((item) => {
+        preloadImage(generateIconURLFromRawCommunityDragon(item.icon));
+      });
+      ITEMS_COMPONENT.splice(
+        0,
+        0,
+        ...filteredItems.filter((item) => item.tags.includes("component"))
+      );
+      ITEMS_RADIANT.splice(
+        0,
+        0,
+        ...filteredItems.filter(
+          (item) =>
+            item.name.includes("Radiant") && !item.tags.includes("Consumable")
+        )
+      );
+      ITEMS_SUPPORT.splice(
+        0,
+        0,
+        ...filteredItems.filter(
+          (item) =>
+            item.tags.includes("{27557a09}") &&
+            !item.icon.includes("HR.TFT_Set13.tex")
+        )
+      );
+
+      ITEMS_ARTIFACT.splice(
+        0,
+        0,
+        ...filteredItems.filter(
+          (item) =>
+            item.tags.includes("{44ace175}") &&
+            item.tags.includes("{ec243f6b}") &&
+            !item.desc.includes("gold")
+        )
+      );
+
+      ITEMS_GOLD_COLLECTOR_ARTIFACT.splice(
+        0,
+        0,
+        ...filteredItems.filter(
+          (item) =>
+            item.tags.includes("{44ace175}") &&
+            item.tags.includes("{ec243f6b}") &&
+            item.desc.includes("gold")
+        )
+      );
+
+      ITEMS_EQUIPMENT.splice(
+        0,
+        0,
+        ...filteredItems.filter((item) => item.tags.includes("{7ea41d13}"))
+      );
+
+      if (import.meta.env.VITE_SET_KEY === "TFT_Set15") {
+        ITEMS_ROBORANGER.splice(
+          0,
+          0,
+          ...filteredItems.filter((item) => item.apiName.includes("RoboRanger"))
+        );
       }
-      if (ITEMS_INFOR.length < 1) {
-        await customFetch("items", (data) => {
-          // console.log(data);
-          const excludeItems = data?.items;
-          EXCLUDE_ITEMS.splice(0, 0, excludeItems);
-          const filteredItems = data?.items?.filter(
-            (item, index, self) =>
-              item?.tags.length > 0 &&
-              !item.name.includes("tft") &&
-              index === self.findIndex((o) => o.name === item.name)
-          );
-          ITEMS_EMBLEM.splice(
-            0,
-            0,
-            ...filteredItems.filter(
-              (item) =>
-                item.tags.includes("{ebcd1bac}") && item.name.includes("Emblem")
-            )
-          );
-          // .sort((prev, curr) => (prev.cost < curr.cost ? -1 : 1));
-          ITEMS_INFOR.splice(0, 0, ...filteredItems);
-          filteredItems.forEach((item) => {
-            preloadImage(generateIconURLFromRawCommunityDragon(item.icon));
-          });
-          ITEMS_COMPONENT.splice(
-            0,
-            0,
-            ...filteredItems.filter((item) => item.tags.includes("component"))
-          );
-          ITEMS_RADIANT.splice(
-            0,
-            0,
-            ...filteredItems.filter(
-              (item) =>
-                item.name.includes("Radiant") &&
-                !item.tags.includes("Consumable")
-            )
-          );
-          ITEMS_SUPPORT.splice(
-            0,
-            0,
-            ...filteredItems.filter(
-              (item) =>
-                item.tags.includes("{27557a09}") &&
-                !item.icon.includes("HR.TFT_Set13.tex")
-            )
-          );
-
-          ITEMS_ARTIFACT.splice(
-            0,
-            0,
-            ...filteredItems.filter(
-              (item) =>
-                item.tags.includes("{44ace175}") &&
-                item.tags.includes("{ec243f6b}") &&
-                !item.desc.includes("gold")
-            )
-          );
-
-          ITEMS_GOLD_COLLECTOR_ARTIFACT.splice(
-            0,
-            0,
-            ...filteredItems.filter(
-              (item) =>
-                item.tags.includes("{44ace175}") &&
-                item.tags.includes("{ec243f6b}") &&
-                item.desc.includes("gold")
-            )
-          );
-
-          ITEMS_EQUIPMENT.splice(
-            0,
-            0,
-            ...filteredItems.filter((item) => item.tags.includes("{7ea41d13}"))
-          );
-
-          if (import.meta.env.VITE_SET_KEY === "TFT_Set15") {
-            ITEMS_ROBORANGER.splice(
-              0,
-              0,
-              ...filteredItems.filter((item) =>
-                item.apiName.includes("RoboRanger")
-              )
-            );
-          }
-          // normal items "{7ea41d13}"
-          console.log("items loaded full");
-          const ul = document.getElementById("items-list");
-          ITEMS_INFOR.forEach((item) => {
-            const li = document.createElement("li");
-            li.className =
-              "hover:text-white cursor-pointer text-center p-1 hover:bg-black/50 flex items-center justify-between";
-            const img = document.createElement("img");
-            img.className = "w-[10vw] h-[10vw]";
-            img.src = generateIconURLFromRawCommunityDragon(item.icon);
-            img.alt = item.name;
-            li.appendChild(img);
-            const span = document.createElement("span");
-            span.textContent = item.name;
-            span.className = "ml-[2vw] mr-auto";
-            li.appendChild(span);
-            li.addEventListener("click", (e) => {
-              console.log(item);
-            });
-            ul.appendChild(li);
-          });
-          document.body.appendChild(ul);
-          window.addEventListener("keyup", (e) => {
-            if (e.key.toLowerCase() === "i") {
-              // console.log("press i to open items list");
-              // console.log(ul);
-              ul.classList.toggle("hidden");
-            }
-          });
+      // normal items "{7ea41d13}"
+      console.log("items loaded full");
+      const ul = document.getElementById("items-list");
+      ITEMS_INFOR.forEach((item) => {
+        const li = document.createElement("li");
+        li.className =
+          "hover:text-white cursor-pointer text-center p-1 hover:bg-black/50 flex items-center justify-between";
+        const img = document.createElement("img");
+        img.className = "w-[10vw] h-[10vw]";
+        img.src = generateIconURLFromRawCommunityDragon(item.icon);
+        img.alt = item.name;
+        li.appendChild(img);
+        const span = document.createElement("span");
+        span.textContent = item.name;
+        span.className = "ml-[2vw] mr-auto";
+        li.appendChild(span);
+        li.addEventListener("click", (e) => {
+          console.log(item);
         });
-      }
-    }
-  }, 200);
+        ul.appendChild(li);
+      });
+      document.body.appendChild(ul);
+      window.addEventListener("keyup", (e) => {
+        if (e.key.toLowerCase() === "i") {
+          // console.log("press i to open items list");
+          // console.log(ul);
+          ul.classList.toggle("hidden");
+        }
+      });
+    });
+  }
 
   const customEvent = new CustomEvent("updateAllEnemyLinup");
   const renderChamps = (fConditions = {}) => {
