@@ -1,4 +1,11 @@
-import { enterBattle, setEnterBattle } from "~/variables";
+import { disabledLobbyScreen } from "~/variables";
+
+const lobbyScreen = document.getElementById("lobby-screen");
+const sidebarOutBattle = document.getElementById("side-bar-out-battle");
+if (disabledLobbyScreen) {
+  lobbyScreen.classList.add("hidden");
+  sidebarOutBattle.classList.add("hidden");
+}
 
 const findBattleBtn = document.getElementById("find-battle-btn");
 const acceptBtn = document.getElementById("accept-btn");
@@ -9,6 +16,7 @@ const stop0 = document.querySelector(".stop-0");
 const stop1 = document.querySelector(".stop-1");
 const ring = document.querySelector(".bar");
 const text = document.getElementById("progress-text");
+const matchedBattleSpan = document.getElementById("matched-battle-span");
 
 const r = 54;
 const C = 2 * Math.PI * r; // chu vi
@@ -24,7 +32,6 @@ const resetState = () => {
   wrapper.classList.remove("brightness-[0.3]");
   stop0.setAttribute("stop-color", "#00f0ff");
   stop1.setAttribute("stop-color", "#00ff99");
-  text.textContent = "";
 };
 
 const disabledEffect = () => {
@@ -33,16 +40,18 @@ const disabledEffect = () => {
   wrapper.classList.add("brightness-[0.3]");
   stop0.setAttribute("stop-color", "#555555"); // xám đậm
   stop1.setAttribute("stop-color", "#aaaaaa"); // xám nhạt
-
   timeOutParent = setTimeout(() => {
     overlay.classList.add("opacity-0", "invisible");
     timeoutChild = setTimeout(() => {
       resetState();
+      text.textContent = "";
+      matchedBattleSpan.classList.add("invisible");
     }, 200);
-  }, 500);
+  }, 1000);
 };
 
 const matchBattle = () => {
+  matchedBattleSpan.classList.remove("invisible");
   const duration = 10000; // ms
   isMatching = true; // bật trạng thái tìm trận
 
@@ -91,6 +100,6 @@ refuseBtn.addEventListener("click", () => {
 
 acceptBtn.addEventListener("click", () => {
   disabledEffect();
-  setEnterBattle();
-  window.location.href = "/";
+  lobbyScreen.classList.add("hidden");
+  sidebarOutBattle.classList.add("hidden");
 });

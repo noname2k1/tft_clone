@@ -1,6 +1,5 @@
 import {
   CHAMPS_INFOR,
-  enterBattle,
   EXCLUDE_CHAMPS,
   EXCLUDE_ITEMS,
   ITEMS_ARTIFACT,
@@ -112,9 +111,6 @@ document.addEventListener("DOMContentLoaded", async function () {
               if (loadedModelCount === CHAMPS_INFOR.length) {
                 console.log("champion full loaded");
                 loadingAll.style.visibility = "hidden";
-                if (!enterBattle) {
-                  window.location.href = "/lobby.html";
-                }
               }
             },
             (err) => console.error("loadModel: %o at url: %s", err, url),

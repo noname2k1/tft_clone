@@ -37,11 +37,11 @@ export const disabledOrbitControlsIds = [
   "enemy-define",
   "items-list",
   "toast",
+  "lobby-screen",
+  "matched-battle",
+  "side-bar-out-battle",
 ];
-export let enterBattle = false;
-export const setEnterBattle = (logic = true) => {
-  enterBattle = logic;
-};
+export const disabledLobbyScreen = true;
 export const EXP_TABLE = {
   1: 0, // turn 1, cannot up level
   2: 2, // turn 2
