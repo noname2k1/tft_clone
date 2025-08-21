@@ -915,7 +915,7 @@ export default class Team {
     const level = Number(champ.userData?.level ?? 1);
     const cost = baseCost * Math.pow(3, level - 1);
     if (champ.userData.isItem) {
-      console.log("use " + champ.userData.name);
+      document.querySelector(".item-bought").textContent = champ.userData.name;
     }
     if (cost <= 0) return;
     addGold(cost);
@@ -924,10 +924,19 @@ export default class Team {
   static addItem(item) {
     if (!item) return;
     console.log(item);
+    const maxEquipPerCol = 10;
+    const traitListElement = document.getElementById("trait-list");
+    const imgLeftBar = document.getElementById("left-bar-img");
     const equipbarWrapper = document.getElementById("equipment-bar");
+    const equipbarWrapper2 = document.getElementById("equipment-bar-2");
+    if (!equipbarWrapper || !equipbarWrapper2) return;
+    if (equipbarWrapper2.children.length >= maxEquipPerCol) {
+      addToast("equip bar full!");
+      return;
+    }
     const equiItem = document.createElement("img");
     equiItem.className =
-      "w-[2vw] cursor-pointer h-[2vw] mb-[0.98vw] border-yellow-500 border";
+      "w-[2.3vw] cursor-pointer h-[2.3vw] mb-[0.7vw] border-yellow-500 border";
     equiItem.src = generateIconURLFromRawCommunityDragon(item.icon);
     equiItem.alt = "equip " + item.name;
     equiItem.data = item;
@@ -961,24 +970,35 @@ export default class Team {
       },
       "top,right"
     );
-    equipbarWrapper.appendChild(equiItem);
+    if (equipbarWrapper.children.length >= maxEquipPerCol) {
+      equipbarWrapper2.appendChild(equiItem);
+      imgLeftBar.src = "/images/left-bar-2.png";
+      imgLeftBar.classList.replace("w-[5vw]", "w-[8vw]");
+      traitListElement.classList.replace("left-[3.5vw]", "left-[6.5vw]");
+    } else {
+      equipbarWrapper.appendChild(equiItem);
+      if (imgLeftBar.src === "/images/left-bar-2.png") {
+        imgLeftBar.src = "/images/left-bar.png";
+        imgLeftBar.classList.replace("w-[8vw]", "w-[5vw]");
+        traitListElement.classList.replace("left-[6.5vw]", "left-[3.5vw]");
+      }
+    }
   }
 
   static addGoldChess(scene) {
     const x = -16.2;
     const zEs = [-8, -5, -2, 1, 4].reverse(); // tối đa 5 vị trí
     const group = Team.getGoldChessGroup(scene);
-
     const targetCount = Math.min(5, Math.floor(getMyGold() / 10));
-
     // Xóa bớt nếu đang dư
     while (group.children.length > targetCount) {
       const obj = group.children.pop();
-      obj.removeFromParent();
-      if (obj.material) obj.material.dispose?.();
-      if (obj.geometry) obj.geometry.dispose?.();
+      if (obj) {
+        obj.removeFromParent();
+        if (obj.material) obj.material.dispose?.();
+        if (obj.geometry) obj.geometry.dispose?.();
+      }
     }
-
     // Thêm thiếu (chú ý async callback)
     const need = Math.min(zEs.length, targetCount - group.children.length);
     for (let i = 0; i < need; i++) {

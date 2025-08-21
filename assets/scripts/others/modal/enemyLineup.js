@@ -30,6 +30,10 @@ document.addEventListener("DOMContentLoaded", async function () {
   const traitsSelect = lineupSetup.querySelector(".filter-by-trait");
   const costSelect = lineupSetup.querySelector(".filter-by-cost");
   const champs = lineupSetup.querySelector(".champs");
+
+  const loadingAssetsProgress = document.getElementById(
+    "loading-assets-progress"
+  );
   let hexSelected = null;
   // firstLoadData
   if (CHAMPS_INFOR.length < 1) {
@@ -49,9 +53,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       const cacheModel = import.meta.env.VITE_CACHE_MODEL;
       let loadedModelCount = 0;
       let loadingAllPercent = 0;
-      const loadingAssetsProgress = document.getElementById(
-        "loading-assets-progress"
-      );
+
       if (cacheModel === "true") {
         CHAMPS_INFOR.forEach((champ) => {
           const setFolder = "Set15";
@@ -107,7 +109,7 @@ document.addEventListener("DOMContentLoaded", async function () {
               // console.log(loadedModelCount);
               loadingAllPercent =
                 (loadedModelCount / CHAMPS_INFOR.length) * 100;
-              loadingAssetsProgress.style.width = loadingAllPercent + "%";
+              loadingAssetsProgress.style.width = 50 + loadingAllPercent + "%";
               if (loadedModelCount === CHAMPS_INFOR.length) {
                 console.log("champion full loaded");
                 loadingAll.style.visibility = "hidden";
@@ -132,6 +134,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       preloadImage(generateIconURLFromRawCommunityDragon(trait.icon));
     });
     console.log("traits loaded full");
+    loadingAssetsProgress.style.width = "30%";
   }
   if (ITEMS_INFOR.length < 1) {
     await customFetch("items", (data) => {
@@ -160,7 +163,11 @@ document.addEventListener("DOMContentLoaded", async function () {
       ITEMS_COMPONENT.splice(
         0,
         0,
-        ...filteredItems.filter((item) => item.tags.includes("component"))
+        ...filteredItems.filter(
+          (item) =>
+            item.tags.includes("component") &&
+            !["Frying Pan", "Spatula"].includes(item.name)
+        )
       );
       ITEMS_RADIANT.splice(
         0,
@@ -217,6 +224,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
       // normal items "{7ea41d13}"
       console.log("items loaded full");
+      loadingAssetsProgress.style.width = "50%";
       const ul = document.getElementById("items-list");
       ITEMS_INFOR.forEach((item) => {
         const li = document.createElement("li");

@@ -144,12 +144,17 @@
         src="/images/left-bar.png"
         alt="left-bar"
         draggable="false"
-        class="w-[5vw]"
+        class="w-[5vw] h-[34.5vw]"
+        id="left-bar-img"
       />
       <!-- equipment list -->
       <div
         class="flex flex-col absolute top-[2.5vw] left-[0.6vw]"
         id="equipment-bar"
+      ></div>
+      <div
+        class="flex flex-col absolute top-[2.5vw] left-[3.5vw]"
+        id="equipment-bar-2"
       ></div>
       <!-- trait list -->
       <div
@@ -513,7 +518,7 @@
       id="side-bar-out-battle"
     ></aside>
 
-    <!-- overlay -->
+    <!-- overlay lobby screen-->
     <div
       class="overlay invisible opacity-0 fixed inset-0 flex items-center justify-center bg-black/70 duration-150"
       id="matched-battle"
@@ -601,6 +606,8 @@
         </button>
       </div>
     </div>
+
+    <span class="item-bought hidden"></span>
 
     <script type="module" src="./assets/scripts/lobby/lobby.js"></script>
     <!-- scripts -->

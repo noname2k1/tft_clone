@@ -5,7 +5,18 @@ import {
   handleBuyExp,
   handleReroll,
 } from "~/assets/scripts/others/goldExp.js";
-import { EXP_TABLE, fee, TRAITS_INFOR } from "~/variables";
+import {
+  EXP_TABLE,
+  fee,
+  ITEMS_ARTIFACT,
+  ITEMS_COMPONENT,
+  ITEMS_EMBLEM,
+  ITEMS_EQUIPMENT,
+  ITEMS_GOLD_COLLECTOR_ARTIFACT,
+  ITEMS_RADIANT,
+  ITEMS_SUPPORT,
+  TRAITS_INFOR,
+} from "~/variables";
 import {
   capitalizeFirstLetter,
   generateIconURLFromRawCommunityDragon,
@@ -17,6 +28,7 @@ import {
   onTooltip,
 } from "../services/services";
 import ChampionManager from "../objects/ChampionManager";
+import Team from "../objects/Team";
 
 const buyExpBtn = document.getElementById("buy-exp-btn");
 const rerollBtn = document.getElementById("reroll-btn");
@@ -124,7 +136,7 @@ function renderShopCards(champs, resetChampsBought = true) {
               ? `<img src="/images/mark.png" class="absolute top-0 right-0 w-[2vw] brightness-125"/>`
               : ``
           }
-          <div class="overlay-shop-champ cursor-pointer bg-black/50 absolute z-[1000] top-0 right-0 left-0 bottom-0 opacity-100 duration-200"></div>
+          <div class="overlay-shop-champ cursor-pointer bg-black/50 absolute z-[999] top-0 right-0 left-0 bottom-0 opacity-100 duration-200"></div>
         `;
           resolve(card);
         };
@@ -182,12 +194,142 @@ function renderShopCards(champs, resetChampsBought = true) {
 
 let mutationTimeout = null;
 
+// detect when mark champ change
 new ObserverElementChange(
   document.querySelector(".mark-team-slots"),
   (mutation) => {
     if (mutationTimeout) return;
     mutationTimeout = setTimeout(() => {
       renderShopCards(window.champsInRoll);
+      mutationTimeout = null;
+    }, 100);
+  }
+);
+
+// detect when buy item to open a list of item/emblemb
+new ObserverElementChange(
+  document.querySelector(".item-bought"),
+  (mutation) => {
+    if (mutationTimeout) return;
+    mutationTimeout = setTimeout(() => {
+      console.log(mutation.target.textContent);
+      let itemsCount = 0;
+      let items = [];
+      switch (mutation.target.textContent) {
+        case "Tome of Traits": {
+          itemsCount = 5;
+          items = ITEMS_EMBLEM;
+          break;
+        }
+        case "Support Item Anvil": {
+          itemsCount = 4;
+          items = ITEMS_SUPPORT;
+          break;
+        }
+        case "Component Anvil": {
+          itemsCount = 4;
+          items = ITEMS_COMPONENT;
+          break;
+        }
+        case "Completed Item Anvil": {
+          itemsCount = 5;
+          items = ITEMS_EQUIPMENT;
+          break;
+        }
+        case "Artifact Item Anvil": {
+          itemsCount = 4;
+          items = ITEMS_ARTIFACT;
+          break;
+        }
+        case "Gold Collector Artifact Item Anvil": {
+          itemsCount = 4;
+          items = ITEMS_GOLD_COLLECTOR_ARTIFACT;
+          break;
+        }
+        case "Radiant Item Anvil": {
+          itemsCount = 5;
+          items = ITEMS_RADIANT;
+          break;
+        }
+        default: {
+          console.log(mutation.target.textContent);
+        }
+      }
+      if (itemsCount && items.length > 0) {
+        const items_selectable = [];
+        const items_seleted_index = [];
+        for (let i = 0; i < itemsCount; i++) {
+          let randomIndex;
+          do {
+            randomIndex = Math.ceil(Math.random() * items.length - 1);
+          } while (items_seleted_index.includes(randomIndex));
+          items_selectable.push(items[randomIndex]);
+          items_seleted_index.push(randomIndex);
+        }
+        // console.log("items_selectable: ", items_selectable);
+        // console.log("items_seleted_index: ", items_seleted_index);
+        const itemWrapper = document.createElement("div");
+        itemWrapper.className =
+          "absolute top-0 left-0 right-0 h-full bottom-0 bg-black z-[1000] flex items-end justify-center";
+        champShopList.appendChild(itemWrapper);
+        items_selectable.forEach((item) => {
+          const itemCard = document.createElement("div");
+          itemCard.className =
+            "w-full h-[5vw] mx-[0.5vw] relative cursor-pointer bg-linear-to-t from-[#29220e] to-[#584b30] hover:brightness-120 duration-100 flex justify-center items-center";
+          const img = document.createElement("img");
+          img.className =
+            "absolute top-[-1.5vw] w-[3vw] h-[3vw] border-[0.1vw] border-[#7b602f]";
+          img.src = generateIconURLFromRawCommunityDragon(item.icon);
+          img.alt = item.name;
+          itemCard.appendChild(img);
+          const itemName = document.createElement("span");
+          itemName.className = "text-white font-semibold text-[0.8vw]";
+          itemName.textContent = item.name;
+          itemCard.appendChild(itemName);
+          itemCard.addEventListener("click", function () {
+            Team.addItem(item);
+            const timelineWrapper = document.getElementById("timeline-wrapper");
+            if (timelineWrapper) {
+              timelineWrapper.remove();
+              itemWrapper.remove();
+            }
+          });
+          itemWrapper.append(itemCard);
+        });
+        const shopContainer = document.getElementById("shop");
+        const totalWidth = 8.7;
+        const totalTime = 30;
+        let currentTime = totalTime;
+
+        const timeLineHtml = `
+  <div class="absolute bottom-[7.6vw] left-[26vw] w-[14vw]" id="timeline-wrapper">
+    <img src="/images/pick-timeline.png" alt="pick-timeline-img" class="w-full"/>
+    <span class="absolute top-[0.2vw] left-[4.5vw]">Choose One</span>
+    <div id="pick-timeline" class="h-[0.5vw] w-[${totalWidth}vw] duration-150 absolute right-[3.5vw] top-[1.759vw] rounded-[1vw] bg-[#a58238]"></div>
+    <span id="pick-time" class="absolute top-[1.6vw] text-[0.65vw] left-[11.2vw]">${totalTime}</span>
+  </div>
+`;
+        shopContainer.insertAdjacentHTML("beforeend", timeLineHtml);
+
+        const pickTimeline = document.getElementById("pick-timeline");
+        const pickTime = document.getElementById("pick-time");
+
+        const interval = setInterval(() => {
+          currentTime -= 1;
+
+          // cập nhật chiều rộng thanh thời gian
+          const newWidth = (totalWidth * currentTime) / totalTime + "vw";
+          pickTimeline.style.width = newWidth;
+
+          // cập nhật số giây hiển thị
+          pickTime.textContent = currentTime;
+
+          // hết giờ thì dừng
+          if (currentTime <= 0) {
+            clearInterval(interval);
+          }
+        }, 1000);
+      }
       mutationTimeout = null;
     }, 100);
   }
